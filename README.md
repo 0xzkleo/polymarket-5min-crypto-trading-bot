@@ -318,7 +318,7 @@ GitHub Issues: For bugs and feature requests
 Twitter: @Kator07
 
 ##Discord: Join our community
-- https://discord.gg/NdqbEGyU
+- https://discord.gg/tafKjBnPEQ
 
 ## ⭐ Show Your Support
 If you find this project useful, please star the GitHub repo! It helps others discover it.
