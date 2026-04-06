@@ -312,17 +312,5 @@ Polymarket - Prediction market platform
 
 All contributors and users of this project
 
-## Contact & Community
-GitHub Issues: For bugs and feature requests
-
-Twitter: @Kator07
-
-##Discord: Join our community
-- https://discord.gg/tafKjBnPEQ
-
 ## ⭐ Show Your Support
 If you find this project useful, please star the GitHub repo! It helps others discover it.
-
-## contact me on telegram 
- [![Telegram](https://img.shields.io/badge/Telegram-%230088cc.svg?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Bigg_O7)
-
