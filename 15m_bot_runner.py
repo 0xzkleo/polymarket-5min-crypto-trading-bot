@@ -2,15 +2,17 @@ import subprocess
 import time
 import sys
 import os
+import faulthandler
 from pathlib import Path
 from datetime import datetime
 
+faulthandler.enable()
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 def run_bot():
     """Run the bot with auto-restart using the SAME Python environment."""
-    
+
     BOT_SCRIPT = "bot.py"
     
     # CRITICAL: Use the SAME Python executable

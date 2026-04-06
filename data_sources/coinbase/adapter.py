@@ -1,6 +1,7 @@
 """
 Coinbase Data Source Adapter
-Fetches BTC price data from Coinbase Pro API
+Fetches BTC price data from Coinbase Advanced Trade public API
+(No API key required for price data)
 """
 import asyncio
 from datetime import datetime
@@ -23,7 +24,7 @@ class CoinbaseDataSource:
     
     def __init__(
         self,
-        base_url: str = "https://api.exchange.coinbase.com",
+        base_url: str = "https://api.coinbase.com",
         product_id: str = "BTC-USD",
     ):
         """
@@ -60,8 +61,8 @@ class CoinbaseDataSource:
                 }
             )
             
-            # Test connection
-            response = await self.session.get(f"/products/{self.product_id}")
+            # Test connection with Coinbase Advanced Trade public endpoint
+            response = await self.session.get("/v2/time")
             response.raise_for_status()
             
             logger.info("✓ Connected to Coinbase API")
@@ -85,18 +86,21 @@ class CoinbaseDataSource:
             Current price or None if error
         """
         try:
-            response = await self.session.get(f"/products/{self.product_id}/ticker")
+            # Coinbase Advanced Trade public spot price endpoint (no API key needed)
+            response = await self.session.get(
+                f"/v2/prices/{self.product_id}/spot"
+            )
             response.raise_for_status()
-            
+
             data = response.json()
-            price = Decimal(str(data["price"]))
-            
+            price = Decimal(str(data["data"]["amount"]))
+
             self._last_price = price
             self._last_update = datetime.now()
-            
+
             logger.debug(f"Coinbase BTC price: ${price:,.2f}")
             return price
-            
+
         except Exception as e:
             logger.error(f"Error fetching Coinbase price: {e}")
             return None

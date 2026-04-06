@@ -12,6 +12,71 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 
+async def _fetch_markets_httpx(filters: dict) -> list:
+    """
+    Fetch Gamma API markets using httpx.AsyncClient.
+    Used on Windows where nautilus_pyo3.HttpClient crashes with 0xC0000005.
+    """
+    import httpx
+    import os
+
+    base_url = os.getenv("GAMMA_API_URL", "https://gamma-api.polymarket.com").rstrip("/")
+    limit = int(filters.get("limit", 500))
+    offset = int(filters.get("offset", 0))
+
+    # Build query params - httpx handles list values as repeated params
+    params: dict = {}
+    scalar_keys = (
+        "active", "archived", "closed", "order", "ascending",
+        "liquidity_num_min", "liquidity_num_max",
+        "volume_num_min", "volume_num_max",
+        "start_date_min", "start_date_max",
+        "end_date_min", "end_date_max",
+        "tag_id", "related_tags",
+    )
+    for key in scalar_keys:
+        if key in filters and filters[key] is not None:
+            params[key] = filters[key]
+
+    # Array params: pass as repeated query params (slug=a&slug=b&...)
+    array_keys = ("id", "slug", "clob_token_ids", "condition_ids", "question_ids")
+    for key in array_keys:
+        if key in filters and filters[key] is not None:
+            value = filters[key]
+            if isinstance(value, (list, tuple)):
+                params[key] = list(value)
+            else:
+                params[key] = [value]
+
+    all_markets: list = []
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        while True:
+            page_params = dict(params)
+            page_params["limit"] = limit
+            page_params["offset"] = offset
+
+            resp = await client.get(f"{base_url}/markets", params=page_params)
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"Gamma API error {resp.status_code}: {resp.text[:500]}"
+                )
+
+            data = resp.json()
+            if isinstance(data, list):
+                page = data
+            elif isinstance(data, dict) and "data" in data:
+                page = data.get("data") or []
+            else:
+                raise RuntimeError(f"Unexpected Gamma API response schema: {str(data)[:200]}")
+
+            all_markets.extend(page)
+            if len(page) < limit:
+                break
+            offset += limit
+
+    return all_markets
+
+
 def apply_gamma_markets_patch():
     """
     Monkey-patch both gamma_markets.py and provider.py to properly handle filtering.
@@ -128,7 +193,9 @@ def apply_gamma_markets_patch():
             """
             Load all instruments using Gamma API with proper server-side filtering.
             This is the CORRECT implementation that respects time filters.
+            Uses httpx on Windows to avoid nautilus_pyo3.HttpClient ACCESS VIOLATION (0xC0000005).
             """
+            import sys
             filters = filters.copy() if filters is not None else {}
             
             # Set reasonable defaults
@@ -138,11 +205,16 @@ def apply_gamma_markets_patch():
             self._log.info(f"Requesting markets from Gamma API with filters: {filters}")
             
             try:
-                markets = await gamma_markets.list_markets(
-                    http_client=self._http_client, 
-                    filters=filters,
-                    timeout=120.0
-                )
+                # On Windows, nautilus_pyo3.HttpClient crashes with STATUS_ACCESS_VIOLATION (0xC0000005)
+                # Use httpx.AsyncClient as a safe fallback on Windows
+                if sys.platform == "win32":
+                    markets = await _fetch_markets_httpx(filters)
+                else:
+                    markets = await gamma_markets.list_markets(
+                        http_client=self._http_client,
+                        filters=filters,
+                        timeout=120.0,
+                    )
                 
                 self._log.info(f"✓ Gamma API returned {len(markets)} markets")
                 
