@@ -8,7 +8,6 @@ A production-grade algorithmic trading bot for **Polymarket’s 15-minute BTC up
 
 - [Core idea](#core-idea)
 - [Features](#features)
-- [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
@@ -41,36 +40,6 @@ Prediction markets for short-horizon BTC moves are noisy and fast. This project 
 - **Self-learning hook** — Weights can be adjusted from performance feedback (see `feedback/` and strategy configuration).
 - **Resilience** — WebSocket handling, rate limiting, validation, and patches around Polymarket + Nautilus edge cases (Gamma loading, market-order sizing).
 - **Phase tests** — Each major layer has a script you can run on its own (see below).
-
----
-
-## Architecture
-
-### Seven-phase overview
-
-```mermaid
-flowchart LR
-    subgraph Input[INPUT]
-        D[External data<br/>Coinbase, Binance, news, Solana]
-    end
-
-    subgraph Process[PROCESSING]
-        I[Ingestion<br/>Unify and validate]
-        N[Nautilus core<br/>Trading framework]
-        S[Signal processors<br/>Spike, sentiment, divergence]
-        F[Fusion engine<br/>Weighted voting]
-    end
-
-    subgraph Output[OUTPUT]
-        R[Risk management]
-        E[Execution<br/>Polymarket orders]
-        M[Monitoring<br/>Grafana]
-        L[Learning<br/>Weight optimization]
-    end
-
-    D --> I --> N --> S --> F --> R --> E --> M --> L
-    L -.-> F
-```
 
 ---
 
