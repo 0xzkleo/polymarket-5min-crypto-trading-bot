@@ -16,7 +16,7 @@ sys.path.insert(0, str(project_root))
 
 
 try:
-    from patch_gamma_markets import apply_gamma_markets_patch, verify_patch
+    from patches.patch_gamma_markets import apply_gamma_markets_patch, verify_patch
     patch_applied = apply_gamma_markets_patch()
     if patch_applied:
         verify_patch()
@@ -25,7 +25,7 @@ try:
         sys.exit(1)
 except ImportError as e:
     print(f"ERROR: Could not import patch module: {e}")
-    print("Make sure patch_gamma_markets.py is in the same directory")
+    print("Make sure patch_gamma_markets.py exists at the project root")
     sys.exit(1)
 
 # Now import Nautilus
@@ -79,7 +79,7 @@ from monitoring.performance_tracker import get_performance_tracker
 from monitoring.grafana_exporter import get_grafana_exporter
 from feedback.learning_engine import get_learning_engine
 load_dotenv()
-from patch_market_orders import apply_market_order_patch
+from patches.patch_market_orders import apply_market_order_patch
 patch_applied = apply_market_order_patch()
 if patch_applied:
     logger.info("Market order patch applied successfully")
