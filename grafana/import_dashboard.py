@@ -3,7 +3,6 @@ import requests
 import json
 from pathlib import Path
 import sys
-from pathlib import Path
  
 
 # Add project to path
@@ -15,7 +14,19 @@ sys.path.insert(0, str(project_root))
 GRAFANA_URL = "http://localhost:3000"
 GRAFANA_USER = "admin"
 GRAFANA_PASS = "admin"
-DASHBOARD_PATH = "dashboard.json"
+DASHBOARD_PATH = Path(__file__).resolve().parent / "dashboard.json"
+
+
+def _import_body_from_file() -> dict:
+    """Build /api/dashboards/db body (__inputs is for UI import only)."""
+    with open(DASHBOARD_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, dict) and "dashboard" in data:
+        inner = data["dashboard"]
+    else:
+        inner = data
+    return {"dashboard": inner, "overwrite": True}
+
 
 def create_service_account_token():
     """Create a service account token (new way in Grafana 12+)"""
@@ -83,21 +94,13 @@ def create_service_account_token():
 
 def import_dashboard(token):
     """Import dashboard using token"""
-    print(f"Loading dashboard from {DASHBOARD_PATH}...")
+    print(f"Loading dashboard from {DASHBOARD_PATH.name}...")
     
-    # Read the dashboard file
-    with open(DASHBOARD_PATH, 'r') as f:
-        dashboard_json = json.load(f)
-    
-    # Prepare payload
-    if 'dashboard' in dashboard_json:
-        payload = dashboard_json
-        payload['overwrite'] = True
-    else:
-        payload = {
-            "dashboard": dashboard_json,
-            "overwrite": True
-        }
+    try:
+        payload = _import_body_from_file()
+    except OSError as e:
+        print(f"❌ Could not read dashboard: {e}")
+        return False
     
     # Import dashboard
     headers = {
@@ -126,17 +129,11 @@ def basic_auth_import():
     """Try simple basic auth import (easiest)"""
     print("Trying basic auth import...")
     
-    with open(DASHBOARD_PATH, 'r') as f:
-        dashboard_json = json.load(f)
-    
-    if 'dashboard' in dashboard_json:
-        payload = dashboard_json
-        payload['overwrite'] = True
-    else:
-        payload = {
-            "dashboard": dashboard_json,
-            "overwrite": True
-        }
+    try:
+        payload = _import_body_from_file()
+    except OSError as e:
+        print(f"❌ Could not read dashboard: {e}")
+        return False
     
     response = requests.post(
         f"{GRAFANA_URL}/api/dashboards/db",
@@ -158,10 +155,9 @@ def main():
     print("Grafana Dashboard Importer")
     print("=" * 60)
     
-    # Check if dashboard file exists
-    if not Path(DASHBOARD_PATH).exists():
+    # Check if dashboard file exists (path is next to this script)
+    if not DASHBOARD_PATH.exists():
         print(f"❌ Dashboard file not found: {DASHBOARD_PATH}")
-        print(f"   Make sure the file exists at: {Path(DASHBOARD_PATH).absolute()}")
         return False
     
     # Try basic auth first (simplest)
