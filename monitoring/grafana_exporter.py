@@ -235,8 +235,8 @@ class GrafanaMetricsExporter:
         
         # Trade counters
         self.total_trades = Counter(
-            'trades_total',
-            'Total number of trades executed'
+            'trading_trades_closed',
+            'Total closed trades (increment on exit)'
         )
         
         self.winning_trades = Counter(
@@ -280,6 +280,21 @@ class GrafanaMetricsExporter:
         self.avg_signal_confidence = Gauge(
             'trading_avg_signal_confidence',
             'Average signal confidence (0-1)'
+        )
+
+        self.profit_factor = Gauge(
+            'trading_profit_factor',
+            'Gross wins / gross losses (absolute); 0 if no losses yet'
+        )
+
+        self.expectancy_usd = Gauge(
+            'trading_expectancy_usd',
+            'Mean realized P_nL per closed trade in USD'
+        )
+
+        self.avg_hold_seconds = Gauge(
+            'trading_avg_hold_seconds',
+            'Average hold duration of closed trades in seconds'
         )
         
         # Trade timing
@@ -325,6 +340,16 @@ class GrafanaMetricsExporter:
             
             self.avg_signal_score.set(perf_metrics.avg_signal_score)
             self.avg_signal_confidence.set(perf_metrics.avg_signal_confidence)
+            self.avg_hold_seconds.set(perf_metrics.avg_hold_time)
+
+            dist = self.performance.get_win_loss_distribution()
+            pf = float(dist["profit_factor"] or 0.0)
+            self.profit_factor.set(pf)
+            if perf_metrics.total_trades > 0:
+                exp = float(perf_metrics.total_pnl / perf_metrics.total_trades)
+            else:
+                exp = 0.0
+            self.expectancy_usd.set(exp)
             
             self.current_capital.set(float(self.performance.current_capital))
             
