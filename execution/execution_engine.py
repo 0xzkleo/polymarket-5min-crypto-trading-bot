@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from execution.risk_engine import get_risk_engine, RiskEngine
-from core.strategy_brain.signal_processors.base_processor import SignalDirection
+from core.strategy.processors.base import SignalDirection
 
 
 class OrderType(Enum):
