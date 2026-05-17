@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from execution.risk_engine import get_risk_engine, RiskLimits
 from execution.execution_engine import get_execution_engine
 from execution.polymarket_client import get_polymarket_client
-from core.strategy_brain.signal_processors.base_processor import SignalDirection
+from core.strategy.processors.base import SignalDirection
 
 app = typer.Typer()
 console = Console()
