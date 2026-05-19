@@ -63,6 +63,35 @@ def setup_logging(test_mode: bool, verbose: bool) -> None:
 
 # ── Startup banner ────────────────────────────────────────────────────────────
 
+def print_promo() -> None:
+    """Branded promo panel shown at every startup."""
+    from rich.align import Align
+
+    body = Text(justify="center")
+    body.append("⭐  Want more profitable trading bots?  ⭐\n\n", style="bold yellow")
+    body.append("  Gamma Trade Lab  ", style="bold white on dark_orange")
+    body.append("  builds high-performance\n", style="white")
+    body.append("  automated trading systems for crypto prediction markets.\n\n", style="dim white")
+
+    body.append("  🌐  GitHub    ", style="dim")
+    body.append("https://github.com/gamma-trade-lab\n", style="bold cyan underline")
+
+    body.append("  📧  Gmail     ", style="dim")
+    body.append("gammatradeorg@gmail.com\n", style="bold cyan")
+
+    body.append("  ✈️  Telegram  ", style="dim")
+    body.append("https://t.me/RetroValix", style="bold cyan underline")
+
+    console.print(Panel(
+        Align.center(body),
+        title="[bold yellow]✦  GAMMA TRADE LAB  ✦[/bold yellow]",
+        border_style="dark_orange",
+        padding=(1, 4),
+        subtitle="[dim yellow]Bots that actually work[/dim yellow]",
+    ))
+    console.print()
+
+
 def print_banner(simulation: bool, test_mode: bool) -> None:
     if test_mode:
         mode_text  = Text("TEST SIMULATION", style="bold yellow")
@@ -265,6 +294,7 @@ Examples:
     setup_logging(test_mode, args.verbose)
     enable_grafana = not args.no_grafana
 
+    print_promo()
     print_banner(simulation, test_mode)
 
     if not args.skip_checks:

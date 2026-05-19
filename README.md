@@ -2,6 +2,21 @@
 
 A production-grade algorithmic trading bot for **Polymarket’s 15-minute BTC up/down markets**. It combines multiple real-time signal sources, risk limits, monitoring, and optional learning hooks on a seven-phase pipeline.
 
+
+---
+
+> ### ⭐ Want more profitable trading bots?
+>
+> This bot is built and maintained by **[Gamma Trade Lab](https://github.com/gamma-trade-lab)** — a lab dedicated to building high-performance automated trading systems for polymarket.
+>
+> | | |
+> |---|---|
+> | 🌐 **GitHub** | [github.com/gamma-trade-lab](https://github.com/gamma-trade-lab) |
+> | 📧 **Gmail** | [gammatradeorg@gmail.com](mailto:gammatradeorg@gmail.com) |
+> | ✈️ **Telegram** | [t.me/RetroValix](https://t.me/RetroValix) |
+>
+> *Star the repo · Follow for new bots · Reach out for custom builds*
+
 ---
 
 ## Table of contents
@@ -119,10 +134,13 @@ On macOS with Homebrew: `brew install redis` then `redis-server`. On Debian/Ubun
 
 ```bash
 # Fast test loop (simulated trades about every minute)
-python run_bot.py --test-mode
+python main.py --test-mode
+
+# Normal simulation (15-min clock)
+python main.py --simulation
 
 # Live trading (real money — requires working credentials)
-python 15m_bot_runner.py --live
+python supervisor.py --live
 ```
 
 ---
@@ -135,18 +153,18 @@ python 15m_bot_runner.py --live
 | `--live` | Enable live trading | `False` |
 | `--no-grafana` | Disable Grafana-oriented metrics export | `False` |
 
-See `run_bot.py` and `15m_bot_runner.py` for the full set of flags.
+See `main.py` and `supervisor.py` for the full set of flags.
 
 ---
 
 ## Running the bot
 
-- **Unified entrypoint**: `run_bot.py` supports `--test-mode`, `--simulation`, and `--live` (see its module docstring).
-- **Auto-restart wrapper**: `15m_bot_runner.py` runs `bot.py` in a loop for unattended operation.
+- **Unified entrypoint**: `main.py` supports `--test-mode`, `--simulation`, and `--live` (see its module docstring).
+- **Auto-restart wrapper**: `supervisor.py` runs `main.py` in a loop for unattended operation.
 - **Paper trades**: After simulation runs, inspect history with:
 
 ```bash
-python view_paper_trades.py
+python scripts/view_trades.py
 ```
 
 ---
@@ -162,7 +180,7 @@ Wire these to your own Prometheus/Grafana stack as needed.
 
 ## Trading modes
 
-Mode switching via Redis is supported for toggling simulation vs live without always editing code; see `redis_control.py`. Treat Redis-driven mode changes as **experimental** until you validate them in your environment.
+Mode switching via Redis is supported for toggling simulation vs live without always editing code; see `scripts/redis_control.py`. Treat Redis-driven mode changes as **experimental** until you validate them in your environment.
 
 ---
 

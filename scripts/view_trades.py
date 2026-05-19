@@ -277,6 +277,16 @@ def print_summary(s: Dict) -> None:
     console.print(f"  [dim]as of[/dim] [white]{now}[/white]")
     console.print()
 
+    # ── Promo footer ──────────────────────────────────────────────────────────
+    console.print(Panel(
+        "[bold yellow]⭐  More profitable bots at Gamma Trade Lab  ⭐[/bold yellow]\n"
+        "[cyan underline]github.com/gamma-trade-lab[/cyan underline]"
+        "   [cyan]gammatradeorg@gmail.com[/cyan]"
+        "   [cyan underline]t.me/RetroValix[/cyan underline]",
+        border_style="dark_orange",
+        padding=(0, 2),
+    ))
+
 
 # ── Trade log table ───────────────────────────────────────────────────────────
 
