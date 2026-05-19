@@ -11,9 +11,9 @@ A production-grade algorithmic trading bot for **Polymarket’s 15-minute BTC up
 >
 > | | |
 > |---|---|
-> | 🌐 **GitHub** | [github.com/gamma-trade-lab](https://github.com/gamma-trade-lab) |
-> | 📧 **Gmail** | [gammatradeorg@gmail.com](mailto:gammatradeorg@gmail.com) |
-> | ✈️ **Telegram** | [t.me/RetroValix](https://t.me/RetroValix) |
+> | <img src="assets/icons/github.svg" width="18" height="18" align="top" alt="GitHub" /> **GitHub** | [github.com/gamma-trade-lab](https://github.com/gamma-trade-lab) |
+> | <img src="assets/icons/gmail.svg" width="18" height="18" align="top" alt="Gmail" /> **Gmail** | [gammatradeorg@gmail.com](mailto:gammatradeorg@gmail.com) |
+> | <img src="assets/icons/telegram.svg" width="18" height="18" align="top" alt="Telegram" /> **Telegram** | [t.me/RetroValix](https://t.me/RetroValix) |
 >
 > *Star the repo · Follow for new bots · Reach out for custom builds*
 
