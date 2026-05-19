@@ -3,17 +3,9 @@ main.py — Unified CLI entry point for the Polymarket BTC 15-min trading bot.
 
 Usage
 -----
-    python main.py --test-mode        # simulation, trade every minute, full tracking
+    python main.py --test-mode        # simulation, 1-min trade clock, full tracking
     python main.py --simulation       # simulation, normal 15-min clock
     python main.py --live             # REAL MONEY — requires .env keys
-
-Test mode features
-------------------
-- Fires a simulated trade every ~1 minute instead of every 15 minutes
-- Learning engine weight optimisation runs every 5 min instead of weekly
-- All trades saved to paper_trades.json with full context
-- Live console dashboard printed after every trade
-- Run: python scripts/view_trades.py  at any time to see results
 """
 from __future__ import annotations
 
@@ -31,7 +23,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from loguru import logger
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich.columns import Columns
+from rich.rule import Rule
+from rich import box
 
+console = Console()
+
+
+# ── Logging ───────────────────────────────────────────────────────────────────
 
 def setup_logging(test_mode: bool, verbose: bool) -> None:
     logger.remove()
@@ -58,13 +61,59 @@ def setup_logging(test_mode: bool, verbose: bool) -> None:
     logger.info(f"Logging to: logs/bot_{mode_label}_{ts}.log")
 
 
+# ── Startup banner ────────────────────────────────────────────────────────────
+
+def print_banner(simulation: bool, test_mode: bool) -> None:
+    if test_mode:
+        mode_text  = Text("TEST SIMULATION", style="bold yellow")
+        mode_desc  = "1-min trade clock  ·  5-min learning cycle"
+        mode_style = "yellow"
+    elif simulation:
+        mode_text  = Text("SIMULATION", style="bold cyan")
+        mode_desc  = "15-min clock  ·  paper trades only  ·  no real orders"
+        mode_style = "cyan"
+    else:
+        mode_text  = Text("⚡ LIVE TRADING  —  REAL MONEY AT RISK", style="bold red blink")
+        mode_desc  = "Real orders will be placed on Polymarket"
+        mode_style = "red"
+
+    title = Text()
+    title.append("POLYMARKET ", style="bold white")
+    title.append("BTC", style="bold yellow")
+    title.append(" 15-MIN BOT", style="bold white")
+
+    body = Text(justify="center")
+    body.append("Mode:  ", style="dim")
+    body.append(mode_text)
+    body.append(f"\n{mode_desc}", style="dim")
+
+    if test_mode:
+        body.append("\n\nTrades → ", style="dim")
+        body.append("paper_trades.json", style="cyan")
+        body.append("   View → ", style="dim")
+        body.append("python scripts/view_trades.py", style="cyan")
+
+    console.print()
+    console.print(Panel(body, title=title, border_style=mode_style, padding=(1, 4)))
+
+
+# ── Pre-flight checks ─────────────────────────────────────────────────────────
+
 def preflight(simulation: bool) -> bool:
-    """Check required env vars and optional dependencies before starting."""
+    console.print()
+    console.print(Rule("[bold white]PRE-FLIGHT CHECKS[/bold white]", style="white"))
+
     ok = True
-    print()
-    print("=" * 70)
-    print("PRE-FLIGHT CHECKS")
-    print("=" * 70)
+
+    table = Table(
+        box=box.SIMPLE,
+        show_header=False,
+        pad_edge=False,
+        padding=(0, 1),
+    )
+    table.add_column("icon",  style="bold", width=4)
+    table.add_column("key",   style="cyan", min_width=32)
+    table.add_column("status")
 
     required_live = [
         "POLYMARKET_PK",
@@ -77,38 +126,43 @@ def preflight(simulation: bool) -> bool:
     if not simulation:
         for key in required_live:
             val = os.getenv(key)
-            status = "OK" if val else "MISSING"
-            icon = "[OK]" if val else "[!!]"
-            print(f"  {icon}  {key}: {status}")
-            if not val:
+            if val:
+                table.add_row("✓", key, Text("OK", style="green"))
+            else:
+                table.add_row("[red]✗[/red]", key, Text("MISSING", style="bold red"))
                 ok = False
 
     for key in required_all:
         val = os.getenv(key)
-        status = "OK" if val else "MISSING (settlement tracking disabled)"
-        icon = "[OK]" if val else "[--]"
-        print(f"  {icon}  {key}: {status}")
+        if val:
+            table.add_row("✓", key, Text("OK", style="green"))
+        else:
+            table.add_row("[yellow]–[/yellow]", key,
+                          Text("not set — settlement tracking disabled", style="yellow"))
 
     optional = [
         ("xgboost",    "ML model"),
         ("sklearn",    "ML calibration"),
         ("web3",       "Chainlink settlement"),
         ("websockets", "Binance streams"),
-        ("redis",      "simulation mode control"),
+        ("redis",      "live mode switching"),
     ]
     for pkg, purpose in optional:
         try:
             __import__(pkg)
-            print(f"  [OK]  {pkg}: installed ({purpose})")
+            table.add_row("✓", f"{pkg}", Text(f"installed  ({purpose})", style="green"))
         except ImportError:
-            print(f"  [--]  {pkg}: not installed ({purpose} disabled)")
+            table.add_row("[dim]–[/dim]", f"{pkg}",
+                          Text(f"not installed  ({purpose} disabled)", style="dim"))
 
-    print("=" * 70)
+    console.print(table)
+    console.print(Rule(style="white"))
     return ok
 
 
+# ── Live session dashboard ────────────────────────────────────────────────────
+
 def print_live_dashboard(paper_trades_path: str = "paper_trades.json") -> None:
-    """Print a compact summary of current session results."""
     try:
         with open(paper_trades_path) as f:
             trades = json.load(f)
@@ -118,11 +172,11 @@ def print_live_dashboard(paper_trades_path: str = "paper_trades.json") -> None:
     if not trades:
         return
 
-    settled = [t for t in trades if t.get("outcome") in ("WIN", "LOSS")]
-    wins = sum(1 for t in settled if t["outcome"] == "WIN")
-    losses = len(settled) - wins
-    win_rate = wins / len(settled) * 100 if settled else 0
-    total_pnl = sum(t.get("pnl_usd", 0) for t in trades)
+    settled    = [t for t in trades if t.get("outcome") in ("WIN", "LOSS")]
+    wins       = sum(1 for t in settled if t["outcome"] == "WIN")
+    losses     = len(settled) - wins
+    win_rate   = wins / len(settled) * 100 if settled else 0
+    total_pnl  = sum(t.get("pnl_usd", 0) for t in trades)
 
     streak = 0
     streak_type = ""
@@ -134,20 +188,35 @@ def print_live_dashboard(paper_trades_path: str = "paper_trades.json") -> None:
         else:
             break
 
-    print()
-    print("+" + "-" * 50 + "+")
-    print(f"|  SIMULATION DASHBOARD  (as of {datetime.now().strftime('%H:%M:%S')})  |")
-    print("+" + "-" * 50 + "+")
-    print(f"|  Trades: {len(trades):<5}  Settled: {len(settled):<5}              |")
-    print(f"|  Wins:   {wins:<5}  Losses: {losses:<5}  Win rate: {win_rate:.1f}%    |")
-    print(f"|  Cumulative PnL: ${total_pnl:+.4f}                    |")
-    if streak_type:
-        print(f"|  Current streak: {streak}x {streak_type}                      |")
-    print("+" + "-" * 50 + "+")
-    print(f"|  Run:  python scripts/view_trades.py  for full detail  |")
-    print("+" + "-" * 50 + "+")
-    print()
+    pnl_style    = "bold green" if total_pnl >= 0 else "bold red"
+    wr_style     = "green" if win_rate >= 55 else ("yellow" if win_rate >= 45 else "red")
+    streak_style = "green" if streak_type == "WIN" else "red"
 
+    g = Table.grid(padding=(0, 2))
+    g.add_column(style="dim", justify="right")
+    g.add_column()
+
+    g.add_row("Trades",   f"{len(trades)}  settled: {len(settled)}")
+    g.add_row("Win rate", Text(f"{win_rate:.1f}%", style=wr_style))
+    g.add_row("Wins / Losses", f"{wins} / {losses}")
+    g.add_row("Cum. PnL", Text(f"${total_pnl:+.4f}", style=pnl_style))
+    if streak_type:
+        g.add_row("Streak", Text(f"{streak}× {streak_type}", style=streak_style))
+
+    now = datetime.now().strftime("%H:%M:%S")
+    console.print(Panel(
+        g,
+        title=f"[bold cyan]SESSION DASHBOARD[/bold cyan]  [dim]{now}[/dim]",
+        border_style="cyan",
+        padding=(0, 2),
+    ))
+    console.print(
+        "  [dim]Full report →[/dim]  [cyan]python scripts/view_trades.py[/cyan]"
+    )
+    console.print()
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -166,7 +235,7 @@ Examples:
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
         "--test-mode", action="store_true",
-        help="Simulation with 1-min trade clock and 5-min learning cycle (fastest way to test)",
+        help="Simulation with 1-min trade clock and 5-min learning cycle",
     )
     mode_group.add_argument(
         "--simulation", action="store_true",
@@ -185,51 +254,44 @@ Examples:
 
     if args.live:
         simulation = False
-        test_mode = False
+        test_mode  = False
     elif args.test_mode:
         simulation = True
-        test_mode = True
+        test_mode  = True
     else:
         simulation = True
-        test_mode = False
+        test_mode  = False
 
     setup_logging(test_mode, args.verbose)
     enable_grafana = not args.no_grafana
 
-    print()
-    print("=" * 70)
-    print("  POLYMARKET BTC 15-MIN TRADING BOT")
-    print("=" * 70)
-    if test_mode:
-        print("  MODE:  TEST SIMULATION (1-min trade clock)")
-        print("         Trades saved to paper_trades.json")
-        print("         View results:  python scripts/view_trades.py")
-        print("         Learning engine optimises every 5 minutes")
-    elif simulation:
-        print("  MODE:  SIMULATION (15-min clock, no real orders)")
-        print("         Trades saved to paper_trades.json")
-    else:
-        print("  MODE:  *** LIVE TRADING — REAL MONEY AT RISK ***")
-    print("=" * 70)
+    print_banner(simulation, test_mode)
 
     if not args.skip_checks:
         ok = preflight(simulation)
         if not ok and not simulation:
-            print()
-            print("ERROR: Missing required API keys for live trading. Aborting.")
-            print("       Add keys to your .env file and retry.")
+            console.print()
+            console.print(Panel(
+                "[bold red]Missing required API keys for live trading.[/bold red]\n"
+                "Add them to your [cyan].env[/cyan] file and retry.",
+                border_style="red",
+                title="[red]ABORTED[/red]",
+            ))
             sys.exit(1)
 
     if not simulation:
-        print()
-        print("=" * 70)
-        print("  WARNING: LIVE TRADING MODE")
-        print("  Real money will be used. Press Ctrl+C to abort.")
-        print("=" * 70)
+        console.print()
+        console.print(Panel(
+            "[bold red]LIVE TRADING MODE[/bold red]\n\n"
+            "Real money will be placed on Polymarket.\n"
+            "Press [bold]ENTER[/bold] to continue or [bold]Ctrl+C[/bold] to abort.",
+            border_style="red",
+            padding=(1, 4),
+        ))
         try:
-            input("  Press ENTER to continue, or Ctrl+C to abort: ")
+            input("  → ")
         except KeyboardInterrupt:
-            print("\nAborted.")
+            console.print("\n[yellow]Aborted.[/yellow]")
             sys.exit(0)
 
     try:
@@ -239,7 +301,9 @@ Examples:
         logger.error("Make sure you are running from the project root directory.")
         sys.exit(1)
 
-    logger.info(f"Starting bot: simulation={simulation} test_mode={test_mode} grafana={enable_grafana}")
+    logger.info(
+        f"Starting bot: simulation={simulation} test_mode={test_mode} grafana={enable_grafana}"
+    )
 
     try:
         run_integrated_bot(
@@ -248,9 +312,11 @@ Examples:
             test_mode=test_mode,
         )
     except KeyboardInterrupt:
-        print("\nShutting down...")
-        print("Trades saved to paper_trades.json")
-        print("Run:  python scripts/view_trades.py  to see results")
+        console.print()
+        console.print(Rule("[yellow]Shutting down[/yellow]", style="yellow"))
+        console.print("  Trades saved to [cyan]paper_trades.json[/cyan]")
+        console.print("  View results:  [cyan]python scripts/view_trades.py[/cyan]")
+        console.print()
     except Exception as e:
         logger.error(f"Bot crashed: {e}")
         import traceback
