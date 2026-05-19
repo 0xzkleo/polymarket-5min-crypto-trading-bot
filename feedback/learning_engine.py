@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from monitoring.performance_tracker import get_performance_tracker, Trade
-from core.strategy_brain.fusion_engine.signal_fusion import get_fusion_engine
+from core.strategy.fusion import get_fusion_engine
 
 
 @dataclass
