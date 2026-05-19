@@ -5,16 +5,13 @@ A production-grade algorithmic trading bot for **Polymarket’s 15-minute BTC up
 
 ---
 
-> ### ⭐ Want more profitable trading bots?
->
-> This bot is built and maintained by **[Gamma Trade Lab](https://github.com/gamma-trade-lab)** — a lab dedicated to building high-performance automated trading systems for polymarket.
->
-> | | |
-> |---|---|
-> | 📩 **Gmail** | [gammatradeorg@gmail.com](mailto:gammatradeorg@gmail.com) |
-> | 📞 **Telegram** | [t.me/RetroValix](https://t.me/RetroValix) |
->
-> *Star the repo · Follow for new bots · Reach out for custom builds*
+<p align="center">
+  <strong>⭐ Want more profitable trading bots?</strong><br><br>
+  Built by <a href="https://github.com/gamma-trade-lab"><strong>Gamma Trade Lab</strong></a> — high-performance automated trading systems for Polymarket.<br><br>
+  <a href="https://github.com/gamma-trade-lab"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-gamma--trade--lab-181717?logo=github&logoColor=white"></a>&nbsp;
+  <a href="mailto:gammatradeorg@gmail.com"><img alt="Email" src="https://img.shields.io/badge/Email-gammatradeorg@gmail.com-EA4335?logo=gmail&logoColor=white"></a>&nbsp;
+  <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a><br><br>
+</p>
 
 ---
 
