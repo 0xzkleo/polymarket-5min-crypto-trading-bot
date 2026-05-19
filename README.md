@@ -10,7 +10,6 @@ A production-grade algorithmic trading bot for **Polymarket’s 15-minute BTC up
 > This bot is built and maintained by **[Gamma Trade Lab](https://github.com/gamma-trade-lab)** — a lab dedicated to building high-performance automated trading systems for polymarket.
 >
 > | | |
-> |---|---|
 > | 📩 **Gmail** | [gammatradeorg@gmail.com](mailto:gammatradeorg@gmail.com) |
 > | 📞 **Telegram** | [t.me/RetroValix](https://t.me/RetroValix) |
 >
