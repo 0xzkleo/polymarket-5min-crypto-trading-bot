@@ -4,11 +4,13 @@ scripts/view_trades.py — Simulation trade analytics dashboard.
 Usage
 -----
     python scripts/view_trades.py                # full report
-    python scripts/view_trades.py --last 20      # last 20 trades only
-    python scripts/view_trades.py --summary      # stats only, no trade table
+    python scripts/view_trades.py --last 20      # last 20 trades
+    python scripts/view_trades.py --summary      # stats only
     python scripts/view_trades.py --csv          # export to paper_trades.csv
     python scripts/view_trades.py --watch        # auto-refresh every 10 s
 """
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -20,8 +22,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich.rule import Rule
+from rich.columns import Columns
+from rich import box
+
+console = Console()
+
 TRADES_FILE = Path(__file__).parent.parent / "paper_trades.json"
 
+
+# ── Data loading ──────────────────────────────────────────────────────────────
 
 def load_trades(path=TRADES_FILE) -> List[Dict[str, Any]]:
     if not Path(path).exists():
@@ -31,7 +45,7 @@ def load_trades(path=TRADES_FILE) -> List[Dict[str, Any]]:
             d = json.load(f)
         return d if isinstance(d, list) else []
     except Exception as e:
-        print(f"Error: {e}")
+        console.print(f"[red]Error loading trades:[/red] {e}")
         return []
 
 
@@ -49,7 +63,7 @@ def compute_stats(trades: List[Dict]) -> Dict:
     avg_w = sum(t.get("pnl_usd", 0) for t in wins)   / nw if nw else 0
     avg_l = sum(t.get("pnl_usd", 0) for t in losses) / nl if nl else 0
     pf = abs(avg_w * nw / (avg_l * nl)) if nl and avg_l else float("inf")
-    # Streaks
+
     best = worst = cur = 0
     ctype = None
     for t in settled:
@@ -62,8 +76,8 @@ def compute_stats(trades: List[Dict]) -> Dict:
             best = max(best, cur)
         else:
             worst = max(worst, cur)
-    lstreak = 0
-    ltype = None
+
+    lstreak, ltype = 0, None
     for t in reversed(settled):
         o = t["outcome"]
         if ltype is None:
@@ -72,29 +86,29 @@ def compute_stats(trades: List[Dict]) -> Dict:
             lstreak += 1
         else:
             break
-    # Drawdown
-    eq = pk = dd = 0
+
+    eq = pk = dd = 0.0
     for p in pnls:
         eq += p
         pk = max(pk, eq)
         dd = max(dd, pk - eq)
-    # Direction
+
     longs  = [t for t in settled if t.get("direction") == "LONG"]
     shorts = [t for t in settled if t.get("direction") == "SHORT"]
     lwr = sum(1 for t in longs  if t["outcome"] == "WIN") / len(longs)  * 100 if longs  else 0
     swr = sum(1 for t in shorts if t["outcome"] == "WIN") / len(shorts) * 100 if shorts else 0
-    # ML
-    mle  = [t for t in trades if t.get("ml_edge", 0) > 0]
+
+    mle   = [t for t in trades if t.get("ml_edge", 0) > 0]
     aedge = sum(t["ml_edge"] for t in mle) / len(mle) if mle else 0
     apup  = sum(t.get("ml_p_up", 0) for t in trades) / n if n else 0
-    # Regime
+
     rs: Dict = defaultdict(lambda: {"total": 0, "wins": 0})
     for t in settled:
         r = t.get("vol_regime") or "unknown"
         rs[r]["total"] += 1
         if t["outcome"] == "WIN":
             rs[r]["wins"] += 1
-    # Duration
+
     tss = []
     for t in trades:
         try:
@@ -107,6 +121,7 @@ def compute_stats(trades: List[Dict]) -> Dict:
         h, rem = divmod(int(dt.total_seconds()), 3600)
         m = rem // 60
         dur = f"{h}h {m}m"
+
     return dict(
         total=n, settled=ns, wins=nw, losses=nl, pending=len(pending),
         win_rate=wr, total_pnl=total_pnl, avg_win=avg_w, avg_loss=avg_l,
@@ -120,100 +135,179 @@ def compute_stats(trades: List[Dict]) -> Dict:
     )
 
 
-def _c(text, code):
-    if sys.platform == "win32":
-        try:
-            import colorama
-            colorama.just_fix_windows_console()
-        except Exception:
-            return str(text)
-    return f"\033[{code}m{text}\033[0m"
+# ── Summary panel ─────────────────────────────────────────────────────────────
 
+def _pnl_text(v: float) -> Text:
+    style = "bold green" if v >= 0 else "bold red"
+    return Text(f"${v:+.4f}", style=style)
 
-def G(t): return _c(t, "32")
-def R(t): return _c(t, "31")
-def Y(t): return _c(t, "33")
-def B(t): return _c(t, "1")
-def CY(t): return _c(t, "36")
+def _wr_text(v: float) -> Text:
+    style = "green" if v >= 55 else ("yellow" if v >= 45 else "red")
+    return Text(f"{v:.1f}%", style=style)
+
+def _pf_text(v: float) -> Text:
+    if v == float("inf"):
+        return Text("∞", style="green")
+    style = "green" if v > 1.5 else ("yellow" if v > 1.0 else "red")
+    return Text(f"{v:.2f}", style=style)
 
 
 def print_summary(s: Dict) -> None:
     if not s:
-        print("\nNo trades yet. Start the bot with: python main.py --test-mode\n")
+        console.print()
+        console.print(Panel(
+            "[dim]No trades yet.[/dim]\n\n"
+            "Start the bot:  [cyan]python main.py --test-mode[/cyan]",
+            border_style="dim",
+        ))
         return
-    w, pnl = s["win_rate"], s["total_pnl"]
-    pnl_s = G(f"${pnl:+.4f}") if pnl >= 0 else R(f"${pnl:+.4f}")
-    wr_s  = G(f"{w:.1f}%") if w >= 55 else (Y(f"{w:.1f}%") if w >= 45 else R(f"{w:.1f}%"))
-    pf    = s["profit_factor"]
-    pf_s  = G(f"{pf:.2f}") if pf > 1.5 else (Y(f"{pf:.2f}") if pf > 1.0 else R(f"{pf:.2f}"))
-    dd    = s["max_drawdown"]
-    dd_s  = G(f"${dd:.4f}") if dd < 0.05 else (Y(f"${dd:.4f}") if dd < 0.10 else R(f"${dd:.4f}"))
+
+    now = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
+
+    # ── Overview table ────────────────────────────────────────────────────────
+    overview = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    overview.add_column(style="dim", justify="right", min_width=18)
+    overview.add_column()
+
+    overview.add_row("Total trades",   str(s["total"]))
+    overview.add_row(
+        "Settled",
+        f"{s['settled']}  "
+        f"([green]{s['wins']} W[/green] / [red]{s['losses']} L[/red]  "
+        f"pending: {s['pending']})"
+    )
+    overview.add_row("Win rate",       _wr_text(s["win_rate"]))
+    overview.add_row("Session",        s["session_duration"] or "N/A")
+
+    # ── P&L table ─────────────────────────────────────────────────────────────
+    pnl_tbl = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    pnl_tbl.add_column(style="dim", justify="right", min_width=18)
+    pnl_tbl.add_column()
+
+    pnl_tbl.add_row("Cumulative PnL",  _pnl_text(s["total_pnl"]))
+    pnl_tbl.add_row("Avg win",         Text(f"${s['avg_win']:+.4f}", style="green"))
+    pnl_tbl.add_row("Avg loss",        Text(f"${s['avg_loss']:+.4f}", style="red"))
+    pnl_tbl.add_row("Profit factor",   _pf_text(s["profit_factor"]))
+    pnl_tbl.add_row(
+        "Max drawdown",
+        Text(
+            f"${s['max_drawdown']:.4f}",
+            style="green" if s["max_drawdown"] < 0.05
+                  else ("yellow" if s["max_drawdown"] < 0.10 else "red"),
+        ),
+    )
+
+    # ── Streaks ───────────────────────────────────────────────────────────────
+    streak_tbl = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    streak_tbl.add_column(style="dim", justify="right", min_width=18)
+    streak_tbl.add_column()
+
     lt, ls = s["latest_type"] or "", s["latest_streak"]
-    st_s  = G(f"{ls}x WIN") if lt == "WIN" else (R(f"{ls}x LOSS") if lt else "N/A")
+    streak_style = "green" if lt == "WIN" else "red"
+    streak_tbl.add_row(
+        "Current streak",
+        Text(f"{ls}× {lt}", style=f"bold {streak_style}") if lt else Text("N/A", style="dim"),
+    )
+    streak_tbl.add_row("Best win",  Text(f"{s['best_streak']}×",  style="green"))
+    streak_tbl.add_row("Worst loss",Text(f"{s['worst_streak']}×", style="red"))
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print()
-    print(B("=" * 68))
-    print(B(f"  SIMULATION RESULTS  [as of {now}]"))
-    print(B("=" * 68))
-    print()
-    print(B("  OVERVIEW"))
-    print(f"    Total trades:        {s['total']}")
-    print(f"    Settled:             {s['settled']}  ({s['wins']} wins / {s['losses']} losses)")
-    print(f"    Pending:             {s['pending']}")
-    print(f"    Win rate:            {wr_s}")
-    print(f"    Session duration:    {s['session_duration'] or 'N/A'}")
-    print()
-    print(B("  PROFITABILITY"))
-    print(f"    Cumulative PnL:      {pnl_s}")
-    print(f"    Avg win:             {G('${:.4f}'.format(s['avg_win']))}")
-    print(f"    Avg loss:            {R('${:.4f}'.format(s['avg_loss']))}")
-    print(f"    Profit factor:       {pf_s}  (>1.5 = good)")
-    print(f"    Max drawdown:        {dd_s}")
-    print()
-    print(B("  STREAKS"))
-    print(f"    Current:             {st_s}")
-    print(f"    Best win streak:     {G(s['best_streak'])}")
-    print(f"    Worst loss streak:   {R(s['worst_streak'])}")
-    print()
-    print(B("  DIRECTION"))
-    print(f"    LONG  trades:  {s['long_count']:<4}  win rate: {s['long_wr']:.1f}%")
-    print(f"    SHORT trades:  {s['short_count']:<4}  win rate: {s['short_wr']:.1f}%")
-    print()
-    print(B("  SIGNAL QUALITY"))
-    print(f"    Avg signal score:    {s['avg_score']:.1f}")
-    print(f"    Avg confidence:      {s['avg_conf']:.1%}")
-    print(f"    Avg ML edge:         {s['avg_ml_edge']:.4f}")
-    print(f"    Avg ML p(UP):        {s['avg_ml_pup']:.3f}")
-    print()
+    # ── Direction ─────────────────────────────────────────────────────────────
+    dir_tbl = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    dir_tbl.add_column(style="dim", justify="right", min_width=18)
+    dir_tbl.add_column()
+
+    dir_tbl.add_row("LONG  trades",
+                    f"{s['long_count']}   win rate: "
+                    + _wr_text(s["long_wr"]).__str__())
+    dir_tbl.add_row("SHORT trades",
+                    f"{s['short_count']}   win rate: "
+                    + _wr_text(s["short_wr"]).__str__())
+
+    # ── Signal quality ────────────────────────────────────────────────────────
+    sig_tbl = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    sig_tbl.add_column(style="dim", justify="right", min_width=18)
+    sig_tbl.add_column()
+
+    sig_tbl.add_row("Avg signal score", f"{s['avg_score']:.1f}")
+    sig_tbl.add_row("Avg confidence",   f"{s['avg_conf']:.1%}")
+    sig_tbl.add_row("Avg ML edge",      f"{s['avg_ml_edge']:.4f}")
+    sig_tbl.add_row("Avg ML p(UP)",     f"{s['avg_ml_pup']:.3f}")
+
+    console.print()
+    console.print(Panel(overview, title="[bold white]OVERVIEW[/bold white]",       border_style="white",  padding=(0, 1)))
+    console.print(Panel(pnl_tbl, title="[bold green]PROFITABILITY[/bold green]",   border_style="green",  padding=(0, 1)))
+    console.print(Panel(streak_tbl, title="[bold cyan]STREAKS[/bold cyan]",        border_style="cyan",   padding=(0, 1)))
+    console.print(Panel(sig_tbl, title="[bold blue]SIGNAL QUALITY[/bold blue]",    border_style="blue",   padding=(0, 1)))
+
+    # ── Volatility regime breakdown ───────────────────────────────────────────
     if s["regime_stats"]:
-        print(B("  VOLATILITY REGIME BREAKDOWN"))
-        for reg, d in sorted(s["regime_stats"].items()):
-            n2, wr2 = d["total"], d["wins"] / d["total"] * 100 if d["total"] else 0
-            bar = G("#") * d["wins"] + R(".") * (n2 - d["wins"])
-            print(f"    {reg:<14} {n2:>3} trades  {wr2:>5.1f}%  [{bar}]")
-        print()
-    print(B("=" * 68))
-    print(Y("  NOTE: SIMULATION ONLY — no real money involved"))
-    print(B("=" * 68))
-    print()
+        reg_tbl = Table(
+            box=box.SIMPLE,
+            show_header=True,
+            header_style="bold dim",
+            pad_edge=False,
+        )
+        reg_tbl.add_column("Regime",   style="cyan",  min_width=14)
+        reg_tbl.add_column("Trades",   justify="right")
+        reg_tbl.add_column("Win rate", justify="right")
+        reg_tbl.add_column("Bar", min_width=20)
 
+        for reg, d in sorted(s["regime_stats"].items()):
+            n2  = d["total"]
+            wr2 = d["wins"] / n2 * 100 if n2 else 0
+            bar = Text()
+            bar.append("█" * d["wins"],      style="green")
+            bar.append("░" * (n2 - d["wins"]), style="red")
+            reg_tbl.add_row(reg, str(n2), _wr_text(wr2), bar)
+
+        console.print(Panel(
+            reg_tbl,
+            title="[bold yellow]VOLATILITY REGIME[/bold yellow]",
+            border_style="yellow",
+            padding=(0, 1),
+        ))
+
+    console.print(
+        Panel(
+            "[dim]Simulation only — no real money involved.[/dim]",
+            border_style="dim",
+            padding=(0, 2),
+        )
+    )
+    console.print(f"  [dim]as of[/dim] [white]{now}[/white]")
+    console.print()
+
+
+# ── Trade log table ───────────────────────────────────────────────────────────
 
 def print_trade_table(trades: List[Dict], limit: Optional[int] = None) -> None:
     disp = trades[-limit:] if limit else trades
     if not disp:
         return
-    print(B(f"  TRADE LOG  ({len(disp)} shown of {len(trades)} total)"))
-    sep = "-" * 112
-    print(sep)
-    print(B(
-        f"  {'#':<5} {'Time':<17} {'Dir':<6} {'Entry':>7} {'Exit':>7} "
-        f"{'PnL':>9} {'ML p↑':>7} {'Edge':>6} {'Score':>6} {'Regime':<10} Outcome"
-    ))
-    print(sep)
+
+    tbl = Table(
+        title=f"TRADE LOG  ({len(disp)} of {len(trades)} total)",
+        box=box.SIMPLE_HEAVY,
+        show_header=True,
+        header_style="bold dim",
+        title_style="bold white",
+        pad_edge=True,
+    )
+    tbl.add_column("#",        justify="right",  style="dim",    width=5)
+    tbl.add_column("Time",     justify="left",   width=17)
+    tbl.add_column("Dir",      justify="center", width=6)
+    tbl.add_column("Entry",    justify="right",  width=7)
+    tbl.add_column("Exit",     justify="right",  width=7)
+    tbl.add_column("PnL",      justify="right",  width=10)
+    tbl.add_column("ML p↑",    justify="right",  width=7)
+    tbl.add_column("Edge",     justify="right",  width=6)
+    tbl.add_column("Score",    justify="right",  width=6)
+    tbl.add_column("Regime",   justify="left",   width=10)
+    tbl.add_column("Outcome",  justify="center", width=9)
+
     for t in disp:
         ts  = datetime.fromisoformat(t["timestamp"]).strftime("%m-%d %H:%M:%S")
-        num = t.get("session_trade_num", "?")
+        num = str(t.get("session_trade_num", "?"))
         d   = t.get("direction", "?")
         en  = t.get("entry_price", 0.0)
         ex  = t.get("exit_price", 0.0)
@@ -223,20 +317,33 @@ def print_trade_table(trades: List[Dict], limit: Optional[int] = None) -> None:
         sc  = t.get("signal_score", 0.0)
         reg = (t.get("vol_regime") or "?")[:10]
         out = t.get("outcome", "PENDING")
-        ps  = G(f"${p:+.4f}") if p >= 0 else R(f"${p:+.4f}")
-        os_ = G("WIN") if out == "WIN" else (R("LOSS") if out == "LOSS" else Y("PENDING"))
-        ds_ = CY(f"{d:<6}")
-        print(
-            f"  {str(num):<5} {ts:<17} {ds_} {en:>7.4f} {ex:>7.4f} "
-            f"{ps:>9} {mpu:>7.3f} {edg:>6.4f} {sc:>6.1f} {reg:<10} {os_}"
-        )
-    print(sep)
-    print()
 
+        pnl_txt = Text(f"${p:+.4f}", style="green" if p >= 0 else "red")
+        out_txt = (
+            Text("WIN",     style="bold green")  if out == "WIN"  else
+            Text("LOSS",    style="bold red")     if out == "LOSS" else
+            Text("PENDING", style="yellow")
+        )
+        dir_txt = Text(d, style="cyan" if d == "LONG" else "magenta")
+
+        tbl.add_row(
+            num, ts, dir_txt,
+            f"{en:.4f}", f"{ex:.4f}",
+            pnl_txt,
+            f"{mpu:.3f}", f"{edg:.4f}", f"{sc:.1f}",
+            reg, out_txt,
+        )
+
+    console.print()
+    console.print(tbl)
+    console.print()
+
+
+# ── CSV export ────────────────────────────────────────────────────────────────
 
 def export_csv(trades: List[Dict], path: str = "paper_trades.csv") -> None:
     if not trades:
-        print("No trades to export.")
+        console.print("[yellow]No trades to export.[/yellow]")
         return
     keys = [
         "trade_id", "timestamp", "direction", "size_usd", "entry_price",
@@ -249,8 +356,10 @@ def export_csv(trades: List[Dict], path: str = "paper_trades.csv") -> None:
         w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
         w.writeheader()
         w.writerows(trades)
-    print(f"Exported {len(trades)} trades to {path}")
+    console.print(f"[green]Exported[/green] {len(trades)} trades → [cyan]{path}[/cyan]")
 
+
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="View paper/simulation trade results")
@@ -264,7 +373,7 @@ def main() -> None:
 
     def render() -> None:
         if args.watch:
-            os.system("cls" if sys.platform == "win32" else "clear")
+            console.clear()
         trades = load_trades(path)
         s = compute_stats(trades)
         print_summary(s)
@@ -273,7 +382,9 @@ def main() -> None:
         if args.csv:
             export_csv(trades)
         if args.watch:
-            print(CY("  [Auto-refresh every 10s  --  Ctrl+C to stop]"))
+            console.print(
+                Rule("[dim]Auto-refresh every 10 s  ·  Ctrl+C to stop[/dim]", style="dim")
+            )
 
     if args.watch:
         try:
@@ -281,7 +392,7 @@ def main() -> None:
                 render()
                 time.sleep(10)
         except KeyboardInterrupt:
-            print("\nStopped.")
+            console.print("\n[yellow]Stopped.[/yellow]")
     else:
         render()
 

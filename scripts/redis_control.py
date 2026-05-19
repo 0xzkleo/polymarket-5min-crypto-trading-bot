@@ -4,6 +4,13 @@ import sys
 import os
 from dotenv import load_dotenv
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich import box
+
+console = Console()
 load_dotenv()
 
 
@@ -19,8 +26,8 @@ def get_redis_client():
         client.ping()
         return client
     except Exception as e:
-        print(f"Redis connection failed: {e}")
-        print("Make sure Redis is running: redis-server")
+        console.print(f"[red]Redis connection failed:[/red] {e}")
+        console.print("[dim]Make sure Redis is running:  redis-server[/dim]")
         return None
 
 
@@ -36,33 +43,38 @@ def get_current_mode(client) -> bool | None:
 def set_simulation_mode(client, simulation: bool) -> bool:
     try:
         client.set("btc_trading:simulation_mode", "1" if simulation else "0")
-        print(f"Mode set to: {'SIMULATION' if simulation else 'LIVE TRADING'}")
+        label = "SIMULATION" if simulation else "LIVE TRADING"
+        style = "cyan" if simulation else "bold red"
+        console.print(f"  Mode set to: [{style}]{label}[/{style}]")
         return True
     except Exception as e:
-        print(f"Error setting mode: {e}")
+        console.print(f"[red]Error setting mode:[/red] {e}")
         return False
 
 
 def display_status(client) -> None:
     mode = get_current_mode(client)
-    print("\n" + "=" * 60)
-    print("BTC BOT — CURRENT STATUS")
-    print("=" * 60)
+    console.print()
     if mode is None:
-        print("Status: Not set (using default from .env)")
+        body = Text("Not set — using default from .env", style="dim")
+        border = "dim"
     elif mode:
-        print("Status: SIMULATION MODE")
-        print("  No real trades will be placed")
+        body = Text("SIMULATION MODE\nNo real trades will be placed", style="cyan")
+        border = "cyan"
     else:
-        print("Status: LIVE TRADING MODE")
-        print("  REAL MONEY AT RISK!")
-    print("=" * 60 + "\n")
+        body = Text("LIVE TRADING MODE\nREAL MONEY AT RISK!", style="bold red")
+        border = "red"
+    console.print(Panel(body, title="[bold white]BTC BOT STATUS[/bold white]",
+                        border_style=border, padding=(0, 2)))
+    console.print()
 
 
 def main() -> None:
-    print("\n" + "=" * 60)
-    print("BTC BOT — SIMULATION MODE CONTROL")
-    print("=" * 60)
+    console.print()
+    console.print(Panel(
+        "[bold white]BTC BOT — SIMULATION MODE CONTROL[/bold white]",
+        border_style="white", padding=(0, 2),
+    ))
 
     client = get_redis_client()
     if not client:
@@ -76,50 +88,46 @@ def main() -> None:
             set_simulation_mode(client, True)
             display_status(client)
         elif command in ("live", "off"):
-            print("WARNING: Switching to LIVE TRADING mode!")
-            confirm = input("Type 'yes' to confirm: ")
+            console.print("[bold red]WARNING:[/bold red] Switching to LIVE TRADING mode!")
+            confirm = input("  Type 'yes' to confirm: ")
             if confirm.lower() == "yes":
                 set_simulation_mode(client, False)
                 display_status(client)
             else:
-                print("Cancelled.")
+                console.print("[yellow]Cancelled.[/yellow]")
         elif command in ("status", "check"):
             pass
         else:
-            print(f"Unknown command: {command}")
-            print("\nUsage:")
-            print("  python scripts/redis_control.py sim    — Enable simulation mode")
-            print("  python scripts/redis_control.py live   — Enable live trading")
-            print("  python scripts/redis_control.py status — Show current status")
+            console.print(f"[red]Unknown command:[/red] {command}")
+            console.print("\n[dim]Usage:[/dim]")
+            console.print("  python scripts/redis_control.py [cyan]sim[/cyan]    — Enable simulation mode")
+            console.print("  python scripts/redis_control.py [red]live[/red]   — Enable live trading")
+            console.print("  python scripts/redis_control.py status — Show current status")
     else:
-        print("Commands:")
-        print("  1. Enable simulation mode")
-        print("  2. Enable live trading")
-        print("  3. Check status")
-        print("  4. Exit")
+        console.print("[dim]Commands:[/dim]  1) Simulation  2) Live trading  3) Status  4) Exit")
         while True:
             try:
-                choice = input("\nEnter choice (1-4): ").strip()
+                choice = input("\n  Choice (1-4): ").strip()
                 if choice == "1":
                     set_simulation_mode(client, True)
                     display_status(client)
                 elif choice == "2":
-                    print("WARNING: This will enable LIVE TRADING!")
-                    confirm = input("Type 'yes' to confirm: ")
+                    console.print("[bold red]WARNING:[/bold red] This will enable LIVE TRADING!")
+                    confirm = input("  Type 'yes' to confirm: ")
                     if confirm.lower() == "yes":
                         set_simulation_mode(client, False)
                         display_status(client)
                     else:
-                        print("Cancelled.")
+                        console.print("[yellow]Cancelled.[/yellow]")
                 elif choice == "3":
                     display_status(client)
                 elif choice == "4":
-                    print("Goodbye!")
+                    console.print("[dim]Goodbye![/dim]")
                     break
                 else:
-                    print("Invalid choice!")
+                    console.print("[red]Invalid choice.[/red]")
             except KeyboardInterrupt:
-                print("\nGoodbye!")
+                console.print("\n[dim]Goodbye![/dim]")
                 break
 
 
