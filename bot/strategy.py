@@ -92,6 +92,13 @@ class IntegratedBTCStrategy(Strategy):
         self._waiting_for_market_open = False
         self._last_bid_ask = None
 
+        # Async instrument loading state. Nautilus loads Polymarket instruments
+        # in a background task; on_start() can run before the cache is populated.
+        # Track retries so the timer loop can re-attempt without spamming logs.
+        self._instruments_loaded: bool = False
+        self._instrument_load_attempts: int = 0
+        self._max_instrument_load_attempts: int = 60  # ~10 min at 10s ticks
+
         self._tick_buffer: deque = deque(maxlen=500)
         self._yes_token_id: Optional[str] = None
 
@@ -236,11 +243,16 @@ class IntegratedBTCStrategy(Strategy):
         logger.info("INTEGRATED BTC STRATEGY STARTED")
         logger.info("=" * 80)
 
-        self._load_all_btc_instruments()
+        # First attempt at the instrument cache. The Polymarket adapter
+        # populates the cache asynchronously, so an empty result here is
+        # expected on a fresh start; the timer loop will keep retrying.
+        if not self._load_all_btc_instruments():
+            logger.warning(
+                "Instrument cache empty at startup — timer loop will retry "
+                "until BTC 15-min markets become available."
+            )
 
         if self.instrument_id:
-            self.subscribe_quote_ticks(self.instrument_id)
-            logger.info(f"Subscribed to market: {self.instrument_id}")
             try:
                 quote = self.cache.quote_tick(self.instrument_id)
                 if quote and quote.bid_price and quote.ask_price:
@@ -292,9 +304,18 @@ class IntegratedBTCStrategy(Strategy):
 
     # ── Instrument loading ────────────────────────────────────────────────────
 
-    def _load_all_btc_instruments(self) -> None:
+    def _load_all_btc_instruments(self, *, quiet: bool = False) -> bool:
+        """
+        Scan the Nautilus instrument cache for BTC 15-min markets and bind the
+        active one. Returns True if any markets were found, False otherwise.
+
+        Nautilus populates the instrument cache asynchronously, so this must be
+        callable repeatedly until it succeeds. ``quiet=True`` suppresses the
+        per-attempt log lines used by the retry loop.
+        """
         instruments = self.cache.instruments()
-        logger.info(f"Loading BTC instruments from {len(instruments)} total...")
+        if not quiet:
+            logger.info(f"Loading BTC instruments from {len(instruments)} total...")
 
         now = datetime.now(timezone.utc)
         current_timestamp = int(now.timestamp())
@@ -303,65 +324,101 @@ class IntegratedBTCStrategy(Strategy):
 
         for instrument in instruments:
             try:
-                if hasattr(instrument, "info") and instrument.info:
-                    question = instrument.info.get("question", "").lower()
-                    slug = instrument.info.get("market_slug", "").lower()
+                info = getattr(instrument, "info", None) or {}
+                if not info:
+                    continue
+                question = (info.get("question") or "").lower()
+                slug = (info.get("market_slug") or "").lower()
 
-                    if ("btc" in question or "btc" in slug) and "15m" in slug:
-                        try:
-                            timestamp_part = slug.split("-")[-1]
-                            market_timestamp = int(timestamp_part)
+                if not (("btc" in question or "btc" in slug) and "15m" in slug):
+                    continue
 
-                            real_start_ts = market_timestamp
-                            end_timestamp = market_timestamp + 900
-                            time_diff = real_start_ts - current_timestamp
+                try:
+                    market_timestamp = int(slug.split("-")[-1])
+                except (ValueError, IndexError):
+                    continue
 
-                            if end_timestamp > current_timestamp:
-                                raw_id = str(instrument.id)
-                                without_suffix = raw_id.split(".")[0] if "." in raw_id else raw_id
-                                yes_token_id = (
-                                    without_suffix.split("-")[-1]
-                                    if "-" in without_suffix
-                                    else without_suffix
-                                )
+                end_timestamp = market_timestamp + 900
+                if end_timestamp <= current_timestamp:
+                    continue
 
-                                btc_instruments.append({
-                                    "instrument": instrument,
-                                    "slug": slug,
-                                    "start_time": datetime.fromtimestamp(real_start_ts, tz=timezone.utc),
-                                    "end_time": datetime.fromtimestamp(end_timestamp, tz=timezone.utc),
-                                    "market_timestamp": market_timestamp,
-                                    "end_timestamp": end_timestamp,
-                                    "time_diff_minutes": time_diff / 60,
-                                    "yes_token_id": yes_token_id,
-                                })
-                        except (ValueError, IndexError):
-                            continue
+                raw_id = str(instrument.id)
+                without_suffix = raw_id.split(".")[0] if "." in raw_id else raw_id
+                token_id = (
+                    without_suffix.split("-")[-1]
+                    if "-" in without_suffix
+                    else without_suffix
+                )
+
+                # Polymarket binary markets expose two CLOB tokens per slug,
+                # one per outcome. Trust info["outcome"] when present; fall
+                # back to insertion order only as a last resort.
+                outcome = (info.get("outcome") or "").strip().lower()
+
+                btc_instruments.append({
+                    "instrument": instrument,
+                    "slug": slug,
+                    "start_time": datetime.fromtimestamp(market_timestamp, tz=timezone.utc),
+                    "end_time": datetime.fromtimestamp(end_timestamp, tz=timezone.utc),
+                    "market_timestamp": market_timestamp,
+                    "end_timestamp": end_timestamp,
+                    "time_diff_minutes": (market_timestamp - current_timestamp) / 60,
+                    "token_id": token_id,
+                    "outcome": outcome,
+                })
             except Exception:
                 continue
 
-        seen_slugs: Dict = {}
-        deduped = []
+        if not btc_instruments:
+            if not quiet:
+                logger.warning("No BTC 15-min instruments in cache yet")
+            return False
+
+        # Group both tokens (YES/NO) under their shared slug.
+        grouped: Dict[str, dict] = {}
         for inst in btc_instruments:
             slug = inst["slug"]
-            if slug not in seen_slugs:
-                inst["yes_instrument_id"] = inst["instrument"].id
-                inst["no_instrument_id"] = None
-                seen_slugs[slug] = inst
-                deduped.append(inst)
-            else:
-                seen_slugs[slug]["no_instrument_id"] = inst["instrument"].id
-        btc_instruments = deduped
+            entry = grouped.get(slug)
+            if entry is None:
+                entry = {
+                    **inst,
+                    "yes_instrument_id": None,
+                    "no_instrument_id": None,
+                    "yes_token_id": None,
+                    "no_token_id": None,
+                }
+                grouped[slug] = entry
 
-        btc_instruments.sort(key=lambda x: x["market_timestamp"])
+            outcome = inst["outcome"]
+            inst_id = inst["instrument"].id
+            tok_id = inst["token_id"]
+
+            if outcome == "yes" or outcome == "up":
+                entry["yes_instrument_id"] = inst_id
+                entry["yes_token_id"] = tok_id
+            elif outcome == "no" or outcome == "down":
+                entry["no_instrument_id"] = inst_id
+                entry["no_token_id"] = tok_id
+            else:
+                # Outcome metadata missing — fall back to first/second seen.
+                if entry["yes_instrument_id"] is None:
+                    entry["yes_instrument_id"] = inst_id
+                    entry["yes_token_id"] = tok_id
+                else:
+                    entry["no_instrument_id"] = inst_id
+                    entry["no_token_id"] = tok_id
+
+        btc_instruments = sorted(grouped.values(), key=lambda x: x["market_timestamp"])
 
         logger.info("=" * 80)
         logger.info(f"FOUND {len(btc_instruments)} BTC 15-MIN MARKETS:")
         for i, inst in enumerate(btc_instruments):
             is_active = inst["time_diff_minutes"] <= 0 and inst["end_timestamp"] > current_timestamp
             status = "ACTIVE" if is_active else ("FUTURE" if inst["time_diff_minutes"] > 0 else "PAST")
+            yes_marker = "Y" if inst.get("yes_instrument_id") else "-"
+            no_marker = "N" if inst.get("no_instrument_id") else "-"
             logger.info(
-                f"  [{i}] {inst['slug']}: {status} "
+                f"  [{i}] {inst['slug']}: {status} [{yes_marker}{no_marker}] "
                 f"(starts {inst['start_time'].strftime('%H:%M:%S')}, "
                 f"ends {inst['end_time'].strftime('%H:%M:%S')})"
             )
@@ -369,39 +426,54 @@ class IntegratedBTCStrategy(Strategy):
 
         self.all_btc_instruments = btc_instruments
 
+        active_idx = None
         for i, inst in enumerate(btc_instruments):
-            is_active = inst["time_diff_minutes"] <= 0 and inst["end_timestamp"] > current_timestamp
-            if is_active:
-                self.current_instrument_index = i
-                self.instrument_id = inst["instrument"].id
-                self.next_switch_time = inst["end_time"]
-                self._yes_token_id = inst.get("yes_token_id")
-                self._yes_instrument_id = inst.get("yes_instrument_id", inst["instrument"].id)
-                self._no_instrument_id = inst.get("no_instrument_id")
-                logger.info(f"CURRENT MARKET: {inst['slug']} (index {i})")
-                logger.info(f"  Next switch at: {self.next_switch_time.strftime('%H:%M:%S')}")
-                self.subscribe_quote_ticks(self.instrument_id)
-                logger.info("  Subscribed to current market")
+            if inst["time_diff_minutes"] <= 0 and inst["end_timestamp"] > current_timestamp:
+                active_idx = i
                 break
 
-        if self.current_instrument_index == -1 and btc_instruments:
+        if active_idx is not None:
+            self._bind_market(active_idx, waiting=False)
+        else:
             future_markets = [inst for inst in btc_instruments if inst["time_diff_minutes"] > 0]
             nearest = (
                 min(future_markets, key=lambda x: x["time_diff_minutes"])
                 if future_markets
                 else btc_instruments[-1]
             )
-            nearest_idx = btc_instruments.index(nearest)
+            self._bind_market(btc_instruments.index(nearest), waiting=True)
 
-            self.current_instrument_index = nearest_idx
-            self.instrument_id = nearest["instrument"].id
-            self._yes_token_id = nearest.get("yes_token_id")
-            self._yes_instrument_id = nearest.get("yes_instrument_id", nearest["instrument"].id)
-            self._no_instrument_id = nearest.get("no_instrument_id")
-            self.next_switch_time = nearest["start_time"]
-            logger.info(f"NO CURRENT MARKET — waiting for: {nearest['slug']}")
-            self.subscribe_quote_ticks(self.instrument_id)
+        self._instruments_loaded = True
+        return True
+
+    def _bind_market(self, index: int, *, waiting: bool) -> None:
+        """Bind the strategy to a market entry by index in ``all_btc_instruments``."""
+        if not (0 <= index < len(self.all_btc_instruments)):
+            return
+
+        market = self.all_btc_instruments[index]
+        self.current_instrument_index = index
+        # Default subscription/instrument target is the YES token when present.
+        self.instrument_id = market.get("yes_instrument_id") or market["instrument"].id
+        self._yes_instrument_id = market.get("yes_instrument_id") or market["instrument"].id
+        self._no_instrument_id = market.get("no_instrument_id")
+        self._yes_token_id = market.get("yes_token_id") or market.get("token_id")
+
+        if waiting:
+            self.next_switch_time = market["start_time"]
             self._waiting_for_market_open = True
+            logger.info(f"NO CURRENT MARKET — waiting for: {market['slug']}")
+        else:
+            self.next_switch_time = market["end_time"]
+            self._waiting_for_market_open = False
+            logger.info(f"CURRENT MARKET: {market['slug']} (index {index})")
+            logger.info(f"  Next switch at: {self.next_switch_time.strftime('%H:%M:%S')}")
+
+        try:
+            self.subscribe_quote_ticks(self.instrument_id)
+            logger.info(f"  Subscribed to: {self.instrument_id}")
+        except Exception as e:
+            logger.warning(f"Failed to subscribe quote ticks for {self.instrument_id}: {e}")
 
     def _switch_to_next_market(self) -> bool:
         if not self.all_btc_instruments:
@@ -420,26 +492,17 @@ class IntegratedBTCStrategy(Strategy):
             logger.info(f"Waiting for next market at {next_market['start_time'].strftime('%H:%M:%S')}")
             return False
 
-        self.current_instrument_index = next_index
-        self.instrument_id = next_market["instrument"].id
-        self.next_switch_time = next_market["end_time"]
-        self._yes_token_id = next_market.get("yes_token_id")
-        self._yes_instrument_id = next_market.get("yes_instrument_id", next_market["instrument"].id)
-        self._no_instrument_id = next_market.get("no_instrument_id")
-
         logger.info("=" * 80)
         logger.info(f"SWITCHING TO NEXT MARKET: {next_market['slug']}")
         logger.info(f"  Current time: {now.strftime('%H:%M:%S')}")
-        logger.info(f"  Market ends at: {self.next_switch_time.strftime('%H:%M:%S')}")
         logger.info("=" * 80)
+
+        self._bind_market(next_index, waiting=False)
 
         self._stable_tick_count = QUOTE_STABILITY_REQUIRED
         self._market_stable = True
-        self._waiting_for_market_open = False
         self.last_trade_time = -1
         logger.info("  Trade timer reset — will trade on next tick")
-
-        self.subscribe_quote_ticks(self.instrument_id)
         return True
 
     # ── Timer loop ────────────────────────────────────────────────────────────
@@ -462,6 +525,26 @@ class IntegratedBTCStrategy(Strategy):
                 import signal as _signal
                 os.kill(os.getpid(), _signal.SIGTERM)
                 return
+
+            # Retry instrument loading until Nautilus has populated the cache.
+            if not self._instruments_loaded:
+                self._instrument_load_attempts += 1
+                # Log the first few attempts then go quiet to avoid log spam.
+                quiet = self._instrument_load_attempts > 3
+                if self._load_all_btc_instruments(quiet=quiet):
+                    logger.info(
+                        f"Instruments loaded after {self._instrument_load_attempts} "
+                        f"attempt(s) — strategy is ready to trade."
+                    )
+                elif self._instrument_load_attempts == self._max_instrument_load_attempts:
+                    logger.error(
+                        f"Failed to load BTC 15-min instruments after "
+                        f"{self._max_instrument_load_attempts} attempts. "
+                        f"Check Polymarket connectivity and Gamma API patches."
+                    )
+                elif self._instrument_load_attempts > self._max_instrument_load_attempts:
+                    # Stop retrying but keep the loop alive for stop/restart logic.
+                    pass
 
             now = datetime.now(timezone.utc)
 
@@ -781,7 +864,14 @@ class IntegratedBTCStrategy(Strategy):
             )
 
         # STEPS 3 + 4 — Edge check / fallback trend filter
-        POSITION_SIZE_USD = Decimal("1.00")
+        # The market-order patch reads MARKET_BUY_USD at submit time, so the
+        # strategy must use the same value for risk validation and logging
+        # otherwise the risk engine and the actual fill amount disagree.
+        try:
+            position_size_usd = max(0.01, float(os.getenv("MARKET_BUY_USD", "1.0")))
+        except (TypeError, ValueError):
+            position_size_usd = 1.0
+        POSITION_SIZE_USD = Decimal(str(position_size_usd))
         direction: Optional[str] = None
         bet_edge: float = 0.0
 
@@ -1043,7 +1133,23 @@ class IntegratedBTCStrategy(Strategy):
 
     async def _place_real_order(self, signal, position_size, current_price: Decimal, direction: str) -> None:
         if not self.instrument_id:
-            logger.error("No instrument available")
+            logger.error("No instrument available — instrument cache not yet loaded")
+            return
+
+        # Refuse to send a live BUY if the market-order patch is missing,
+        # otherwise Nautilus would treat the dummy 5-token quantity as the
+        # real order size and we'd massively over-spend.
+        try:
+            from patches.market_orders import _patch_applied as _mo_patch_applied
+        except Exception:
+            _mo_patch_applied = False
+        if not _mo_patch_applied:
+            logger.error(
+                "Market-order patch is NOT applied — refusing to submit live BUY "
+                "(would otherwise send a 5-token order instead of the configured "
+                "USD amount)."
+            )
+            self._track_order_event("rejected")
             return
 
         try:
@@ -1054,7 +1160,7 @@ class IntegratedBTCStrategy(Strategy):
             side = OrderSide.BUY
 
             if direction == "long":
-                trade_instrument_id = getattr(self, "_yes_instrument_id", self.instrument_id)
+                trade_instrument_id = getattr(self, "_yes_instrument_id", None) or self.instrument_id
                 trade_label = "YES (UP)"
             else:
                 no_id = getattr(self, "_no_instrument_id", None)
@@ -1071,19 +1177,32 @@ class IntegratedBTCStrategy(Strategy):
 
             logger.info(f"Buying {trade_label} token: {trade_instrument_id}")
 
-            max_usd_amount = float(position_size)
+            # The patch reads MARKET_BUY_USD at submit time. Use it here too so
+            # logs and the risk engine see the same number that will actually
+            # be sent on-chain.
+            try:
+                max_usd_amount = max(0.01, float(os.getenv("MARKET_BUY_USD", str(float(position_size)))))
+            except (TypeError, ValueError):
+                max_usd_amount = float(position_size)
+
             precision = instrument.size_precision
+
+            # The patch ignores this quantity for BUY orders and uses USD
+            # instead, but Nautilus still validates against instrument.min_quantity
+            # before the patch runs, so we pass a value just above the minimum.
             min_qty_val = float(getattr(instrument, "min_quantity", None) or 5.0)
             token_qty = round(max(min_qty_val, 5.0), precision)
 
             logger.info(
-                f"BUY {trade_label}: dummy qty={token_qty:.6f} "
-                f"(patch converts to ${max_usd_amount:.2f} USD)"
+                f"BUY {trade_label}: ${max_usd_amount:.2f} USD "
+                f"(Nautilus placeholder qty={token_qty:.6f})"
             )
 
             qty = Quantity(token_qty, precision=precision)
             timestamp_ms = int(time.time() * 1000)
-            unique_id = f"BTC-15MIN-${max_usd_amount:.0f}-{timestamp_ms}"
+            # Plain alphanumeric/dash id only — some venues reject special chars.
+            usd_label = str(int(round(max_usd_amount * 100))).zfill(4)
+            unique_id = f"BTC-15M-{usd_label}-{timestamp_ms}"
 
             order = self.order_factory.market(
                 instrument_id=trade_instrument_id,
@@ -1099,10 +1218,21 @@ class IntegratedBTCStrategy(Strategy):
             logger.info("REAL ORDER SUBMITTED!")
             logger.info(f"  Order ID:  {unique_id}")
             logger.info(f"  Direction: {trade_label}")
-            logger.info(f"  Qty:       {token_qty:.6f}")
-            logger.info(f"  Est. Cost: ~${max_usd_amount:.2f}")
+            logger.info(f"  Notional:  ~${max_usd_amount:.2f}")
             logger.info(f"  Price:     ${float(current_price):.4f}")
             logger.info("=" * 80)
+
+            # Stash metadata for on_order_filled so the risk engine can be
+            # updated with the actual fill price/size when the trade lands.
+            if not hasattr(self, "_pending_orders"):
+                self._pending_orders: Dict[str, dict] = {}
+            self._pending_orders[unique_id] = {
+                "instrument_id": trade_instrument_id,
+                "direction": direction,
+                "size_usd": max_usd_amount,
+                "expected_price": float(current_price),
+                "label": trade_label,
+            }
 
             self._track_order_event("placed")
 
@@ -1195,6 +1325,22 @@ class IntegratedBTCStrategy(Strategy):
         logger.info("=" * 80)
         self._track_order_event("filled")
 
+        # Register the live fill with the risk engine so total exposure is
+        # actually enforced (otherwise get_total_exposure() always sees 0).
+        try:
+            client_id = str(event.client_order_id)
+            pending = getattr(self, "_pending_orders", {}).pop(client_id, None)
+            if pending is not None:
+                fill_price = Decimal(str(float(event.last_px)))
+                self.risk_engine.add_position(
+                    position_id=client_id,
+                    size=Decimal(str(pending["size_usd"])),
+                    entry_price=fill_price,
+                    direction=pending["direction"],
+                )
+        except Exception as e:
+            logger.warning(f"Failed to record live fill in risk engine: {e}")
+
     def on_order_denied(self, event) -> None:
         logger.error("=" * 80)
         logger.error("ORDER DENIED!")
@@ -1202,6 +1348,7 @@ class IntegratedBTCStrategy(Strategy):
         logger.error(f"  Reason: {event.reason}")
         logger.error("=" * 80)
         self._track_order_event("rejected")
+        self._discard_pending_order(event)
 
     def on_order_rejected(self, event) -> None:
         reason = str(getattr(event, "reason", ""))
@@ -1212,6 +1359,18 @@ class IntegratedBTCStrategy(Strategy):
             self.last_trade_time = -1
         else:
             logger.warning(f"Order rejected: {reason}")
+        self._track_order_event("rejected")
+        self._discard_pending_order(event)
+
+    def _discard_pending_order(self, event) -> None:
+        """Remove a no-longer-live order from the pending map (best effort)."""
+        try:
+            client_id = str(getattr(event, "client_order_id", ""))
+            pending = getattr(self, "_pending_orders", None)
+            if pending and client_id in pending:
+                pending.pop(client_id, None)
+        except Exception:
+            pass
 
     # ── Grafana / stop ────────────────────────────────────────────────────────
 
