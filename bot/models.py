@@ -72,6 +72,65 @@ class PaperTrade:
         }
 
 
+@dataclass
+class LiveTrade:
+    """Realised live trade — recorded once a live position is closed.
+
+    A live trade is closed in one of three ways:
+      * ``EXIT_STOP``    — manual SELL fired by stop-loss
+      * ``EXIT_TP``      — manual SELL fired by take-profit
+      * ``SETTLEMENT``   — Polymarket auto-resolved at the 15-min boundary
+                          (token paid 1.0 to the winner / 0.0 to the loser)
+    """
+
+    trade_id: str           # entry client_order_id
+    ml_trade_id: Optional[int]
+    timestamp: datetime
+    closed_at: datetime
+    direction: str          # "LONG" | "SHORT"
+    label: str              # "YES (UP)" | "NO (DOWN)"
+    market_slug: str
+
+    size_usd: float         # USD notional of the BUY entry
+    filled_qty: float       # Polymarket tokens held
+    entry_price: float      # held-token price at entry (0-1)
+    exit_price: float       # held-token price at exit (0-1)
+    pnl_usd: float          # qty * (exit - entry)
+    pnl_pct: float          # (exit - entry) / entry
+
+    outcome: str            # "WIN" | "LOSS" | "BREAKEVEN" | "UNRESOLVED"
+    close_reason: str       # "EXIT_STOP" | "EXIT_TP" | "SETTLEMENT" | ...
+
+    # Identifiers from the venue
+    entry_order_id: Optional[str] = None
+    exit_order_id: Optional[str] = None
+
+    # Session tracking
+    session_trade_num: int = 0
+
+    def to_dict(self) -> dict:
+        return {
+            "trade_id": self.trade_id,
+            "ml_trade_id": self.ml_trade_id,
+            "timestamp": self.timestamp.isoformat(),
+            "closed_at": self.closed_at.isoformat(),
+            "direction": self.direction,
+            "label": self.label,
+            "market_slug": self.market_slug,
+            "size_usd": round(self.size_usd, 6),
+            "filled_qty": round(self.filled_qty, 6),
+            "entry_price": round(self.entry_price, 6),
+            "exit_price": round(self.exit_price, 6),
+            "pnl_usd": round(self.pnl_usd, 6),
+            "pnl_pct": round(self.pnl_pct * 100, 4),
+            "outcome": self.outcome,
+            "close_reason": self.close_reason,
+            "entry_order_id": self.entry_order_id,
+            "exit_order_id": self.exit_order_id,
+            "session_trade_num": self.session_trade_num,
+        }
+
+
 def _make_stub_signal(direction: str, ml_p_up: Optional[float] = None):
     """
     Minimal signal stub for paper-trade logging when the ML model fires but no
