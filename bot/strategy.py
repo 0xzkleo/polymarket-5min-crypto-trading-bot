@@ -16,6 +16,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from loguru import logger
@@ -29,6 +30,7 @@ from bot.models import (
     MARKET_INTERVAL_SECONDS,
     QUOTE_MIN_SPREAD,
     QUOTE_STABILITY_REQUIRED,
+    LiveTrade,
     PaperTrade,
     _make_stub_signal,
 )
@@ -98,6 +100,35 @@ class IntegratedBTCStrategy(Strategy):
         self._instruments_loaded: bool = False
         self._instrument_load_attempts: int = 0
         self._max_instrument_load_attempts: int = 60  # ~10 min at 10s ticks
+
+        # ── Live position / exit management ─────────────────────────────────
+        # Pending BUY orders awaiting their first fill report.
+        self._pending_orders: Dict[str, dict] = {}
+        # Open positions, keyed by entry client_order_id, that the live
+        # stop-loss / take-profit handler watches on every quote tick.
+        self._open_positions: Dict[str, dict] = {}
+        # Outstanding exit (SELL) orders, mapping exit client_id -> entry id.
+        self._pending_exits: Dict[str, str] = {}
+
+        try:
+            self._stop_loss_pct = max(0.0, float(os.getenv("STOP_LOSS_PCT", "0.30")))
+        except (TypeError, ValueError):
+            self._stop_loss_pct = 0.30
+        try:
+            self._take_profit_pct = max(0.0, float(os.getenv("TAKE_PROFIT_PCT", "0.20")))
+        except (TypeError, ValueError):
+            self._take_profit_pct = 0.20
+        # Don't try to exit in the last few seconds before settlement —
+        # FAK rejects + settlement happen too fast to be useful.
+        self._exit_cutoff_seconds = 30
+
+        # ── Live realised-P&L tracking ──────────────────────────────────────
+        # Closed live trades, mirror of `paper_trades.json` for the live path.
+        self.live_trades: List[LiveTrade] = []
+        self._live_session_num: int = 0
+        # Hard cap (seconds after market end) before we give up waiting for a
+        # definitive settlement price and resolve at the last seen bid.
+        self._settle_grace_seconds: int = 600  # 10 min
 
         self._tick_buffer: deque = deque(maxlen=500)
         self._yes_token_id: Optional[str] = None
@@ -548,6 +579,14 @@ class IntegratedBTCStrategy(Strategy):
 
             now = datetime.now(timezone.utc)
 
+            # Settle positions whose underlying market has already resolved.
+            # Polymarket auto-resolves binary markets at end_timestamp; the
+            # held token pays $1 to the winner / $0 to the loser. We compute
+            # the realised P&L from a definitive settlement source (the
+            # SettlementTracker's Chainlink outcome) and fall back to the
+            # last observed bid for the held token if Chainlink is offline.
+            self._settle_open_positions(now)
+
             if self.next_switch_time and now >= self.next_switch_time:
                 if self._waiting_for_market_open:
                     logger.info("=" * 80)
@@ -589,12 +628,7 @@ class IntegratedBTCStrategy(Strategy):
 
     def on_quote_tick(self, tick: QuoteTick) -> None:
         try:
-            if self.instrument_id is None or tick.instrument_id != self.instrument_id:
-                return
-
-            now = datetime.now(timezone.utc)
             bid, ask = tick.bid_price, tick.ask_price
-
             if bid is None or ask is None:
                 return
 
@@ -603,6 +637,20 @@ class IntegratedBTCStrategy(Strategy):
                 ask_decimal = ask.as_decimal()
             except Exception:
                 return
+
+            # Live exit check runs for every tick on any held token (YES or
+            # NO), independent of which market is currently active for trading.
+            try:
+                self._check_position_exits(tick.instrument_id, bid_decimal, ask_decimal)
+            except Exception as e:
+                logger.warning(f"Exit check failed: {e}")
+
+            # Everything below is signal/decision logic for the active market
+            # only. Position exits already ran above for any held instrument.
+            if self.instrument_id is None or tick.instrument_id != self.instrument_id:
+                return
+
+            now = datetime.now(timezone.utc)
 
             mid_price = (bid_decimal + ask_decimal) / 2
             self.price_history.append(mid_price)
@@ -977,7 +1025,13 @@ class IntegratedBTCStrategy(Strategy):
                 metadata=flat_metadata,
             )
         else:
-            await self._place_real_order(signal_for_logging, POSITION_SIZE_USD, current_price, direction)
+            await self._place_real_order(
+                signal_for_logging,
+                POSITION_SIZE_USD,
+                current_price,
+                direction,
+                ml_trade_id=trade_id,
+            )
 
         # STEP 5 — Register settlement
         if trade_id is not None and self.current_instrument_index >= 0:
@@ -1131,7 +1185,14 @@ class IntegratedBTCStrategy(Strategy):
 
     # ── Real order ────────────────────────────────────────────────────────────
 
-    async def _place_real_order(self, signal, position_size, current_price: Decimal, direction: str) -> None:
+    async def _place_real_order(
+        self,
+        signal,
+        position_size,
+        current_price: Decimal,
+        direction: str,
+        ml_trade_id: Optional[int] = None,
+    ) -> None:
         if not self.instrument_id:
             logger.error("No instrument available — instrument cache not yet loaded")
             return
@@ -1215,23 +1276,57 @@ class IntegratedBTCStrategy(Strategy):
 
             self.submit_order(order)
 
+            # Subscribe to ticks for the held token *before* the fill arrives so
+            # the live stop-loss handler starts seeing prices immediately.
+            if trade_instrument_id != self.instrument_id:
+                try:
+                    self.subscribe_quote_ticks(trade_instrument_id)
+                    logger.info(f"  Subscribed to held-token ticks: {trade_instrument_id}")
+                except Exception as e:
+                    logger.warning(
+                        f"Could not subscribe to {trade_instrument_id} for exit "
+                        f"monitoring: {e}"
+                    )
+
             logger.info("REAL ORDER SUBMITTED!")
             logger.info(f"  Order ID:  {unique_id}")
             logger.info(f"  Direction: {trade_label}")
             logger.info(f"  Notional:  ~${max_usd_amount:.2f}")
             logger.info(f"  Price:     ${float(current_price):.4f}")
+            logger.info(
+                f"  Stop/TP:   -{self._stop_loss_pct:.0%} / +{self._take_profit_pct:.0%}"
+            )
             logger.info("=" * 80)
+
+            market_end_ts = 0
+            market_slug = ""
+            if 0 <= self.current_instrument_index < len(self.all_btc_instruments):
+                cur = self.all_btc_instruments[self.current_instrument_index]
+                market_end_ts = int(cur.get("end_timestamp", 0))
+                market_slug = str(cur.get("slug", ""))
+
+            # Capture signal context for the LiveTrade record so live trades
+            # carry the same diagnostic fields as paper trades.
+            signal_score = float(getattr(signal, "score", 0.0) or 0.0)
+            signal_conf = float(getattr(signal, "confidence", 0.0) or 0.0)
 
             # Stash metadata for on_order_filled so the risk engine can be
             # updated with the actual fill price/size when the trade lands.
-            if not hasattr(self, "_pending_orders"):
-                self._pending_orders: Dict[str, dict] = {}
             self._pending_orders[unique_id] = {
+                "side": "BUY",
                 "instrument_id": trade_instrument_id,
                 "direction": direction,
                 "size_usd": max_usd_amount,
                 "expected_price": float(current_price),
                 "label": trade_label,
+                "market_end_ts": market_end_ts,
+                "market_slug": market_slug,
+                "ml_trade_id": ml_trade_id,
+                "signal_score": signal_score,
+                "signal_confidence": signal_conf,
+                "stop_loss_pct": self._stop_loss_pct,
+                "take_profit_pct": self._take_profit_pct,
+                "submitted_at": datetime.now(timezone.utc),
             }
 
             self._track_order_event("placed")
@@ -1317,29 +1412,354 @@ class IntegratedBTCStrategy(Strategy):
             logger.warning(f"Failed to track order event '{event_type}': {e}")
 
     def on_order_filled(self, event) -> None:
+        client_id = str(event.client_order_id)
+        try:
+            fill_price = Decimal(str(float(event.last_px)))
+            fill_qty = Decimal(str(float(event.last_qty)))
+        except Exception:
+            fill_price = Decimal("0")
+            fill_qty = Decimal("0")
+
         logger.info("=" * 80)
         logger.info("ORDER FILLED!")
-        logger.info(f"  Order:       {event.client_order_id}")
-        logger.info(f"  Fill Price:  ${float(event.last_px):.4f}")
-        logger.info(f"  Quantity:    {float(event.last_qty):.6f}")
+        logger.info(f"  Order:       {client_id}")
+        logger.info(f"  Fill Price:  ${float(fill_price):.4f}")
+        logger.info(f"  Quantity:    {float(fill_qty):.6f}")
         logger.info("=" * 80)
         self._track_order_event("filled")
 
-        # Register the live fill with the risk engine so total exposure is
-        # actually enforced (otherwise get_total_exposure() always sees 0).
+        # Branch on whether this fill closed an existing position (SELL) or
+        # opened a new one (BUY).
+        entry_id = self._pending_exits.pop(client_id, None)
+        if entry_id is not None:
+            self._handle_exit_fill(entry_id, client_id, fill_price)
+            return
+
+        pending = self._pending_orders.pop(client_id, None)
+        if pending is not None:
+            self._handle_entry_fill(client_id, pending, fill_price, fill_qty)
+
+    def _handle_entry_fill(
+        self,
+        client_id: str,
+        pending: dict,
+        fill_price: Decimal,
+        fill_qty: Decimal,
+    ) -> None:
+        """Track a freshly-opened position so the exit handler can monitor it."""
         try:
-            client_id = str(event.client_order_id)
-            pending = getattr(self, "_pending_orders", {}).pop(client_id, None)
-            if pending is not None:
-                fill_price = Decimal(str(float(event.last_px)))
-                self.risk_engine.add_position(
-                    position_id=client_id,
-                    size=Decimal(str(pending["size_usd"])),
-                    entry_price=fill_price,
-                    direction=pending["direction"],
-                )
+            self.risk_engine.add_position(
+                position_id=client_id,
+                size=Decimal(str(pending["size_usd"])),
+                entry_price=fill_price,
+                direction=pending["direction"],
+            )
         except Exception as e:
             logger.warning(f"Failed to record live fill in risk engine: {e}")
+
+        sl_pct = Decimal(str(pending.get("stop_loss_pct", self._stop_loss_pct)))
+        tp_pct = Decimal(str(pending.get("take_profit_pct", self._take_profit_pct)))
+        # Stop-loss / take-profit thresholds are relative to the held token's
+        # price. For both LONG (YES bought) and SHORT (NO bought), a falling
+        # token price means the position is losing.
+        stop_loss = max(Decimal("0.01"), fill_price * (Decimal("1") - sl_pct))
+        take_profit = min(Decimal("0.99"), fill_price * (Decimal("1") + tp_pct))
+
+        position = {
+            "instrument_id": pending["instrument_id"],
+            "direction": pending["direction"],
+            "label": pending.get("label", ""),
+            "size_usd": float(pending["size_usd"]),
+            "entry_price": fill_price,
+            "filled_qty": fill_qty,
+            "stop_loss": stop_loss,
+            "take_profit": take_profit,
+            "market_end_ts": int(pending.get("market_end_ts", 0)),
+            "market_slug": pending.get("market_slug", ""),
+            "ml_trade_id": pending.get("ml_trade_id"),
+            "signal_score": float(pending.get("signal_score", 0.0) or 0.0),
+            "signal_confidence": float(pending.get("signal_confidence", 0.0) or 0.0),
+            "exit_in_flight": False,
+            "exit_order_id": None,
+            "opened_at": datetime.now(timezone.utc),
+            # Latest bid seen for the held token; updated on every quote tick
+            # by ``_check_position_exits``. Used as a settlement-price source
+            # when the market auto-resolves (no manual exit).
+            "last_bid": None,
+            "last_bid_ts": None,
+            "last_bid_post_settle": None,
+            "last_bid_post_settle_ts": None,
+        }
+        self._open_positions[client_id] = position
+
+        logger.info(
+            f"POSITION OPEN — {pending.get('label', '')} qty={float(fill_qty):.4f} "
+            f"@ ${float(fill_price):.4f}  "
+            f"stop=${float(stop_loss):.4f}  tp=${float(take_profit):.4f}"
+        )
+
+    def _handle_exit_fill(
+        self,
+        entry_id: str,
+        exit_id: str,
+        fill_price: Decimal,
+    ) -> None:
+        """An exit (SELL) order filled — close out the underlying position."""
+        position = self._open_positions.pop(entry_id, None)
+        if position is None:
+            logger.warning(f"Exit fill {exit_id} had no matching open position {entry_id}")
+            return
+
+        # Decide whether this exit was driven by stop-loss, take-profit, or a
+        # generic mid-market sell. ``fill_price`` may differ slightly from the
+        # trigger threshold (slippage), so use small tolerances.
+        try:
+            sl = position["stop_loss"]
+            tp = position["take_profit"]
+            if fill_price >= tp:
+                close_reason = "EXIT_TP"
+            elif fill_price <= sl:
+                close_reason = "EXIT_STOP"
+            else:
+                close_reason = "EXIT_MANUAL"
+        except Exception:
+            close_reason = "EXIT_MANUAL"
+
+        self._close_live_position(
+            entry_id=entry_id,
+            position=position,
+            exit_price=fill_price,
+            exit_order_id=exit_id,
+            close_reason=close_reason,
+        )
+
+    # ── Live realised-P&L recording ─────────────────────────────────────────
+
+    def _close_live_position(
+        self,
+        entry_id: str,
+        position: dict,
+        exit_price: Decimal,
+        exit_order_id: Optional[str],
+        close_reason: str,
+    ) -> None:
+        """Record a closed live position's realised P&L in every consumer.
+
+        - Removes the position from the risk engine
+        - Appends a ``LiveTrade`` to ``self.live_trades`` and persists it
+        - Forwards the trade to the global PerformanceTracker so cumulative
+          metrics (win rate, ROI, Sharpe, drawdown) include live results
+        """
+        try:
+            self.risk_engine.remove_position(entry_id, exit_price=exit_price)
+        except Exception as e:
+            logger.warning(f"Failed to remove position from risk engine: {e}")
+
+        entry_price_dec = position["entry_price"] if isinstance(position["entry_price"], Decimal) \
+            else Decimal(str(position["entry_price"]))
+        qty_dec = position["filled_qty"] if isinstance(position["filled_qty"], Decimal) \
+            else Decimal(str(position["filled_qty"]))
+
+        entry_price_f = float(entry_price_dec)
+        exit_price_f = float(exit_price)
+        qty_f = float(qty_dec)
+
+        realized = qty_f * (exit_price_f - entry_price_f)
+        pnl_pct = (exit_price_f - entry_price_f) / entry_price_f if entry_price_f > 0 else 0.0
+
+        if realized > 1e-6:
+            outcome = "WIN"
+        elif realized < -1e-6:
+            outcome = "LOSS"
+        else:
+            outcome = "BREAKEVEN"
+        if close_reason == "SETTLEMENT_UNRESOLVED":
+            outcome = "UNRESOLVED"
+
+        self._live_session_num += 1
+        opened_at = position.get("opened_at") or datetime.now(timezone.utc)
+        closed_at = datetime.now(timezone.utc)
+
+        live_trade = LiveTrade(
+            trade_id=entry_id,
+            ml_trade_id=position.get("ml_trade_id"),
+            timestamp=opened_at,
+            closed_at=closed_at,
+            direction=str(position.get("direction", "")).upper(),
+            label=position.get("label", ""),
+            market_slug=position.get("market_slug", ""),
+            size_usd=float(position.get("size_usd", 0.0)),
+            filled_qty=qty_f,
+            entry_price=entry_price_f,
+            exit_price=exit_price_f,
+            pnl_usd=realized,
+            pnl_pct=pnl_pct,
+            outcome=outcome,
+            close_reason=close_reason,
+            entry_order_id=entry_id,
+            exit_order_id=exit_order_id,
+            session_trade_num=self._live_session_num,
+        )
+        self.live_trades.append(live_trade)
+
+        # Mirror into the global performance tracker so Grafana, summaries,
+        # and the supervisor dashboard reflect live performance.
+        try:
+            self.performance_tracker.record_trade(
+                trade_id=entry_id,
+                direction=str(position.get("direction", "long")),
+                entry_price=entry_price_dec,
+                exit_price=Decimal(str(exit_price_f)),
+                size=Decimal(str(position.get("size_usd", 0.0))),
+                entry_time=opened_at,
+                exit_time=closed_at,
+                signal_score=float(position.get("signal_score", 0.0) or 0.0),
+                signal_confidence=float(position.get("signal_confidence", 0.0) or 0.0),
+                metadata={
+                    "simulated": False,
+                    "close_reason": close_reason,
+                    "market_slug": position.get("market_slug", ""),
+                    "label": position.get("label", ""),
+                    "filled_qty": qty_f,
+                    "ml_trade_id": position.get("ml_trade_id"),
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record live trade in PerformanceTracker: {e}")
+
+        # Live-session running totals (analogous to the simulation block).
+        wins = sum(1 for t in self.live_trades if t.outcome == "WIN")
+        losses = sum(1 for t in self.live_trades if t.outcome == "LOSS")
+        total_pnl = sum(t.pnl_usd for t in self.live_trades)
+
+        if hasattr(self, "grafana_exporter") and self.grafana_exporter and outcome in ("WIN", "LOSS"):
+            try:
+                self.grafana_exporter.increment_trade_counter(won=(outcome == "WIN"))
+                self.grafana_exporter.record_trade_duration(
+                    (closed_at - opened_at).total_seconds()
+                )
+            except Exception:
+                pass
+
+        marker = {
+            "EXIT_TP": "[TAKE-PROFIT]",
+            "EXIT_STOP": "[STOP-LOSS]",
+            "EXIT_MANUAL": "[MANUAL EXIT]",
+            "SETTLEMENT": "[SETTLED]",
+            "SETTLEMENT_FALLBACK": "[SETTLED*]",
+            "SETTLEMENT_UNRESOLVED": "[UNRESOLVED]",
+        }.get(close_reason, f"[{close_reason}]")
+
+        logger.info("=" * 80)
+        logger.info(
+            f"[LIVE] TRADE #{self._live_session_num}  {marker}  "
+            f"{live_trade.direction}  {outcome}"
+        )
+        logger.info(f"  Market:   {live_trade.market_slug or 'unknown'}")
+        logger.info(
+            f"  Entry:    ${entry_price_f:.4f}  -->  Exit: ${exit_price_f:.4f}  "
+            f"Qty: {qty_f:.4f}"
+        )
+        logger.info(
+            f"  P&L:      ${realized:+.4f}  ({pnl_pct*100:+.2f}%)  "
+            f"Notional=${live_trade.size_usd:.2f}"
+        )
+        logger.info(
+            f"  Session:  {wins}W/{losses}L  cumulative=${total_pnl:+.4f}"
+        )
+        logger.info("=" * 80)
+
+        self._save_live_trades()
+
+    def _save_live_trades(self) -> None:
+        """Persist closed live trades to ``live_trades.json`` in the project root."""
+        try:
+            path = Path("live_trades.json")
+            with path.open("w") as f:
+                json.dump([t.to_dict() for t in self.live_trades], f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save live trades: {e}")
+
+    def _settle_open_positions(self, now: datetime) -> None:
+        """Resolve realised P&L for positions whose market has already ended.
+
+        Resolution sources, in order of preference:
+          1. ``SettlementTracker.get_resolved_outcome(ml_trade_id)`` — definitive
+             1.0 / 0.0 settlement based on Chainlink BTC/USD
+          2. Last bid observed *after* market_end_ts (Polymarket's CLOB writes
+             1.0 / 0.0 quotes after on-chain resolution)
+          3. After ``_settle_grace_seconds`` (default 10 min), a fallback to
+             the most recent bid even if it isn't at an extreme; the trade is
+             marked ``UNRESOLVED`` so the user can review it.
+        """
+        if not self._open_positions:
+            return
+
+        now_ts = int(now.timestamp())
+
+        for entry_id, position in list(self._open_positions.items()):
+            end_ts = int(position.get("market_end_ts") or 0)
+            if not end_ts or now_ts < end_ts:
+                continue
+            if position.get("exit_in_flight"):
+                # Manual exit is still in flight — wait for its fill report
+                # rather than double-counting at settlement.
+                continue
+
+            ml_trade_id = position.get("ml_trade_id")
+            settle_price: Optional[Decimal] = None
+            close_reason = "SETTLEMENT"
+
+            # Source 1: Chainlink-backed outcome from the settlement tracker.
+            if ml_trade_id is not None:
+                try:
+                    resolved = self.settlement_tracker.get_resolved_outcome(ml_trade_id)
+                except Exception:
+                    resolved = None
+                if resolved is not None:
+                    direction = str(position.get("direction", "long"))
+                    won = (resolved["outcome"] == 1 and direction == "long") or \
+                          (resolved["outcome"] == 0 and direction == "short")
+                    settle_price = Decimal("1") if won else Decimal("0")
+
+            # Source 2: last post-settlement bid clamped to {0, 1} when the
+            # CLOB has clearly resolved.
+            if settle_price is None:
+                ps_bid = position.get("last_bid_post_settle")
+                if ps_bid is not None:
+                    if Decimal(str(ps_bid)) >= Decimal("0.95"):
+                        settle_price = Decimal("1")
+                    elif Decimal(str(ps_bid)) <= Decimal("0.05"):
+                        settle_price = Decimal("0")
+
+            # Source 3: grace-period fallback.
+            if settle_price is None:
+                if (now_ts - end_ts) >= self._settle_grace_seconds:
+                    fallback_bid = (
+                        position.get("last_bid_post_settle")
+                        or position.get("last_bid")
+                    )
+                    if fallback_bid is not None:
+                        settle_price = Decimal(str(fallback_bid))
+                        close_reason = "SETTLEMENT_FALLBACK"
+                    else:
+                        # No price at all — close at entry, mark unresolved.
+                        settle_price = position["entry_price"] if isinstance(
+                            position["entry_price"], Decimal
+                        ) else Decimal(str(position["entry_price"]))
+                        close_reason = "SETTLEMENT_UNRESOLVED"
+                else:
+                    # Still within grace window — try again on the next tick.
+                    continue
+
+            self._open_positions.pop(entry_id, None)
+            self._close_live_position(
+                entry_id=entry_id,
+                position=position,
+                exit_price=settle_price,
+                exit_order_id=None,
+                close_reason=close_reason,
+            )
 
     def on_order_denied(self, event) -> None:
         logger.error("=" * 80)
@@ -1363,14 +1783,149 @@ class IntegratedBTCStrategy(Strategy):
         self._discard_pending_order(event)
 
     def _discard_pending_order(self, event) -> None:
-        """Remove a no-longer-live order from the pending map (best effort)."""
+        """Clean up state for an order that was denied/rejected before any fill.
+
+        Handles both entry (BUY) and exit (SELL) orders so a failed exit lets
+        the next quote tick try again instead of hanging forever.
+        """
         try:
             client_id = str(getattr(event, "client_order_id", ""))
-            pending = getattr(self, "_pending_orders", None)
-            if pending and client_id in pending:
-                pending.pop(client_id, None)
         except Exception:
-            pass
+            return
+
+        # Failed entry: drop pending metadata.
+        if client_id in self._pending_orders:
+            self._pending_orders.pop(client_id, None)
+            return
+
+        # Failed exit: clear in-flight flag so the position retries on the
+        # next eligible tick.
+        entry_id = self._pending_exits.pop(client_id, None)
+        if entry_id is not None and entry_id in self._open_positions:
+            position = self._open_positions[entry_id]
+            position["exit_in_flight"] = False
+            position["exit_order_id"] = None
+            logger.warning(
+                f"Exit order {client_id} failed for position {entry_id} — "
+                f"will retry on next tick"
+            )
+
+    # ── Live position exits ──────────────────────────────────────────────────
+
+    def _check_position_exits(
+        self,
+        instrument_id,
+        bid: Decimal,
+        ask: Decimal,
+    ) -> None:
+        """Inspect every open position on this instrument; submit exits if hit."""
+        if not self._open_positions:
+            return
+
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+
+        for entry_id, position in list(self._open_positions.items()):
+            if position["instrument_id"] != instrument_id:
+                continue
+
+            # Always refresh the most recent bid for this position. The
+            # post-settlement bid is what the settlement reaper uses to
+            # determine realised P&L when no manual exit fired.
+            position["last_bid"] = bid
+            position["last_bid_ts"] = now_ts
+            end_ts = position.get("market_end_ts", 0)
+            if end_ts and now_ts >= end_ts:
+                position["last_bid_post_settle"] = bid
+                position["last_bid_post_settle_ts"] = now_ts
+
+            if position["exit_in_flight"]:
+                continue
+            if position["filled_qty"] <= 0:
+                continue
+
+            # Skip exits in the final seconds before settlement: the FAK is
+            # likely to fail and the binary outcome is about to pay out.
+            if end_ts and (end_ts - now_ts) <= self._exit_cutoff_seconds:
+                continue
+
+            stop_loss = position["stop_loss"]
+            take_profit = position["take_profit"]
+
+            trigger: Optional[str] = None
+            if bid <= stop_loss:
+                trigger = "STOP-LOSS"
+            elif bid >= take_profit:
+                trigger = "TAKE-PROFIT"
+
+            if trigger is None:
+                continue
+
+            logger.warning(
+                f"{trigger} TRIGGERED for {position.get('label', '')} "
+                f"(entry=${float(position['entry_price']):.4f} "
+                f"bid=${float(bid):.4f} stop=${float(stop_loss):.4f} "
+                f"tp=${float(take_profit):.4f})"
+            )
+
+            self._submit_exit_order(entry_id, position, trigger)
+
+    def _submit_exit_order(self, entry_id: str, position: dict, reason: str) -> None:
+        """Submit a market SELL for the held token quantity to close ``position``."""
+        instrument_id = position["instrument_id"]
+        instrument = self.cache.instrument(instrument_id)
+        if not instrument:
+            logger.error(f"Cannot exit {entry_id}: instrument {instrument_id} not in cache")
+            return
+
+        precision = instrument.size_precision
+        # Polymarket market SELL is base-denominated (token quantity) per the
+        # adapter patch, so send the exact filled quantity.
+        try:
+            qty_float = round(float(position["filled_qty"]), precision)
+        except Exception:
+            qty_float = float(position["filled_qty"])
+
+        if qty_float <= 0:
+            logger.error(f"Cannot exit {entry_id}: zero quantity")
+            return
+
+        try:
+            qty = Quantity(qty_float, precision=precision)
+        except Exception as e:
+            logger.error(f"Failed to build Quantity for exit: {e}")
+            return
+
+        timestamp_ms = int(time.time() * 1000)
+        # Keep a deterministic prefix so the exit can be correlated back to the
+        # entry in audit logs.
+        suffix = entry_id.split("-")[-1][-6:] if "-" in entry_id else "000000"
+        exit_id = f"EXIT-{suffix}-{timestamp_ms}"
+
+        try:
+            order = self.order_factory.market(
+                instrument_id=instrument_id,
+                order_side=OrderSide.SELL,
+                quantity=qty,
+                client_order_id=ClientOrderId(exit_id),
+                quote_quantity=False,
+                time_in_force=TimeInForce.IOC,
+            )
+            self.submit_order(order)
+        except Exception as e:
+            logger.error(f"Failed to submit exit order: {e}")
+            return
+
+        position["exit_in_flight"] = True
+        position["exit_order_id"] = exit_id
+        self._pending_exits[exit_id] = entry_id
+
+        logger.info("=" * 80)
+        logger.info(f"EXIT ORDER SUBMITTED — {reason}")
+        logger.info(f"  Entry ID: {entry_id}")
+        logger.info(f"  Exit ID:  {exit_id}")
+        logger.info(f"  SELL qty: {qty_float:.6f} of {instrument_id}")
+        logger.info("=" * 80)
+        self._track_order_event("placed")
 
     # ── Grafana / stop ────────────────────────────────────────────────────────
 
@@ -1386,6 +1941,15 @@ class IntegratedBTCStrategy(Strategy):
     def on_stop(self) -> None:
         logger.info("Integrated BTC strategy stopped")
         logger.info(f"Total paper trades recorded: {len(self.paper_trades)}")
+        if self.live_trades:
+            wins = sum(1 for t in self.live_trades if t.outcome == "WIN")
+            losses = sum(1 for t in self.live_trades if t.outcome == "LOSS")
+            total = sum(t.pnl_usd for t in self.live_trades)
+            logger.info(
+                f"Live trades recorded: {len(self.live_trades)} "
+                f"({wins}W / {losses}L)  cumulative P&L=${total:+.4f}"
+            )
+            self._save_live_trades()
         if self.grafana_exporter:
             loop = asyncio.new_event_loop()
             try:

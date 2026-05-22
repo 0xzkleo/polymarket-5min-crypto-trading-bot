@@ -236,6 +236,30 @@ class SettlementTracker:
         with self._lock:
             return sum(1 for p in self._pending if not p.settled)
 
+    def get_resolved_outcome(self, trade_id: int) -> Optional[Dict]:
+        """Return the resolved outcome for ``trade_id`` if Chainlink has settled it.
+
+        Returns a dict with keys ``outcome`` (1=UP, 0=DOWN), ``chainlink_entry``,
+        ``chainlink_exit``, ``market_slug``, ``direction`` — or ``None`` if the
+        trade is still pending or unknown.
+        """
+        with self._lock:
+            for p in self._pending:
+                if p.trade_id != trade_id:
+                    continue
+                if not p.settled or p.chainlink_exit is None:
+                    return None
+                entry = p.chainlink_entry if p.chainlink_entry is not None else p.chainlink_exit
+                return {
+                    "trade_id": p.trade_id,
+                    "market_slug": p.market_slug,
+                    "direction": p.direction,
+                    "chainlink_entry": entry,
+                    "chainlink_exit": p.chainlink_exit,
+                    "outcome": 1 if p.chainlink_exit > entry else 0,
+                }
+        return None
+
     def get_stats(self) -> Dict:
         with self._lock:
             pending  = [p for p in self._pending if not p.settled]
