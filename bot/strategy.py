@@ -61,8 +61,9 @@ class IntegratedBTCStrategy(Strategy):
     ---------
     1. ``on_start`` — loads all BTC 15-min instruments, subscribes, starts
        background threads (WebSocket streams, settlement tracker, Grafana).
-    2. ``on_quote_tick`` — buffers ticks; when inside the 13–14-min trade
-       window fires ``_make_trading_decision_sync`` via executor.
+    2. ``on_quote_tick`` — buffers ticks; when inside the 9–10-min trade
+       window (seconds 540-600 of each 15-min market) fires
+       ``_make_trading_decision_sync`` via executor.
     3. ``_make_trading_decision`` — the 6-step ML decision loop.
     4. ``on_stop`` — saves paper trades.
     """
@@ -72,6 +73,7 @@ class IntegratedBTCStrategy(Strategy):
         redis_client=None,
         enable_grafana: bool = True,
         test_mode: bool = False,
+        simulation: bool = False,
     ):
         super().__init__()
 
@@ -80,7 +82,9 @@ class IntegratedBTCStrategy(Strategy):
 
         self.instrument_id: Optional[InstrumentId] = None
         self.redis_client = redis_client
-        self.current_simulation_mode = False
+        # Initialise from the CLI flag so the simulation state is correct even
+        # when Redis is offline or slow to respond.
+        self.current_simulation_mode = simulation
 
         self.all_btc_instruments: List[Dict] = []
         self.current_instrument_index: int = -1
@@ -100,6 +104,13 @@ class IntegratedBTCStrategy(Strategy):
         self._instruments_loaded: bool = False
         self._instrument_load_attempts: int = 0
         self._max_instrument_load_attempts: int = 60  # ~10 min at 10s ticks
+
+        # Heartbeat tracking — surfaces "what is the bot doing right now?"
+        # in the main log every HEARTBEAT_SECS so users can tell it's alive
+        # and see exactly when the next trade attempt will happen.
+        self._last_heartbeat_ts: float = 0.0
+        self._heartbeat_secs: int = 30
+        self._tick_count_since_last_heartbeat: int = 0
 
         # ── Live position / exit management ─────────────────────────────────
         # Pending BUY orders awaiting their first fill report.
@@ -134,16 +145,24 @@ class IntegratedBTCStrategy(Strategy):
         self._yes_token_id: Optional[str] = None
 
         # ── Signal processors ─────────────────────────────────────────────────
+        try:
+            _spike_threshold = max(0.01, float(os.getenv("SPIKE_THRESHOLD", "0.08")))
+        except (TypeError, ValueError):
+            _spike_threshold = 0.08
         self.spike_detector = SpikeDetectionProcessor(
-            spike_threshold=0.05,
+            spike_threshold=_spike_threshold,
             lookback_periods=20,
         )
         self.sentiment_processor = SentimentProcessor(
             extreme_fear_threshold=25,
             extreme_greed_threshold=75,
         )
+        try:
+            _divergence_threshold = max(0.01, float(os.getenv("DIVERGENCE_THRESHOLD", "0.06")))
+        except (TypeError, ValueError):
+            _divergence_threshold = 0.06
         self.divergence_processor = PriceDivergenceProcessor(
-            divergence_threshold=0.05,
+            divergence_threshold=_divergence_threshold,
         )
         self.orderbook_processor = OrderBookImbalanceProcessor(
             imbalance_threshold=0.30,
@@ -314,7 +333,9 @@ class IntegratedBTCStrategy(Strategy):
         )
 
         logger.info("=" * 80)
-        logger.info("Strategy active — will trade in the 13–14-min window")
+        logger.info(
+            "Strategy active — trade window opens at minute 9 of each 15-min market (1 min wide)"
+        )
         logger.info(f"Price history: {len(self.price_history)} points")
         if len(self.price_history) >= 20:
             logger.info("READY TO TRADE")
@@ -344,7 +365,25 @@ class IntegratedBTCStrategy(Strategy):
         callable repeatedly until it succeeds. ``quiet=True`` suppresses the
         per-attempt log lines used by the retry loop.
         """
-        instruments = self.cache.instruments()
+        instruments = list(self.cache.instruments())
+
+        # Fallback: if the strategy cache is empty but the data client's
+        # instrument provider has already loaded instruments, push them into
+        # the cache so the rest of this method can find them. This guards
+        # against the race where the data client's `_connect()` populated its
+        # own provider but the data engine hasn't forwarded the items yet
+        # (the Polymarket adapter's `_send_all_instruments_to_data_engine` is
+        # only called once, on connect).
+        if not instruments:
+            provider_total, provider_added = self._refresh_cache_from_providers()
+            if not quiet and provider_total:
+                logger.info(
+                    f"Cache empty but providers hold {provider_total} instruments; "
+                    f"added {provider_added} to strategy cache."
+                )
+            if provider_added:
+                instruments = list(self.cache.instruments())
+
         if not quiet:
             logger.info(f"Loading BTC instruments from {len(instruments)} total...")
 
@@ -477,6 +516,202 @@ class IntegratedBTCStrategy(Strategy):
         self._instruments_loaded = True
         return True
 
+    def _refresh_cache_from_providers(self) -> tuple[int, int]:
+        """
+        Pull instruments from any data/exec client's instrument provider and
+        push them into the strategy ``cache``.
+
+        Returns ``(total_in_providers, newly_added_to_cache)``.
+
+        Nautilus's Polymarket adapter calls
+        ``_send_all_instruments_to_data_engine`` once at connect time. If that
+        runs before the data engine is fully wired, the cache stays empty even
+        though the provider holds the instruments. This helper closes that
+        race by re-publishing the provider's contents on demand.
+
+        Falls back to a direct Gamma API fetch if no provider returned
+        instruments — guards against the Nautilus data/exec client failing to
+        invoke ``provider.initialize()`` for any reason.
+        """
+        total = 0
+        added = 0
+        try:
+            trader = getattr(self, "trader", None)
+            data_engine = getattr(trader, "data_engine", None) if trader else None
+            exec_engine = getattr(trader, "exec_engine", None) if trader else None
+
+            providers = []
+            for engine in (data_engine, exec_engine):
+                if engine is None:
+                    continue
+                # Nautilus engines expose clients via the private `_clients`
+                # mapping (Cython attribute). Fall back to iterating any
+                # public ``registered_clients`` collection if available.
+                client_objs = []
+                clients_attr = getattr(engine, "_clients", None)
+                if isinstance(clients_attr, dict):
+                    client_objs = list(clients_attr.values())
+                elif hasattr(engine, "registered_clients"):
+                    try:
+                        reg = engine.registered_clients
+                        if isinstance(reg, dict):
+                            client_objs = list(reg.values())
+                        else:
+                            for cid in reg:
+                                client_objs.append(
+                                    clients_attr.get(cid) if isinstance(clients_attr, dict) else None
+                                )
+                    except Exception:
+                        client_objs = []
+
+                for client in client_objs:
+                    if client is None:
+                        continue
+                    prov = getattr(client, "_instrument_provider", None) or getattr(
+                        client, "instrument_provider", None
+                    )
+                    if prov is not None and prov not in providers:
+                        providers.append(prov)
+
+            for prov in providers:
+                try:
+                    items = prov.get_all().values()
+                except Exception:
+                    continue
+                for inst in items:
+                    total += 1
+                    if self.cache.instrument(inst.id) is None:
+                        try:
+                            self.cache.add_instrument(inst)
+                            added += 1
+                        except Exception as exc:
+                            logger.debug(
+                                f"Could not add {inst.id} to cache: {exc}"
+                            )
+        except Exception as exc:
+            logger.debug(f"_refresh_cache_from_providers failed: {exc}")
+
+        # Bulletproof fallback: if no provider yielded instruments, fetch
+        # them directly via Gamma API and register with the cache. This
+        # bypasses Nautilus's adapter entirely in case ``_connect()`` never
+        # triggered the provider's ``initialize()``.
+        if added == 0 and total == 0:
+            direct_added = self._load_instruments_via_gamma_direct()
+            added += direct_added
+            total += direct_added
+
+        return total, added
+
+    def _load_instruments_via_gamma_direct(self) -> int:
+        """
+        Fetch BTC 15-min markets straight from Gamma API and parse them into
+        Nautilus ``BinaryOption`` instruments, registering each with the
+        strategy cache.
+
+        This sidesteps any plumbing issues in the Polymarket adapter's
+        instrument-provider initialisation path and runs in the strategy's
+        own timer-loop thread.
+
+        Returns the number of instruments newly added to the cache.
+        """
+        try:
+            import httpx
+            from nautilus_trader.adapters.polymarket.common.gamma_markets import (
+                normalize_gamma_market_to_clob_format,
+            )
+            from nautilus_trader.adapters.polymarket.common.parsing import (
+                parse_polymarket_instrument,
+            )
+
+            base_url = os.getenv(
+                "GAMMA_API_URL", "https://gamma-api.polymarket.com"
+            ).rstrip("/")
+
+            now = datetime.now(timezone.utc)
+            unix_interval_start = (int(now.timestamp()) // 900) * 900
+            slugs = [
+                f"btc-updown-15m-{unix_interval_start + (i * 900)}"
+                for i in range(-1, 97)
+            ]
+
+            chunk_size = 50
+            markets: List[dict] = []
+            seen: set[str] = set()
+
+            with httpx.Client(timeout=60.0) as client:
+                for start in range(0, len(slugs), chunk_size):
+                    chunk = slugs[start : start + chunk_size]
+                    params = {
+                        "active": "true",
+                        "closed": "false",
+                        "archived": "false",
+                        "slug": chunk,
+                        "limit": 100,
+                    }
+                    resp = client.get(f"{base_url}/markets", params=params)
+                    if resp.status_code != 200:
+                        logger.warning(
+                            f"Direct Gamma fetch failed: HTTP {resp.status_code} "
+                            f"{resp.text[:200]}"
+                        )
+                        continue
+                    rows = resp.json()
+                    if isinstance(rows, dict):
+                        rows = rows.get("data") or []
+                    for market in rows or []:
+                        cid = market.get("conditionId")
+                        if cid and cid in seen:
+                            continue
+                        if cid:
+                            seen.add(cid)
+                        markets.append(market)
+
+            if not markets:
+                logger.warning("Direct Gamma fetch returned zero markets")
+                return 0
+
+            ts_init = self.clock.timestamp_ns()
+            added = 0
+            errors = 0
+
+            for market in markets:
+                try:
+                    normalized = normalize_gamma_market_to_clob_format(market)
+                    for token_info in normalized.get("tokens") or []:
+                        token_id = token_info.get("token_id")
+                        if not token_id:
+                            continue
+                        outcome = token_info.get("outcome") or ""
+
+                        token_market_info = dict(normalized)
+                        token_market_info["outcome"] = outcome
+                        token_market_info["token_id"] = token_id
+
+                        instrument = parse_polymarket_instrument(
+                            market_info=token_market_info,
+                            token_id=token_id,
+                            outcome=outcome,
+                            ts_init=ts_init,
+                        )
+                        if self.cache.instrument(instrument.id) is None:
+                            self.cache.add_instrument(instrument)
+                            added += 1
+                except Exception as exc:
+                    errors += 1
+                    logger.debug(
+                        f"Direct-load skip for {market.get('slug', '?')}: {exc}"
+                    )
+
+            logger.info(
+                f"Direct Gamma load: {len(markets)} markets parsed, "
+                f"{added} instruments added to cache, {errors} errors."
+            )
+            return added
+
+        except Exception as exc:
+            logger.error(f"Direct Gamma load failed: {exc}")
+            return 0
+
     def _bind_market(self, index: int, *, waiting: bool) -> None:
         """Bind the strategy to a market entry by index in ``all_btc_instruments``."""
         if not (0 <= index < len(self.all_btc_instruments)):
@@ -536,6 +771,159 @@ class IntegratedBTCStrategy(Strategy):
         logger.info("  Trade timer reset — will trade on next tick")
         return True
 
+    # ── Heartbeat / liveness ─────────────────────────────────────────────────
+
+    def _emit_heartbeat(self, now: datetime) -> None:
+        """
+        Print a single-line status snapshot every ``self._heartbeat_secs``.
+
+        Tells the user at a glance:
+          - bot is alive (timer loop is running)
+          - which market is bound
+          - elapsed time within the current 15-min market
+          - seconds until the next trade-window opens (or "OPEN NOW")
+          - last observed mid-price and tick rate since previous heartbeat
+        """
+        now_ts = now.timestamp()
+        if now_ts - self._last_heartbeat_ts < self._heartbeat_secs:
+            return
+        # Skip the very first heartbeat until we have something meaningful.
+        first_call = self._last_heartbeat_ts == 0.0
+        elapsed_since = now_ts - self._last_heartbeat_ts if not first_call else 0.0
+        self._last_heartbeat_ts = now_ts
+
+        if not (0 <= self.current_instrument_index < len(self.all_btc_instruments)):
+            logger.info(
+                f"[heartbeat] uptime={self._uptime_str()} "
+                f"instruments_loaded={self._instruments_loaded} "
+                f"waiting_for_market=True"
+            )
+            return
+
+        market = self.all_btc_instruments[self.current_instrument_index]
+        market_start_ts = int(market["market_timestamp"])
+        market_end_ts = int(market["end_timestamp"])
+        elapsed_in_market = now_ts - market_start_ts
+
+        # Trade window — keep in sync with on_quote_tick (seconds 540-600).
+        if self.test_mode:
+            win_start, win_end = 0, 900
+        else:
+            win_start, win_end = 540, 600
+
+        if elapsed_in_market < 0:
+            window_status = (
+                f"market opens in {abs(elapsed_in_market):.0f}s "
+                f"({market['start_time'].strftime('%H:%M:%S')} UTC)"
+            )
+        elif elapsed_in_market < win_start:
+            window_status = (
+                f"TRADE WINDOW opens in {win_start - elapsed_in_market:.0f}s"
+            )
+        elif elapsed_in_market < win_end:
+            window_status = (
+                f"TRADE WINDOW OPEN ({win_end - elapsed_in_market:.0f}s left)"
+            )
+        elif elapsed_in_market < (market_end_ts - market_start_ts):
+            window_status = (
+                f"window CLOSED — market settles in "
+                f"{market_end_ts - now_ts:.0f}s"
+            )
+        else:
+            window_status = "market EXPIRED — switching soon"
+
+        if self._last_bid_ask:
+            bid, ask = self._last_bid_ask
+            mid = (bid + ask) / 2
+            quote_str = (
+                f"bid=${float(bid):.4f} ask=${float(ask):.4f} mid=${float(mid):.4f}"
+            )
+        else:
+            quote_str = "no quotes yet"
+
+        if not first_call and elapsed_since > 0:
+            rate = self._tick_count_since_last_heartbeat / elapsed_since
+            tick_str = f"{self._tick_count_since_last_heartbeat} ticks ({rate:.1f}/s)"
+        else:
+            tick_str = f"{self._tick_count_since_last_heartbeat} ticks"
+        self._tick_count_since_last_heartbeat = 0
+
+        positions_str = (
+            f"open={len(self._open_positions)} "
+            f"pending={len(self._pending_orders)}"
+        )
+
+        logger.info(
+            f"[heartbeat] {market['slug']} | "
+            f"min {elapsed_in_market/60:.1f}/15 | "
+            f"{window_status} | {quote_str} | {tick_str} | {positions_str}"
+        )
+
+    def _uptime_str(self) -> str:
+        seconds = (datetime.now(timezone.utc) - self.bot_start_time).total_seconds()
+        if seconds < 60:
+            return f"{seconds:.0f}s"
+        if seconds < 3600:
+            return f"{seconds/60:.1f}m"
+        return f"{seconds/3600:.2f}h"
+
+    # ── Highlighted order/trade banners ─────────────────────────────────────
+    #
+    # All real-order events go through these banners so they stand out from
+    # the routine quote / metrics / heartbeat noise. Every banner is:
+    #   - Two solid ``#``-char borders, preceded and followed by a blank line
+    #   - Tagged ``>>> ORDER ...`` (or similar) so it's grep-friendly
+    #   - Logged at WARNING/SUCCESS/ERROR levels which loguru colourises
+    #     more brightly than routine INFO output
+    #
+    # ASCII-only on purpose — Windows console sessions default to cp1252
+    # and choke on box-drawing characters. ``#`` and ``-`` look heavy
+    # enough to stand out against the metric-update noise.
+    #
+    # ``lines`` is a list of ``(label, value)`` tuples. Pass ``("", "")``
+    # to insert a blank separator row inside the banner.
+
+    _BANNER_WIDTH: int = 80
+
+    def _log_event_banner(
+        self,
+        level: str,
+        tag: str,
+        title: str,
+        lines: List[tuple],
+    ) -> None:
+        """Emit a high-contrast multi-line banner around an order/trade event."""
+        log = {
+            "info": logger.info,
+            "warning": logger.warning,
+            "success": getattr(logger, "success", logger.info),
+            "error": logger.error,
+        }.get(level, logger.info)
+
+        border = "#" * self._BANNER_WIDTH
+        sep = "#" + "-" * (self._BANNER_WIDTH - 2) + "#"
+
+        # Compute label width for clean alignment (cap to keep value column).
+        label_width = min(
+            12,
+            max((len(lbl) for lbl, _ in lines if lbl), default=0),
+        )
+
+        log("")
+        log(border)
+        log(f"### >>> {tag}: {title}")
+        log(sep)
+        for label, value in lines:
+            if label == "" and value == "":
+                log("#")
+                continue
+            if label:
+                log(f"#  {label:<{label_width}}  {value}")
+            else:
+                log(f"#  {value}")
+        log(border)
+        log("")
+
     # ── Timer loop ────────────────────────────────────────────────────────────
 
     def _start_timer_loop(self) -> None:
@@ -578,6 +966,10 @@ class IntegratedBTCStrategy(Strategy):
                     pass
 
             now = datetime.now(timezone.utc)
+
+            # Heartbeat: report bot status every _heartbeat_secs so the user
+            # can see it's alive and how long until the next trade window.
+            self._emit_heartbeat(now)
 
             # Settle positions whose underlying market has already resolved.
             # Polymarket auto-resolves binary markets at end_timestamp; the
@@ -659,12 +1051,15 @@ class IntegratedBTCStrategy(Strategy):
 
             self._last_bid_ask = (bid_decimal, ask_decimal)
             self._tick_buffer.append({"ts": now, "price": mid_price})
+            self._tick_count_since_last_heartbeat += 1
 
             if not self._market_stable:
                 self._stable_tick_count += 1
-                if self._stable_tick_count >= 1:
+                if self._stable_tick_count >= QUOTE_STABILITY_REQUIRED:
                     self._market_stable = True
-                    logger.info("Market STABLE")
+                    logger.info(
+                        f"Market STABLE after {self._stable_tick_count} tick(s)"
+                    )
                 else:
                     return
 
@@ -684,7 +1079,8 @@ class IntegratedBTCStrategy(Strategy):
             sub_interval = int(elapsed_secs // MARKET_INTERVAL_SECONDS)
             trade_key = (market_start_ts, sub_interval)
 
-            # Trade window: minutes 13–14 of each 15-min market
+            # Trade window: seconds 540-600 of each 15-min market (i.e.
+            # minutes 9-10). Bot fires one decision per market in this window.
             TRADE_WINDOW_START = 540
             TRADE_WINDOW_END   = 600
             seconds_into_sub = elapsed_secs % MARKET_INTERVAL_SECONDS
@@ -810,10 +1206,25 @@ class IntegratedBTCStrategy(Strategy):
         cvd_snap = self.cvd_ob_processor._compute_cvd()
         metadata["cvd_delta_usd"] = cvd_snap["cvd_delta"]
 
-        # Binance spot order book
+        # Binance spot order book (for Binance-side CVD imbalance feature)
         ob_snap = self.cvd_ob_processor._fetch_order_book()
         if ob_snap:
             metadata["ob_imbalance"] = ob_snap["imbalance"]
+
+        # Polymarket CLOB order-book imbalance (poly_ob_imbalance ML feature).
+        # Fetched independently from the OrderBook signal processor so the
+        # feature vector always has this value regardless of signal threshold.
+        if self._yes_token_id:
+            try:
+                poly_book = self.orderbook_processor.fetch_order_book(self._yes_token_id)
+                if poly_book:
+                    bid_vol = self.orderbook_processor._parse_levels(poly_book.get("bids", []))
+                    ask_vol = self.orderbook_processor._parse_levels(poly_book.get("asks", []))
+                    total = bid_vol + ask_vol
+                    if total > 0:
+                        metadata["poly_ob_imbalance"] = (bid_vol - ask_vol) / total
+            except Exception as _pob_e:
+                logger.debug(f"Polymarket OB fetch skipped: {_pob_e}")
 
         # Funding + OI
         try:
@@ -952,16 +1363,51 @@ class IntegratedBTCStrategy(Strategy):
                 f"edge={bet_edge:.3f} → bet {direction.upper()}"
             )
         else:
+            # ML is warming up — use a fusion-backed fallback only when there
+            # is a clear directional consensus AND a meaningful signal score.
+            # Require ≥2 signals agreeing (min_signals=2) with score ≥55 to
+            # reduce low-quality trades during the warmup period.
             TREND_UP, TREND_DOWN = 0.60, 0.40
+            # Reject if fusion gives no clear verdict or weak consensus.
+            fallback_fused = self.fusion_engine.fuse_signals(
+                signals, min_signals=2, min_score=55.0
+            ) if signals else None
+
+            if fallback_fused is None:
+                logger.info(
+                    f"STEP 4 (fallback) — ML warming up, no fusion consensus "
+                    f"({len(signals)} signal(s)) — skip"
+                )
+                if feature_vector is not None:
+                    slug = (
+                        self.all_btc_instruments[self.current_instrument_index]["slug"]
+                        if self.current_instrument_index >= 0
+                        else "unknown"
+                    )
+                    self.ml_engine.record_trade(
+                        market_slug=slug,
+                        poly_price=poly_price,
+                        feature_vector=feature_vector,
+                    )
+                return
+
+            # Fusion agrees AND price is at an extreme — safe to fallback bet.
             if poly_price > TREND_UP:
                 direction = "long"
-                logger.info(f"STEP 4 (fallback) — trend UP {poly_price:.2%} → YES")
+                logger.info(
+                    f"STEP 4 (fallback) — fusion+trend UP "
+                    f"poly={poly_price:.2%} score={fallback_fused.score:.1f} → YES"
+                )
             elif poly_price < TREND_DOWN:
                 direction = "short"
-                logger.info(f"STEP 4 (fallback) — trend DOWN {poly_price:.2%} → NO")
+                logger.info(
+                    f"STEP 4 (fallback) — fusion+trend DOWN "
+                    f"poly={poly_price:.2%} score={fallback_fused.score:.1f} → NO"
+                )
             else:
                 logger.info(
-                    f"STEP 4 (fallback) — neutral {poly_price:.2%} — skip"
+                    f"STEP 4 (fallback) — fusion OK but price neutral "
+                    f"({poly_price:.2%}) — skip"
                 )
                 if feature_vector is not None:
                     slug = (
@@ -1197,27 +1643,7 @@ class IntegratedBTCStrategy(Strategy):
             logger.error("No instrument available — instrument cache not yet loaded")
             return
 
-        # Refuse to send a live BUY if the market-order patch is missing,
-        # otherwise Nautilus would treat the dummy 5-token quantity as the
-        # real order size and we'd massively over-spend.
         try:
-            from patches.market_orders import _patch_applied as _mo_patch_applied
-        except Exception:
-            _mo_patch_applied = False
-        if not _mo_patch_applied:
-            logger.error(
-                "Market-order patch is NOT applied — refusing to submit live BUY "
-                "(would otherwise send a 5-token order instead of the configured "
-                "USD amount)."
-            )
-            self._track_order_event("rejected")
-            return
-
-        try:
-            logger.info("=" * 80)
-            logger.info("LIVE MODE — PLACING REAL ORDER!")
-            logger.info("=" * 80)
-
             side = OrderSide.BUY
 
             if direction == "long":
@@ -1236,30 +1662,22 @@ class IntegratedBTCStrategy(Strategy):
                 logger.error(f"Instrument not in cache: {trade_instrument_id}")
                 return
 
-            logger.info(f"Buying {trade_label} token: {trade_instrument_id}")
-
-            # The patch reads MARKET_BUY_USD at submit time. Use it here too so
-            # logs and the risk engine see the same number that will actually
-            # be sent on-chain.
+            # Resolve the USD amount once and use it as the order quantity
+            # below. Polymarket / Nautilus V2 expect BUY market orders to be
+            # quote-denominated: ``amount`` is USD to spend, not tokens.
             try:
-                max_usd_amount = max(0.01, float(os.getenv("MARKET_BUY_USD", str(float(position_size)))))
+                max_usd_amount = max(
+                    0.01,
+                    float(os.getenv("MARKET_BUY_USD", str(float(position_size)))),
+                )
             except (TypeError, ValueError):
                 max_usd_amount = float(position_size)
 
-            precision = instrument.size_precision
+            # microUSDC precision — matches the instrument's size_increment
+            # and Polymarket's collateral granularity.
+            usd_precision = max(instrument.size_precision, 6)
+            usd_qty = Quantity(round(max_usd_amount, usd_precision), precision=usd_precision)
 
-            # The patch ignores this quantity for BUY orders and uses USD
-            # instead, but Nautilus still validates against instrument.min_quantity
-            # before the patch runs, so we pass a value just above the minimum.
-            min_qty_val = float(getattr(instrument, "min_quantity", None) or 5.0)
-            token_qty = round(max(min_qty_val, 5.0), precision)
-
-            logger.info(
-                f"BUY {trade_label}: ${max_usd_amount:.2f} USD "
-                f"(Nautilus placeholder qty={token_qty:.6f})"
-            )
-
-            qty = Quantity(token_qty, precision=precision)
             timestamp_ms = int(time.time() * 1000)
             # Plain alphanumeric/dash id only — some venues reject special chars.
             usd_label = str(int(round(max_usd_amount * 100))).zfill(4)
@@ -1268,35 +1686,118 @@ class IntegratedBTCStrategy(Strategy):
             order = self.order_factory.market(
                 instrument_id=trade_instrument_id,
                 order_side=side,
-                quantity=qty,
+                quantity=usd_qty,
                 client_order_id=ClientOrderId(unique_id),
-                quote_quantity=False,
+                quote_quantity=True,
                 time_in_force=TimeInForce.IOC,
             )
 
             self.submit_order(order)
+            self._track_order_event("placed")
 
             # Subscribe to ticks for the held token *before* the fill arrives so
             # the live stop-loss handler starts seeing prices immediately.
             if trade_instrument_id != self.instrument_id:
                 try:
                     self.subscribe_quote_ticks(trade_instrument_id)
-                    logger.info(f"  Subscribed to held-token ticks: {trade_instrument_id}")
                 except Exception as e:
                     logger.warning(
                         f"Could not subscribe to {trade_instrument_id} for exit "
                         f"monitoring: {e}"
                     )
 
-            logger.info("REAL ORDER SUBMITTED!")
-            logger.info(f"  Order ID:  {unique_id}")
-            logger.info(f"  Direction: {trade_label}")
-            logger.info(f"  Notional:  ~${max_usd_amount:.2f}")
-            logger.info(f"  Price:     ${float(current_price):.4f}")
-            logger.info(
-                f"  Stop/TP:   -{self._stop_loss_pct:.0%} / +{self._take_profit_pct:.0%}"
+            # ── Build highlighted banner ─────────────────────────────────────
+            # Pull a snapshot of signal + market context so the user sees
+            # *why* the bot fired this trade, not just the order itself.
+            signal_score_v = float(getattr(signal, "score", 0.0) or 0.0)
+            signal_conf_v = float(getattr(signal, "confidence", 0.0) or 0.0)
+            num_signals_v = (
+                int(getattr(signal, "num_signals", 0) or 0)
+                if hasattr(signal, "num_signals")
+                else 0
             )
-            logger.info("=" * 80)
+            sig_dir_v = str(getattr(signal, "direction", "")).replace(
+                "SignalDirection.", ""
+            )
+            contributing = []
+            if hasattr(signal, "contributing_signals") and signal.contributing_signals:
+                try:
+                    contributing = sorted({s.source for s in signal.contributing_signals})
+                except Exception:
+                    contributing = []
+
+            market_slug_v = ""
+            mins_left_v: Optional[float] = None
+            if 0 <= self.current_instrument_index < len(self.all_btc_instruments):
+                cur = self.all_btc_instruments[self.current_instrument_index]
+                market_slug_v = str(cur.get("slug", ""))
+                end_ts = int(cur.get("end_timestamp", 0))
+                if end_ts:
+                    mins_left_v = (end_ts - time.time()) / 60.0
+
+            if self._last_bid_ask:
+                bid_v, ask_v = self._last_bid_ask
+                quote_v = (
+                    f"bid=${float(bid_v):.4f}  ask=${float(ask_v):.4f}  "
+                    f"mid=${float((bid_v + ask_v) / 2):.4f}"
+                )
+            else:
+                quote_v = "n/a"
+
+            ml_engine_state = (
+                "active" if getattr(self.ml_engine, "active", False) else "inactive"
+            )
+            session_total = (
+                len(self.live_trades) if hasattr(self, "live_trades") else 0
+            )
+            session_pnl = (
+                sum(t.pnl_usd for t in self.live_trades)
+                if hasattr(self, "live_trades")
+                else 0.0
+            )
+
+            self._log_event_banner(
+                level="warning",
+                tag="ORDER PLACED",
+                title=f"BUY {trade_label}  ${max_usd_amount:.2f} USD",
+                lines=[
+                    ("Order ID",  unique_id),
+                    ("Market",    market_slug_v or "(unknown)"),
+                    ("Token",     str(trade_instrument_id)),
+                    ("", ""),
+                    ("Side",      f"BUY  ({trade_label})"),
+                    ("Notional",  f"${max_usd_amount:.2f} USD  (quote_quantity=True, p={usd_precision})"),
+                    ("TIF",       "IOC  (immediate-or-cancel)"),
+                    ("Ref price", f"${float(current_price):.4f}"),
+                    ("Quote",     quote_v),
+                    (
+                        "Mkt close",
+                        f"{mins_left_v:+.1f} min" if mins_left_v is not None else "n/a",
+                    ),
+                    ("", ""),
+                    (
+                        "Signal",
+                        f"{sig_dir_v}  score={signal_score_v:.1f}  "
+                        f"conf={signal_conf_v:.1%}  n={num_signals_v}",
+                    ),
+                    (
+                        "Sources",
+                        ", ".join(contributing) if contributing else "(fallback)",
+                    ),
+                    ("ML engine", ml_engine_state),
+                    (
+                        "Risk",
+                        f"SL=-{self._stop_loss_pct:.0%}  TP=+{self._take_profit_pct:.0%}  "
+                        f"exit_cutoff={self._exit_cutoff_seconds}s",
+                    ),
+                    ("", ""),
+                    (
+                        "Session",
+                        f"trades={session_total}  pnl=${session_pnl:+.4f}  "
+                        f"open={len(self._open_positions)}  pending={len(self._pending_orders)}",
+                    ),
+                ],
+            )
 
             market_end_ts = 0
             market_slug = ""
@@ -1318,6 +1819,11 @@ class IntegratedBTCStrategy(Strategy):
                 "direction": direction,
                 "size_usd": max_usd_amount,
                 "expected_price": float(current_price),
+                # Same value as expected_price — kept under the name
+                # on_order_filled looks up so slippage shows in the
+                # fill banner. Renaming here vs duplicating keeps the
+                # downstream code uncoupled from this dict's shape.
+                "ref_price": float(current_price),
                 "label": trade_label,
                 "market_end_ts": market_end_ts,
                 "market_slug": market_slug,
@@ -1420,12 +1926,45 @@ class IntegratedBTCStrategy(Strategy):
             fill_price = Decimal("0")
             fill_qty = Decimal("0")
 
-        logger.info("=" * 80)
-        logger.info("ORDER FILLED!")
-        logger.info(f"  Order:       {client_id}")
-        logger.info(f"  Fill Price:  ${float(fill_price):.4f}")
-        logger.info(f"  Quantity:    {float(fill_qty):.6f}")
-        logger.info("=" * 80)
+        # Slippage / wait-time context relative to the entry submit, when we
+        # have it (entry orders only — exits don't track ref price).
+        is_exit = client_id in self._pending_exits
+        pending_meta = self._pending_orders.get(client_id, {}) if not is_exit else {}
+        ref_px = float(pending_meta.get("ref_price", 0.0) or 0.0)
+        slip_str = "n/a"
+        if not is_exit and ref_px > 0 and fill_price > 0:
+            slip_bps = (float(fill_price) - ref_px) / ref_px * 10_000
+            slip_str = f"{slip_bps:+.1f} bps  (ref=${ref_px:.4f})"
+
+        submitted_at = pending_meta.get("submitted_at")
+        latency_str = "n/a"
+        if submitted_at:
+            try:
+                latency_str = (
+                    f"{(datetime.now(timezone.utc) - submitted_at).total_seconds():.2f}s"
+                )
+            except Exception:
+                pass
+
+        notional = float(fill_price) * float(fill_qty)
+
+        self._log_event_banner(
+            level="success" if not is_exit else "info",
+            tag="ORDER FILLED" if not is_exit else "EXIT FILLED",
+            title=(
+                f"{'BUY' if not is_exit else 'SELL'}  "
+                f"qty={float(fill_qty):.4f}  @ ${float(fill_price):.4f}  "
+                f"= ${notional:.4f}"
+            ),
+            lines=[
+                ("Order ID",  client_id),
+                ("Fill px",   f"${float(fill_price):.4f}"),
+                ("Fill qty",  f"{float(fill_qty):.6f} tokens"),
+                ("Notional",  f"${notional:.4f}"),
+                ("Slippage",  slip_str),
+                ("Latency",   f"{latency_str}  (submit → fill)"),
+            ],
+        )
         self._track_order_event("filled")
 
         # Branch on whether this fill closed an existing position (SELL) or
@@ -1492,10 +2031,40 @@ class IntegratedBTCStrategy(Strategy):
         }
         self._open_positions[client_id] = position
 
-        logger.info(
-            f"POSITION OPEN — {pending.get('label', '')} qty={float(fill_qty):.4f} "
-            f"@ ${float(fill_price):.4f}  "
-            f"stop=${float(stop_loss):.4f}  tp=${float(take_profit):.4f}"
+        notional_usd = float(pending.get("size_usd", 0.0))
+        market_slug_v = str(pending.get("market_slug", "") or "(unknown)")
+        mkt_end_ts = int(pending.get("market_end_ts", 0) or 0)
+        mins_left_v = (
+            (mkt_end_ts - time.time()) / 60.0 if mkt_end_ts else None
+        )
+
+        self._log_event_banner(
+            level="success",
+            tag="POSITION OPEN",
+            title=(
+                f"{pending.get('label', '')}  qty={float(fill_qty):.4f}  "
+                f"@ ${float(fill_price):.4f}"
+            ),
+            lines=[
+                ("Entry ID",  client_id),
+                ("Market",    market_slug_v),
+                ("Direction", str(pending.get("direction", "")).upper()),
+                ("Entry px",  f"${float(fill_price):.4f}"),
+                ("Qty",       f"{float(fill_qty):.6f} tokens"),
+                ("Notional",  f"${notional_usd:.2f}"),
+                ("", ""),
+                ("Stop-loss", f"${float(stop_loss):.4f}  (-{float(sl_pct):.0%})"),
+                ("Take-prof", f"${float(take_profit):.4f}  (+{float(tp_pct):.0%})"),
+                (
+                    "Mkt close",
+                    f"{mins_left_v:+.1f} min" if mins_left_v is not None else "n/a",
+                ),
+                (
+                    "Signal",
+                    f"score={float(pending.get('signal_score', 0.0)):.1f}  "
+                    f"conf={float(pending.get('signal_confidence', 0.0)):.1%}",
+                ),
+            ],
         )
 
     def _handle_exit_fill(
@@ -1642,41 +2211,75 @@ class IntegratedBTCStrategy(Strategy):
                 pass
 
         marker = {
-            "EXIT_TP": "[TAKE-PROFIT]",
-            "EXIT_STOP": "[STOP-LOSS]",
-            "EXIT_MANUAL": "[MANUAL EXIT]",
-            "SETTLEMENT": "[SETTLED]",
-            "SETTLEMENT_FALLBACK": "[SETTLED*]",
-            "SETTLEMENT_UNRESOLVED": "[UNRESOLVED]",
-        }.get(close_reason, f"[{close_reason}]")
+            "EXIT_TP": "TAKE-PROFIT",
+            "EXIT_STOP": "STOP-LOSS",
+            "EXIT_MANUAL": "MANUAL EXIT",
+            "SETTLEMENT": "SETTLED",
+            "SETTLEMENT_FALLBACK": "SETTLED (fallback)",
+            "SETTLEMENT_UNRESOLVED": "UNRESOLVED",
+        }.get(close_reason, close_reason)
 
-        logger.info("=" * 80)
-        logger.info(
-            f"[LIVE] TRADE #{self._live_session_num}  {marker}  "
-            f"{live_trade.direction}  {outcome}"
+        # Hold duration + win-rate context for the banner.
+        try:
+            hold_secs = (closed_at - opened_at).total_seconds()
+            hold_str = (
+                f"{hold_secs:.0f}s" if hold_secs < 90 else f"{hold_secs/60:.1f}m"
+            )
+        except Exception:
+            hold_str = "n/a"
+        total = max(1, wins + losses)
+        win_rate = (wins / total) * 100.0
+
+        banner_level = "success" if outcome == "WIN" else (
+            "error" if outcome == "LOSS" else "warning"
         )
-        logger.info(f"  Market:   {live_trade.market_slug or 'unknown'}")
-        logger.info(
-            f"  Entry:    ${entry_price_f:.4f}  -->  Exit: ${exit_price_f:.4f}  "
-            f"Qty: {qty_f:.4f}"
+
+        self._log_event_banner(
+            level=banner_level,
+            tag=f"TRADE CLOSED #{self._live_session_num}",
+            title=(
+                f"{outcome}  ({marker})  "
+                f"P&L ${realized:+.4f}  ({pnl_pct*100:+.2f}%)"
+            ),
+            lines=[
+                ("Trade ID",  entry_id),
+                ("Market",    live_trade.market_slug or "(unknown)"),
+                ("Direction", live_trade.direction or "(?)"),
+                ("Exit code", marker),
+                ("", ""),
+                ("Entry px",  f"${entry_price_f:.4f}"),
+                ("Exit px",   f"${exit_price_f:.4f}"),
+                ("Qty",       f"{qty_f:.6f} tokens"),
+                ("Notional",  f"${live_trade.size_usd:.2f}"),
+                ("Hold",      hold_str),
+                ("", ""),
+                ("P&L",       f"${realized:+.4f}  ({pnl_pct*100:+.2f}%)"),
+                (
+                    "Session",
+                    f"{wins}W/{losses}L  (winrate {win_rate:.1f}%)  "
+                    f"cum=${total_pnl:+.4f}  open={len(self._open_positions)}",
+                ),
+                (
+                    "Capital",
+                    f"${float(self.performance_tracker.current_capital):.4f}",
+                ),
+            ],
         )
-        logger.info(
-            f"  P&L:      ${realized:+.4f}  ({pnl_pct*100:+.2f}%)  "
-            f"Notional=${live_trade.size_usd:.2f}"
-        )
-        logger.info(
-            f"  Session:  {wins}W/{losses}L  cumulative=${total_pnl:+.4f}"
-        )
-        logger.info("=" * 80)
 
         self._save_live_trades()
 
     def _save_live_trades(self) -> None:
-        """Persist closed live trades to ``live_trades.json`` in the project root."""
+        """Persist closed live trades to ``live_trades.json`` atomically.
+
+        Write to a temporary sibling file first, then rename over the target
+        so a mid-write crash never leaves a corrupt JSON file.
+        """
         try:
             path = Path("live_trades.json")
-            with path.open("w") as f:
-                json.dump([t.to_dict() for t in self.live_trades], f, indent=2)
+            tmp = path.with_suffix(".json.tmp")
+            payload = json.dumps([t.to_dict() for t in self.live_trades], indent=2)
+            tmp.write_text(payload, encoding="utf-8")
+            tmp.replace(path)  # atomic on POSIX; near-atomic on Windows (NTFS)
         except Exception as e:
             logger.warning(f"Failed to save live trades: {e}")
 
@@ -1762,23 +2365,42 @@ class IntegratedBTCStrategy(Strategy):
             )
 
     def on_order_denied(self, event) -> None:
-        logger.error("=" * 80)
-        logger.error("ORDER DENIED!")
-        logger.error(f"  Order:  {event.client_order_id}")
-        logger.error(f"  Reason: {event.reason}")
-        logger.error("=" * 80)
+        client_id = str(getattr(event, "client_order_id", "?"))
+        self._log_event_banner(
+            level="error",
+            tag="ORDER DENIED",
+            title=f"client_id={client_id}",
+            lines=[
+                ("Order ID", client_id),
+                ("Reason",   str(getattr(event, "reason", "(unknown)"))),
+                ("Action",   "discarded; nothing further submitted"),
+            ],
+        )
         self._track_order_event("rejected")
         self._discard_pending_order(event)
 
     def on_order_rejected(self, event) -> None:
+        client_id = str(getattr(event, "client_order_id", "?"))
         reason = str(getattr(event, "reason", ""))
-        if any(kw in reason.lower() for kw in ("no orders found", "fak", "no match")):
-            logger.warning(
-                f"FAK rejected (no liquidity) — resetting timer to retry\n  Reason: {reason}"
-            )
+        is_fak = any(
+            kw in reason.lower() for kw in ("no orders found", "fak", "no match")
+        )
+        if is_fak:
             self.last_trade_time = -1
+            note = "no liquidity (FAK) — trade timer reset; will retry on next tick"
         else:
-            logger.warning(f"Order rejected: {reason}")
+            note = "venue rejected order — see reason"
+
+        self._log_event_banner(
+            level="error",
+            tag="ORDER REJECTED",
+            title=f"client_id={client_id}  ({'FAK' if is_fak else 'venue'})",
+            lines=[
+                ("Order ID", client_id),
+                ("Reason",   reason or "(none)"),
+                ("Action",   note),
+            ],
+        )
         self._track_order_event("rejected")
         self._discard_pending_order(event)
 
@@ -1919,22 +2541,83 @@ class IntegratedBTCStrategy(Strategy):
         position["exit_order_id"] = exit_id
         self._pending_exits[exit_id] = entry_id
 
-        logger.info("=" * 80)
-        logger.info(f"EXIT ORDER SUBMITTED — {reason}")
-        logger.info(f"  Entry ID: {entry_id}")
-        logger.info(f"  Exit ID:  {exit_id}")
-        logger.info(f"  SELL qty: {qty_float:.6f} of {instrument_id}")
-        logger.info("=" * 80)
+        # Compute current unrealised P&L for the banner.
+        entry_px_f = float(
+            position["entry_price"]
+            if not isinstance(position["entry_price"], Decimal)
+            else position["entry_price"]
+        )
+        last_bid = position.get("last_bid")
+        last_bid_f = float(last_bid) if last_bid is not None else 0.0
+        unrealised = (
+            qty_float * (last_bid_f - entry_px_f) if last_bid_f > 0 else 0.0
+        )
+        try:
+            hold_secs = (
+                datetime.now(timezone.utc) - position["opened_at"]
+            ).total_seconds()
+            hold_str = (
+                f"{hold_secs:.0f}s" if hold_secs < 90 else f"{hold_secs/60:.1f}m"
+            )
+        except Exception:
+            hold_str = "n/a"
+
+        reason_marker = {
+            "EXIT_TP":  "TAKE-PROFIT",
+            "EXIT_STOP": "STOP-LOSS",
+            "EXIT_MANUAL": "MANUAL EXIT",
+        }.get(reason, reason)
+
+        self._log_event_banner(
+            level="warning",
+            tag="EXIT ORDER",
+            title=(
+                f"SELL  {reason_marker}  qty={qty_float:.4f}  "
+                f"unrealised=${unrealised:+.4f}"
+            ),
+            lines=[
+                ("Entry ID",   entry_id),
+                ("Exit ID",    exit_id),
+                ("Market",     str(position.get("market_slug", "")) or "(unknown)"),
+                ("Direction",  str(position.get("direction", "")).upper()),
+                ("Token",      str(instrument_id)),
+                ("", ""),
+                ("Entry px",   f"${entry_px_f:.4f}"),
+                (
+                    "Last bid",
+                    f"${last_bid_f:.4f}" if last_bid_f > 0 else "n/a",
+                ),
+                ("Stop-loss",  f"${float(position.get('stop_loss', 0)):.4f}"),
+                ("Take-prof",  f"${float(position.get('take_profit', 0)):.4f}"),
+                ("Qty",        f"{qty_float:.6f} tokens"),
+                ("Notional",   f"${float(position.get('size_usd', 0)):.2f}"),
+                ("", ""),
+                ("Reason",     reason),
+                ("Held",       hold_str),
+                ("Unrealised", f"${unrealised:+.4f}"),
+            ],
+        )
         self._track_order_event("placed")
 
     # ── Grafana / stop ────────────────────────────────────────────────────────
 
     def _start_grafana_sync(self) -> None:
+        """Start the Grafana metrics server and keep the update loop running.
+
+        ``GrafanaMetricsExporter.start()`` schedules ``_update_loop`` via
+        ``asyncio.create_task``, which only works inside a running event loop.
+        Running ``start()`` alone with ``run_until_complete`` exits immediately
+        and orphans the task. Instead we start the HTTP server synchronously,
+        then drive ``_update_loop`` directly so this thread stays alive.
+        """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
+            # Start the HTTP server (synchronous part of start()).
             loop.run_until_complete(self.grafana_exporter.start())
             logger.info("Grafana metrics started on port 8000")
+            # Now keep the update loop alive on this dedicated thread.
+            loop.run_until_complete(self.grafana_exporter._update_loop())
         except Exception as e:
             logger.error(f"Failed to start Grafana: {e}")
 

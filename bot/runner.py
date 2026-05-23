@@ -46,13 +46,13 @@ from nautilus_trader.adapters.polymarket.factories import (
     PolymarketLiveExecClientFactory,
 )
 
+# The bot now submits BUY market orders via Nautilus's native V2 path
+# (``quote_quantity=True`` + USD amount as quantity). The legacy
+# ``patches.market_orders`` monkey-patch used py_clob_client V1 internally and
+# is no longer applied — see that module's docstring for details.
 from patches.market_orders import apply_market_order_patch
 
-_mo_patch = apply_market_order_patch()
-if _mo_patch:
-    logger.info("Market order patch applied successfully")
-else:
-    logger.warning("Market order patch failed — orders may be rejected")
+apply_market_order_patch()  # no-op shim, kept for legacy compatibility
 
 
 def init_redis():
@@ -143,12 +143,43 @@ def run_integrated_bot(
         use_gamma_markets=True,
     )
 
+    # ── Wallet wiring ─────────────────────────────────────────────────
+    # Polymarket signs orders with the EOA private key (POLYMARKET_PK) but
+    # the *funder* (POLYMARKET_FUNDER) is the address that actually holds
+    # the USDC and positions. For MetaMask users that funder is the
+    # Polymarket proxy / Gnosis Safe address shown on the Deposit page,
+    # not the MetaMask address itself.
+    #
+    # signature_type:
+    #   0 = EOA               (rare — USDC sits on the EOA)
+    #   1 = POLY_PROXY        (older MetaMask / browser-wallet accounts)
+    #   2 = POLY_GNOSIS_SAFE  (modern MetaMask / Magic / email accounts)
+    sig_type = int(os.getenv("POLYMARKET_SIG_TYPE", "2"))
+    funder = (os.getenv("POLYMARKET_FUNDER") or "").strip() or None
+
+    if sig_type == 0 and funder:
+        logger.warning(
+            "POLYMARKET_SIG_TYPE=0 (EOA) but POLYMARKET_FUNDER is set — "
+            "funder will be ignored. Use sig_type=1 or 2 to trade from the proxy."
+        )
+    if sig_type in (1, 2) and not funder:
+        logger.error(
+            "POLYMARKET_SIG_TYPE=%d (proxy) requires POLYMARKET_FUNDER to be set "
+            "to your Polymarket proxy address (visible at polymarket.com → Deposit).",
+            sig_type,
+        )
+
+    sig_label = {0: "EOA", 1: "POLY_PROXY", 2: "POLY_GNOSIS_SAFE"}.get(sig_type, "UNKNOWN")
+    logger.info(f"Polymarket wallet config: signature_type={sig_type} ({sig_label})")
+    logger.info(f"  Funder (USDC holder): {funder or '(none — direct EOA)'}")
+
     poly_data_cfg = PolymarketDataClientConfig(
         private_key=os.getenv("POLYMARKET_PK"),
         api_key=os.getenv("POLYMARKET_API_KEY"),
         api_secret=os.getenv("POLYMARKET_API_SECRET"),
         passphrase=os.getenv("POLYMARKET_PASSPHRASE"),
-        signature_type=1,
+        signature_type=sig_type,
+        funder=funder,
         instrument_provider=instrument_cfg,
     )
 
@@ -157,7 +188,8 @@ def run_integrated_bot(
         api_key=os.getenv("POLYMARKET_API_KEY"),
         api_secret=os.getenv("POLYMARKET_API_SECRET"),
         passphrase=os.getenv("POLYMARKET_PASSPHRASE"),
-        signature_type=1,
+        signature_type=sig_type,
+        funder=funder,
         instrument_provider=instrument_cfg,
     )
 
@@ -181,6 +213,7 @@ def run_integrated_bot(
         redis_client=redis_client,
         enable_grafana=enable_grafana,
         test_mode=test_mode,
+        simulation=simulation,
     )
 
     print("\nBuilding Nautilus node...")

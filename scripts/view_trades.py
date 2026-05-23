@@ -1,12 +1,14 @@
 """
-scripts/view_trades.py — Simulation trade analytics dashboard.
+scripts/view_trades.py — Trade analytics dashboard (paper + live).
 
 Usage
 -----
-    python scripts/view_trades.py                # full report
-    python scripts/view_trades.py --last 20      # last 20 trades
+    python scripts/view_trades.py                # paper trades (default)
+    python scripts/view_trades.py --live         # live trades
+    python scripts/view_trades.py --both         # paper + live combined
+    python scripts/view_trades.py --last 20      # last N trades
     python scripts/view_trades.py --summary      # stats only
-    python scripts/view_trades.py --csv          # export to paper_trades.csv
+    python scripts/view_trades.py --csv          # export to CSV
     python scripts/view_trades.py --watch        # auto-refresh every 10 s
 """
 from __future__ import annotations
@@ -32,7 +34,8 @@ from rich import box
 
 console = Console()
 
-TRADES_FILE = Path(__file__).parent.parent / "paper_trades.json"
+TRADES_FILE      = Path(__file__).parent.parent / "paper_trades.json"
+LIVE_TRADES_FILE = Path(__file__).parent.parent / "live_trades.json"
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
@@ -351,7 +354,7 @@ def print_trade_table(trades: List[Dict], limit: Optional[int] = None) -> None:
 
 # ── CSV export ────────────────────────────────────────────────────────────────
 
-def export_csv(trades: List[Dict], path: str = "paper_trades.csv") -> None:
+def export_csv(trades: List[Dict], path: str = "trades_export.csv") -> None:
     if not trades:
         console.print("[yellow]No trades to export.[/yellow]")
         return
@@ -369,28 +372,115 @@ def export_csv(trades: List[Dict], path: str = "paper_trades.csv") -> None:
     console.print(f"[green]Exported[/green] {len(trades)} trades → [cyan]{path}[/cyan]")
 
 
+# ── Live-trade extra columns ───────────────────────────────────────────────────
+
+def print_live_trade_table(trades: List[Dict], limit: Optional[int] = None) -> None:
+    """Render a table tuned for live-trade fields (close_reason, label, filled_qty)."""
+    if not trades:
+        console.print("[dim]No live trades.[/dim]")
+        return
+    recent = trades[-limit:] if limit else trades
+
+    tbl = Table(
+        title="[bold cyan]LIVE TRADES[/bold cyan]",
+        box=box.SIMPLE_HEAD,
+        show_header=True,
+        header_style="bold white",
+        show_lines=False,
+        pad_edge=False,
+        padding=(0, 1),
+    )
+    tbl.add_column("#",         width=4,  justify="right")
+    tbl.add_column("Time",      width=8)
+    tbl.add_column("Dir",       width=6)
+    tbl.add_column("Label",     width=10)
+    tbl.add_column("Entry",     width=7,  justify="right")
+    tbl.add_column("Exit",      width=7,  justify="right")
+    tbl.add_column("Qty",       width=8,  justify="right")
+    tbl.add_column("P&L",       width=10, justify="right")
+    tbl.add_column("Reason",    width=18)
+    tbl.add_column("Outcome",   width=11)
+
+    for t in recent:
+        ts  = str(t.get("closed_at", t.get("timestamp", "?")))[:19].replace("T", " ")[-8:]
+        num = str(t.get("session_trade_num", "?"))
+        d   = str(t.get("direction", "?"))
+        lbl = str(t.get("label", ""))[:10]
+        en  = t.get("entry_price", 0.0)
+        ex  = t.get("exit_price", 0.0)
+        qty = t.get("filled_qty", 0.0)
+        p   = t.get("pnl_usd", 0.0)
+        reason = str(t.get("close_reason", "")).replace("_", " ")
+        out = t.get("outcome", "UNRESOLVED")
+
+        pnl_txt = Text(f"${p:+.4f}", style="green" if p >= 0 else "red")
+        out_style = {"WIN": "bold green", "LOSS": "bold red", "BREAKEVEN": "yellow"}.get(out, "dim")
+        out_txt = Text(out, style=out_style)
+        dir_txt = Text(d, style="cyan" if "LONG" in d else "magenta")
+
+        tbl.add_row(
+            num, ts, dir_txt, lbl,
+            f"{en:.4f}", f"{ex:.4f}", f"{qty:.4f}",
+            pnl_txt, reason, out_txt,
+        )
+
+    console.print()
+    console.print(tbl)
+    console.print()
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="View paper/simulation trade results")
+    parser = argparse.ArgumentParser(description="View paper and live trade results")
     parser.add_argument("--last",    type=int,  metavar="N",  help="Show only last N trades")
     parser.add_argument("--summary", action="store_true",     help="Summary stats only")
-    parser.add_argument("--csv",     action="store_true",     help="Export to paper_trades.csv")
+    parser.add_argument("--csv",     action="store_true",     help="Export to CSV")
     parser.add_argument("--watch",   action="store_true",     help="Auto-refresh every 10 seconds")
     parser.add_argument("--file",    type=str,  default=str(TRADES_FILE))
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--live",  action="store_true", help="Show live trades (live_trades.json)")
+    mode.add_argument("--both",  action="store_true", help="Show paper AND live trades")
     args = parser.parse_args()
-    path = Path(args.file)
+
+    if args.live:
+        paper_path = None
+        live_path  = LIVE_TRADES_FILE
+    elif args.both:
+        paper_path = Path(args.file)
+        live_path  = LIVE_TRADES_FILE
+    else:
+        paper_path = Path(args.file)
+        live_path  = None
 
     def render() -> None:
         if args.watch:
             console.clear()
-        trades = load_trades(path)
-        s = compute_stats(trades)
-        print_summary(s)
-        if not args.summary:
-            print_trade_table(trades, limit=args.last)
-        if args.csv:
-            export_csv(trades)
+
+        if paper_path is not None:
+            paper = load_trades(paper_path)
+            if paper or not args.live:
+                console.print(Rule("[bold white]PAPER / SIMULATION TRADES[/bold white]", style="white"))
+                s = compute_stats(paper)
+                print_summary(s)
+                if not args.summary:
+                    print_trade_table(paper, limit=args.last)
+                if args.csv:
+                    export_csv(paper, path=str(paper_path).replace(".json", ".csv"))
+
+        if live_path is not None:
+            live = load_trades(live_path)
+            if live:
+                console.print(Rule("[bold green]LIVE TRADES[/bold green]", style="green"))
+                s = compute_stats(live)
+                print_summary(s)
+                if not args.summary:
+                    print_live_trade_table(live, limit=args.last)
+                if args.csv:
+                    export_csv(live, path=str(live_path).replace(".json", ".csv"))
+            else:
+                console.print("[dim]No live trades found in live_trades.json[/dim]")
+
         if args.watch:
             console.print(
                 Rule("[dim]Auto-refresh every 10 s  ·  Ctrl+C to stop[/dim]", style="dim")

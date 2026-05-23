@@ -92,13 +92,18 @@ class PolymarketClient:
             return False
         
         try:
-            # Initialize CLOB client
+            # Wallet config (see .env.example for the three signature_type modes).
+            sig_type = int(os.getenv("POLYMARKET_SIG_TYPE", "2"))
+            funder = (os.getenv("POLYMARKET_FUNDER") or "").strip() or None
+            sig_label = {0: "EOA", 1: "POLY_PROXY", 2: "POLY_GNOSIS_SAFE"}.get(sig_type, "?")
+            logger.info(f"  Wallet: sig_type={sig_type} ({sig_label}) funder={funder or '(none)'}")
+
             self.client = ClobClient(
                 host="https://clob.polymarket.com" if not self.testnet else "https://clob-testnet.polymarket.com",
                 key=self.private_key,
                 chain_id=self.chain_id,
-                signature_type=1,  # EOA signature
-                funder=os.getenv("POLYMARKET_FUNDER"),  # Optional funder address
+                signature_type=sig_type,
+                funder=funder,
             )
             
             # Set API credentials for authenticated endpoints

@@ -189,6 +189,13 @@ class GrafanaMetricsExporter:
             logger.error(f"Error updating metrics: {e}")
 
     async def start(self) -> None:
+        """Start the HTTP metrics server.
+
+        Does NOT start the update loop here — the caller is responsible for
+        driving ``_update_loop()`` so the scheduling context is predictable.
+        (``asyncio.create_task`` would orphan the task when called from a
+        ``run_until_complete`` context that returns immediately.)
+        """
         if self._is_running:
             logger.warning("Metrics exporter already running")
             return
@@ -201,7 +208,6 @@ class GrafanaMetricsExporter:
             self._thread.start()
             self._is_running = True
             logger.info(f"Metrics server started on port {self.port}")
-            asyncio.create_task(self._update_loop())
         except Exception as e:
             logger.error(f"Failed to start metrics server: {e}")
 

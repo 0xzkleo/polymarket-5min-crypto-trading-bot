@@ -189,12 +189,18 @@ class PolymarketBTCIntegration:
         
         logger.info(f"Loading BTC 15-min markets: {btc_markets}")
         
+        # Wallet config (see .env.example for the three signature_type modes).
+        sig_type = int(os.getenv("POLYMARKET_SIG_TYPE", "2"))
+        funder = (os.getenv("POLYMARKET_FUNDER") or "").strip() or None
+
         # Polymarket data client config
         poly_data_cfg = PolymarketDataClientConfig(
             private_key=os.getenv("POLYMARKET_PK"),
             api_key=os.getenv("POLYMARKET_API_KEY"),
             api_secret=os.getenv("POLYMARKET_API_SECRET"),
             passphrase=os.getenv("POLYMARKET_PASSPHRASE"),
+            signature_type=sig_type,
+            funder=funder,
             instrument_provider=instrument_cfg,
         )
         
@@ -204,6 +210,8 @@ class PolymarketBTCIntegration:
             api_key=os.getenv("POLYMARKET_API_KEY"),
             api_secret=os.getenv("POLYMARKET_API_SECRET"),
             passphrase=os.getenv("POLYMARKET_PASSPHRASE"),
+            signature_type=sig_type,
+            funder=funder,
             instrument_provider=instrument_cfg,
         )
         
