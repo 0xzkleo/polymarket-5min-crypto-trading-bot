@@ -11,12 +11,51 @@ Exposes port 8000 (default) with:
 from __future__ import annotations
 
 import asyncio
+import sys
 import threading
 import urllib.parse
 from datetime import datetime
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict, Optional
+
+# ── Windows guard for prometheus_client ──────────────────────────────
+# `prometheus_client.process_collector` runs this at import time:
+#
+#   try:
+#       import resource
+#       _PAGESIZE = resource.getpagesize()
+#   except ImportError:
+#       _PAGESIZE = 4096
+#
+# On Windows the stdlib `resource` module does not exist, so this
+# normally raises ImportError and the fallback fires.
+#
+# However, something in our runtime dep tree (a Cython extension /
+# import hook shipped with one of nautilus_trader's transitive deps)
+# installs a META-PATH FINDER that synthesises an empty `resource`
+# module whenever someone tries to import it. The synthesised module
+# imports successfully but does NOT expose `getpagesize`, so the
+# call above raises AttributeError, which slips past prometheus_client's
+# `except ImportError` and crashes the bot at boot:
+#
+#   AttributeError: module 'resource' has no attribute 'getpagesize'
+#
+# Popping the bad module from sys.modules isn't enough because the
+# meta-path finder will just synthesise it again on the next import.
+# Instead, pre-install a stub that satisfies the one attribute
+# prometheus_client uses (`getpagesize`) BEFORE the import runs.
+# Once prometheus_client has computed its module-level _PAGESIZE
+# constant, it never touches `resource` again.
+if sys.platform == "win32":
+    _existing = sys.modules.get("resource")
+    if _existing is None or not hasattr(_existing, "getpagesize"):
+        import types as _types
+
+        _stub = _types.ModuleType("resource")
+        _stub.getpagesize = lambda: 4096
+        sys.modules["resource"] = _stub
+        del _types, _stub
 
 from loguru import logger
 from prometheus_client import (

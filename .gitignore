@@ -4,11 +4,6 @@
 
 # Environment files (contain private keys, API keys, passwords)
 .env
-.env.*
-.env.local
-.env.production
-.env.development
-*.env
 
 # Any file with "secret", "private", "key", "credential" in the name
 *secret*
@@ -25,6 +20,7 @@ polymarket_keys.json
 wallet.json
 pk.txt
 private_key.txt
+live_trades.json
 
 # =============================================================================
 # PYTHON
