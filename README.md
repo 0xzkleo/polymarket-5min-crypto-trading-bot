@@ -1,6 +1,6 @@
 # Polymarket Trading Bot
 
-**Read this in another language:**
+**What is your native language?**
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
 ---
