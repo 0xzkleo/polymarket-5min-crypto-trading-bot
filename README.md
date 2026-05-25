@@ -15,27 +15,15 @@
 
 ---
 
-A production-grade algorithmic trading bot for **Polymarket's 15-minute BTC up/down markets**. It combines multiple real-time signal sources, risk limits, monitoring, and optional learning hooks on a seven-phase pipeline.
+## Proof of work
 
----
+<img width="1919" height="1035" alt="1" src="https://github.com/user-attachments/assets/27f00a58-db8d-4992-a1ed-1b5ee741bede" />
 
-## Table of Contents
+<img width="1919" height="1032" alt="2" src="https://github.com/user-attachments/assets/447c9671-3f47-4bde-a4be-744af27bdbb1" />
 
-- [Core Idea](#core-idea)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Running the Bot](#running-the-bot)
-- [Monitoring](#monitoring)
-- [Trading Modes](#trading-modes)
-- [Testing Individual Phases](#testing-individual-phases)
-- [How Much Money Do I Need?](#how-much-money-do-i-need-to-start)
-- [Is This Profitable?](#is-this-profitable)
-- [Best For](#best-for)
-- [Contributing](#contributing-and-ideas)
-- [License](#license)
-- [Disclaimer](#disclaimer)
+<img width="1916" height="1008" alt="4" src="https://github.com/user-attachments/assets/8b88610b-c54b-4e3d-b7a6-2ccef7b72ca4" />
+
+<img width="1823" height="942" alt="3" src="https://github.com/user-attachments/assets/f7052333-8107-40d8-9703-d1bbd2b77bc7" />
 
 ---
 
