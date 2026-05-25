@@ -121,17 +121,124 @@ class IntegratedBTCStrategy(Strategy):
         # Outstanding exit (SELL) orders, mapping exit client_id -> entry id.
         self._pending_exits: Dict[str, str] = {}
 
+        # Risk / exit math is *payoff-relative* for binary outcome tokens:
+        #   TP = entry + take_profit_frac * (1 - entry)   # frac of upside
+        #   SL = entry - stop_loss_frac   * entry          # frac of capital
+        # Old behaviour ("+X% of token price") was broken for tokens near
+        # 1.0 because TP clamped to 0.99 and fired immediately at fill.
+        #
+        # ENABLE_STOP_LOSS=false (default) disables the SL trigger entirely;
+        # positions then only close via TAKE-PROFIT or via Polymarket
+        # settlement (binary payout 0 or 1). A losing trade will then lose
+        # ~100% of its stake instead of being clipped at the SL price.
+        self._stop_loss_enabled = os.getenv(
+            "ENABLE_STOP_LOSS", "false"
+        ).strip().lower() in ("1", "true", "yes", "on")
         try:
-            self._stop_loss_pct = max(0.0, float(os.getenv("STOP_LOSS_PCT", "0.30")))
+            self._stop_loss_frac = max(0.0, min(1.0, float(os.getenv("STOP_LOSS_PCT", "0.50"))))
         except (TypeError, ValueError):
-            self._stop_loss_pct = 0.30
+            self._stop_loss_frac = 0.50
         try:
-            self._take_profit_pct = max(0.0, float(os.getenv("TAKE_PROFIT_PCT", "0.20")))
+            self._take_profit_frac = max(0.0, min(1.0, float(os.getenv("TAKE_PROFIT_PCT", "0.40"))))
         except (TypeError, ValueError):
-            self._take_profit_pct = 0.20
+            self._take_profit_frac = 0.40
         # Don't try to exit in the last few seconds before settlement —
         # FAK rejects + settlement happen too fast to be useful.
         self._exit_cutoff_seconds = 30
+
+        # ── Entry filters ────────────────────────────────────────────────
+        # Refuse to bet when the token price is at an extreme (terrible
+        # R:R on binary outcome tokens) or when the bid-ask spread is so
+        # wide that crossing it eats most of the expected edge.
+        try:
+            self._min_entry_price = max(0.01, min(0.99, float(os.getenv("MIN_ENTRY_PRICE", "0.25"))))
+        except (TypeError, ValueError):
+            self._min_entry_price = 0.25
+        try:
+            self._max_entry_price = max(self._min_entry_price + 0.01, min(0.99, float(os.getenv("MAX_ENTRY_PRICE", "0.75"))))
+        except (TypeError, ValueError):
+            self._max_entry_price = 0.75
+        try:
+            self._max_spread_pct = max(0.0, float(os.getenv("MAX_SPREAD_PCT", "0.05")))
+        except (TypeError, ValueError):
+            self._max_spread_pct = 0.05
+
+        # ── Trade-window / cooldown ──────────────────────────────────────
+        # Widened from the old 540-600s slot to 300-780s (minutes 5-13) so
+        # the bot has 8 minutes of decision time per 15-min market instead
+        # of 1 minute, and can re-enter after each closed position.
+        try:
+            self._trade_window_start = max(0, int(float(os.getenv("TRADE_WINDOW_SEC_START", "300"))))
+        except (TypeError, ValueError):
+            self._trade_window_start = 300
+        try:
+            self._trade_window_end = max(
+                self._trade_window_start + 30,
+                int(float(os.getenv("TRADE_WINDOW_SEC_END", "780"))),
+            )
+        except (TypeError, ValueError):
+            self._trade_window_end = 780
+        try:
+            self._entry_cooldown_sec = max(0, int(float(os.getenv("ENTRY_COOLDOWN_SEC", "90"))))
+        except (TypeError, ValueError):
+            self._entry_cooldown_sec = 90
+
+        # Unix-ts of the most recent entry attempt; used by on_quote_tick
+        # to gate re-entries inside the wider trade window.
+        self._last_entry_ts: float = 0.0
+
+        # Cooldown applied after a pre-trade filter rejection (band /
+        # spread / liquidity guard). Prevents the trade-window block
+        # from re-emitting on every tick (~10/s) when price stays out
+        # of band — the old code set _last_entry_ts=0 here which spammed
+        # the log with ~3000 banner emissions in 20 seconds.
+        try:
+            self._filter_reject_cooldown_sec = max(
+                0, int(float(os.getenv("FILTER_REJECT_COOLDOWN_SEC", "15")))
+            )
+        except (TypeError, ValueError):
+            self._filter_reject_cooldown_sec = 15
+
+        # Late-entry cutoff — refuse new entries this close to settlement.
+        try:
+            self._late_entry_cutoff_sec = max(
+                0, int(float(os.getenv("LATE_ENTRY_CUTOFF_SEC", "120")))
+            )
+        except (TypeError, ValueError):
+            self._late_entry_cutoff_sec = 120
+
+        # ── Per-market constraints ───────────────────────────────────────
+        # LOCK_MARKET_DIRECTION blocks the "win then fade" anti-pattern:
+        # after a winning LONG the fusion frequently flips BEARISH (mean-
+        # reversion / divergence signals) and the bot opens an opposite
+        # SHORT on the same market. In 15-min binary markets that
+        # contrarian trade usually loses because the trend continues to
+        # settlement, so the net P&L for the market becomes negative.
+        self._lock_market_direction = os.getenv(
+            "LOCK_MARKET_DIRECTION", "true"
+        ).strip().lower() in ("1", "true", "yes", "on")
+        try:
+            self._max_trades_per_market = max(
+                1, int(float(os.getenv("MAX_TRADES_PER_MARKET", "3")))
+            )
+        except (TypeError, ValueError):
+            self._max_trades_per_market = 3
+        try:
+            self._max_chase_delta = max(
+                0.0, float(os.getenv("MAX_CHASE_DELTA", "0.12"))
+            )
+        except (TypeError, ValueError):
+            self._max_chase_delta = 0.12
+
+        # Per-market state, keyed by market slug.
+        #   _market_direction:   slug -> "long"|"short"  (first trade's direction)
+        #   _market_trade_count: slug -> int            (entries submitted)
+        #   _market_last_entry_held_price: slug -> float
+        #       Held-token price (YES for LONG, NO for SHORT) of the most
+        #       recent entry — used by the anti-chase guard.
+        self._market_direction: Dict[str, str] = {}
+        self._market_trade_count: Dict[str, int] = {}
+        self._market_last_entry_held_price: Dict[str, float] = {}
 
         # ── Live realised-P&L tracking ──────────────────────────────────────
         # Closed live trades, mirror of `paper_trades.json` for the live path.
@@ -219,6 +326,24 @@ class IntegratedBTCStrategy(Strategy):
         self.learning_engine = get_learning_engine()
         self.ml_engine = get_ml_engine()
         self.settlement_tracker = get_settlement_tracker()
+
+        # Override the ML engine's min_edge with the env-configured value.
+        # Once ML is active (>= min_samples outcomes recorded), the bot
+        # only fires when |p_up - poly_price| >= MIN_ML_EDGE. Default 0.10
+        # means "bet only when our prediction is at least 10 percentage
+        # points away from Polymarket's implied price".
+        try:
+            ml_edge_env = float(os.getenv("MIN_ML_EDGE", "0.10"))
+            if ml_edge_env >= 0:
+                self.ml_engine.min_edge = ml_edge_env
+        except (TypeError, ValueError):
+            pass
+        logger.info(
+            f"ML edge gate: bet only when |p_up - poly_price| >= "
+            f"{self.ml_engine.min_edge:.0%} (active once "
+            f"ML has {self.ml_engine.min_samples} samples; currently "
+            f"{self.ml_engine._sample_count})"
+        )
 
         self.grafana_exporter = get_grafana_exporter() if enable_grafana else None
 
@@ -940,10 +1065,25 @@ class IntegratedBTCStrategy(Strategy):
                 (datetime.now(timezone.utc) - self.bot_start_time).total_seconds() / 60
             )
             if uptime_minutes >= self.restart_after_minutes:
-                logger.warning("AUTO-RESTART — loading fresh market filters")
-                import signal as _signal
-                os.kill(os.getpid(), _signal.SIGTERM)
-                return
+                logger.warning("=" * 80)
+                logger.warning("MARKET REFRESH — fetching new BTC 15-min instruments in-place")
+                logger.warning("=" * 80)
+                try:
+                    added = self._load_instruments_via_gamma_direct()
+                    logger.info(
+                        f"Refresh: +{added} new instruments fetched via direct Gamma load"
+                    )
+                    self._load_all_btc_instruments(quiet=True)
+                    # Reset the cycle so we refresh again in another
+                    # `restart_after_minutes` minutes. No process restart.
+                    self.bot_start_time = datetime.now(timezone.utc)
+                except Exception as e:
+                    logger.error(f"Market refresh failed: {e}")
+                    # Don't burn the loop spamming refreshes — push the
+                    # next attempt out by 5 min and keep trading.
+                    self.bot_start_time = datetime.now(timezone.utc) - timedelta(
+                        minutes=max(0, self.restart_after_minutes - 5)
+                    )
 
             # Retry instrument loading until Nautilus has populated the cache.
             if not self._instruments_loaded:
@@ -1077,40 +1217,77 @@ class IntegratedBTCStrategy(Strategy):
                 return
 
             sub_interval = int(elapsed_secs // MARKET_INTERVAL_SECONDS)
-            trade_key = (market_start_ts, sub_interval)
-
-            # Trade window: seconds 540-600 of each 15-min market (i.e.
-            # minutes 9-10). Bot fires one decision per market in this window.
-            TRADE_WINDOW_START = 540
-            TRADE_WINDOW_END   = 600
             seconds_into_sub = elapsed_secs % MARKET_INTERVAL_SECONDS
 
+            # Trade window: configurable via TRADE_WINDOW_SEC_{START,END}.
+            # Default 300-780s (minutes 5-13) — was 540-600s (1-min slot)
+            # which capped throughput at 4 trades/hour.
             if self.test_mode:
-                # In test mode trade every minute instead of every 15 min
-                TRADE_WINDOW_START = 0
-                TRADE_WINDOW_END   = 900
+                # In test mode the whole 15-min market is the trade window.
+                window_start, window_end = 0, 900
+            else:
+                window_start = self._trade_window_start
+                window_end = self._trade_window_end
 
-            if TRADE_WINDOW_START <= seconds_into_sub < TRADE_WINDOW_END and trade_key != self.last_trade_time:
-                self.last_trade_time = trade_key
+            if not (window_start <= seconds_into_sub < window_end):
+                return
 
-                logger.info("=" * 80)
-                logger.info(f"TRADE WINDOW: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
-                logger.info(f"  Market:   {current_market['slug']}")
-                logger.info(
-                    f"  Sub-interval #{sub_interval} "
-                    f"({seconds_into_sub:.1f}s in = {seconds_into_sub/60:.1f} min)"
-                )
-                logger.info(
-                    f"  Price: ${float(mid_price):,.4f} | "
-                    f"Bid: ${float(bid_decimal):,.4f} | "
-                    f"Ask: ${float(ask_decimal):,.4f}"
-                )
-                logger.info(
-                    f"  Trend: {'STRONG' if float(mid_price) > 0.60 or float(mid_price) < 0.40 else 'WEAK'}"
-                )
-                logger.info("=" * 80)
+            # Late-entry cutoff — don't open new positions in the last
+            # `_late_entry_cutoff_sec` of the market. FAK rejects spike
+            # near settlement and the binary outcome is about to pay out.
+            current_slug = current_market.get("slug", "")
+            now_ts = now.timestamp()
+            market_end_ts = int(current_market.get("end_timestamp", 0) or 0)
+            if market_end_ts and (market_end_ts - now_ts) < self._late_entry_cutoff_sec:
+                return
 
-                self.run_in_executor(lambda: self._make_trading_decision_sync(float(mid_price)))
+            # MAX_TRADES_PER_MARKET — hard cap (safety net on top of
+            # cooldown + direction lock).
+            if (
+                self._market_trade_count.get(current_slug, 0)
+                >= self._max_trades_per_market
+            ):
+                return
+
+            # Re-entry gating: instead of "one trade per market", allow
+            # multiple entries inside the window subject to:
+            #   1. cooldown since last entry attempt has elapsed, AND
+            #   2. no open position is already running on this market.
+            cooldown_ok = (now_ts - self._last_entry_ts) >= self._entry_cooldown_sec
+            has_open_on_market = any(
+                p.get("market_slug") == current_slug
+                for p in self._open_positions.values()
+            )
+            has_pending_on_market = any(
+                p.get("market_slug") == current_slug
+                for p in self._pending_orders.values()
+            )
+
+            if not cooldown_ok or has_open_on_market or has_pending_on_market:
+                return
+
+            # Reserve the cooldown slot *now* so concurrent ticks during
+            # the async decision call don't double-fire.
+            self._last_entry_ts = now_ts
+
+            logger.info("=" * 80)
+            logger.info(f"TRADE WINDOW: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+            logger.info(f"  Market:   {current_market['slug']}")
+            logger.info(
+                f"  Sub-interval #{sub_interval} "
+                f"({seconds_into_sub:.1f}s in = {seconds_into_sub/60:.1f} min)"
+            )
+            logger.info(
+                f"  Price: ${float(mid_price):,.4f} | "
+                f"Bid: ${float(bid_decimal):,.4f} | "
+                f"Ask: ${float(ask_decimal):,.4f}"
+            )
+            logger.info(
+                f"  Trend: {'STRONG' if float(mid_price) > 0.60 or float(mid_price) < 0.40 else 'WEAK'}"
+            )
+            logger.info("=" * 80)
+
+            self.run_in_executor(lambda: self._make_trading_decision_sync(float(mid_price)))
 
         except Exception as e:
             logger.error(f"Error processing quote tick: {e}")
@@ -1275,6 +1452,49 @@ class IntegratedBTCStrategy(Strategy):
         poly_price = float(current_price)
         logger.info(f"Current Polymarket price: {poly_price:.4f}")
 
+        # Helper: schedule the next entry attempt `delay` seconds from
+        # now (instead of "right now" which busy-loops at full tick rate
+        # whenever the filter keeps rejecting on the same price).
+        now_ts_for_cooldown = datetime.now(timezone.utc).timestamp()
+
+        def _backoff_after_filter_reject() -> None:
+            # Backdate _last_entry_ts so that the next on_quote_tick
+            # attempt is in `_filter_reject_cooldown_sec` seconds rather
+            # than on the very next tick.
+            self._last_entry_ts = now_ts_for_cooldown - max(
+                0, self._entry_cooldown_sec - self._filter_reject_cooldown_sec
+            )
+
+        # ── Pre-trade filters (cheap; bail out before any external IO) ──
+        # 1. Entry-price band — refuse the bet when the token is already
+        #    pricing the outcome near-certain. R:R is junk at extremes.
+        if not (self._min_entry_price <= poly_price <= self._max_entry_price):
+            logger.info(
+                f"PRE-TRADE — price {poly_price:.4f} outside band "
+                f"[{self._min_entry_price:.2f}, {self._max_entry_price:.2f}] — "
+                f"re-check in {self._filter_reject_cooldown_sec}s"
+            )
+            _backoff_after_filter_reject()
+            return
+
+        # 2. Spread filter — buying through a wide spread eats the edge.
+        last_tick = getattr(self, "_last_bid_ask", None)
+        if last_tick:
+            last_bid_f = float(last_tick[0])
+            last_ask_f = float(last_tick[1])
+            mid_f = (last_bid_f + last_ask_f) / 2
+            if mid_f > 0:
+                spread_pct = (last_ask_f - last_bid_f) / mid_f
+                if spread_pct > self._max_spread_pct:
+                    logger.info(
+                        f"PRE-TRADE — spread {spread_pct:.1%} > max "
+                        f"{self._max_spread_pct:.1%} (bid=${last_bid_f:.4f} "
+                        f"ask=${last_ask_f:.4f}) — re-check in "
+                        f"{self._filter_reject_cooldown_sec}s"
+                    )
+                    _backoff_after_filter_reject()
+                    return
+
         metadata = await self._fetch_market_context(current_price)
         signals = self._process_signals(current_price, metadata)
 
@@ -1363,12 +1583,15 @@ class IntegratedBTCStrategy(Strategy):
                 f"edge={bet_edge:.3f} → bet {direction.upper()}"
             )
         else:
-            # ML is warming up — use a fusion-backed fallback only when there
-            # is a clear directional consensus AND a meaningful signal score.
-            # Require ≥2 signals agreeing (min_signals=2) with score ≥55 to
-            # reduce low-quality trades during the warmup period.
-            TREND_UP, TREND_DOWN = 0.60, 0.40
-            # Reject if fusion gives no clear verdict or weak consensus.
+            # ML is warming up — fall back to the fused signal direction.
+            # CRITICAL: the bet direction comes from the FUSION DIRECTION,
+            # not from price extremity. The old behaviour ("if poly>0.60 go
+            # LONG") was firing AGAINST a bearish consensus near the top of
+            # the market and against a bullish consensus near the bottom —
+            # i.e. it was systematically buying tops and selling bottoms.
+            #
+            # Require ≥2 signals agreeing (min_signals=2) with consensus
+            # score ≥55 to filter out weak/noisy fallback trades.
             fallback_fused = self.fusion_engine.fuse_signals(
                 signals, min_signals=2, min_score=55.0
             ) if signals else None
@@ -1391,23 +1614,23 @@ class IntegratedBTCStrategy(Strategy):
                     )
                 return
 
-            # Fusion agrees AND price is at an extreme — safe to fallback bet.
-            if poly_price > TREND_UP:
+            fused_dir = str(fallback_fused.direction).upper()
+            if "BULLISH" in fused_dir:
                 direction = "long"
                 logger.info(
-                    f"STEP 4 (fallback) — fusion+trend UP "
+                    f"STEP 4 (fallback) — fusion BULLISH "
                     f"poly={poly_price:.2%} score={fallback_fused.score:.1f} → YES"
                 )
-            elif poly_price < TREND_DOWN:
+            elif "BEARISH" in fused_dir:
                 direction = "short"
                 logger.info(
-                    f"STEP 4 (fallback) — fusion+trend DOWN "
+                    f"STEP 4 (fallback) — fusion BEARISH "
                     f"poly={poly_price:.2%} score={fallback_fused.score:.1f} → NO"
                 )
             else:
                 logger.info(
-                    f"STEP 4 (fallback) — fusion OK but price neutral "
-                    f"({poly_price:.2%}) — skip"
+                    f"STEP 4 (fallback) — fusion direction NEUTRAL/unknown "
+                    f"({fused_dir}) — skip"
                 )
                 if feature_vector is not None:
                     slug = (
@@ -1421,6 +1644,61 @@ class IntegratedBTCStrategy(Strategy):
                         feature_vector=feature_vector,
                     )
                 return
+
+        # ── Per-market direction lock + anti-chase guard ────────────────
+        # Resolve the market slug once for the gates below.
+        active_slug = (
+            self.all_btc_instruments[self.current_instrument_index]["slug"]
+            if 0 <= self.current_instrument_index < len(self.all_btc_instruments)
+            else ""
+        )
+
+        # Held-token price for this entry: LONG buys YES at poly_price,
+        # SHORT buys NO at 1 - poly_price.
+        held_entry_price = poly_price if direction == "long" else (1.0 - poly_price)
+
+        # 1. Direction lock — once the first trade on this market is in,
+        #    refuse opposite-direction entries on the same market. This
+        #    blocks the "win then fade" pattern that was burning every
+        #    same-market opposite-side re-entry observed in the logs.
+        if active_slug and self._lock_market_direction:
+            locked_dir = self._market_direction.get(active_slug)
+            if locked_dir and locked_dir != direction:
+                logger.info(
+                    f"DIRECTION LOCK — market {active_slug} already locked "
+                    f"to {locked_dir.upper()}; refusing {direction.upper()} "
+                    f"(fusion may have flipped post-win)"
+                )
+                if feature_vector is not None:
+                    self.ml_engine.record_trade(
+                        market_slug=active_slug,
+                        poly_price=poly_price,
+                        feature_vector=feature_vector,
+                    )
+                return
+
+        # 2. Anti-chase guard — refuse re-entry on the same market at a
+        #    price more than MAX_CHASE_DELTA cents WORSE than the last
+        #    entry on this market. Prevents climbing into a runaway move.
+        if active_slug and self._max_chase_delta > 0:
+            last_held = self._market_last_entry_held_price.get(active_slug)
+            if last_held is not None:
+                # Worse = paying more for the same exposure.
+                delta = held_entry_price - last_held
+                if delta > self._max_chase_delta:
+                    logger.info(
+                        f"ANTI-CHASE — {direction.upper()} entry "
+                        f"{held_entry_price:.4f} is {delta:+.4f} above last "
+                        f"entry {last_held:.4f} on this market (max "
+                        f"chase={self._max_chase_delta:.2f}) — skip"
+                    )
+                    if feature_vector is not None:
+                        self.ml_engine.record_trade(
+                            market_slug=active_slug,
+                            poly_price=poly_price,
+                            feature_vector=feature_vector,
+                        )
+                    return
 
         # Risk engine
         is_valid, error = self.risk_engine.validate_new_position(
@@ -1438,12 +1716,18 @@ class IntegratedBTCStrategy(Strategy):
             last_bid, last_ask = last_tick
             MIN_LIQ = Decimal("0.02")
             if direction == "long" and last_ask <= MIN_LIQ:
-                logger.warning(f"No ask liquidity ({float(last_ask):.4f}) — retry next tick")
-                self.last_trade_time = -1
+                logger.warning(
+                    f"No ask liquidity ({float(last_ask):.4f}) — "
+                    f"re-check in {self._filter_reject_cooldown_sec}s"
+                )
+                _backoff_after_filter_reject()
                 return
             if direction == "short" and last_bid <= MIN_LIQ:
-                logger.warning(f"No bid liquidity ({float(last_bid):.4f}) — retry next tick")
-                self.last_trade_time = -1
+                logger.warning(
+                    f"No bid liquidity ({float(last_bid):.4f}) — "
+                    f"re-check in {self._filter_reject_cooldown_sec}s"
+                )
+                _backoff_after_filter_reject()
                 return
 
         # STEP 5 setup — save feature vector
@@ -1462,6 +1746,16 @@ class IntegratedBTCStrategy(Strategy):
             logger.info(f"STEP 5 setup — feature vector saved, trade_id={trade_id}")
 
         signal_for_logging = fused if fused is not None else _make_stub_signal(direction, ml_p_up)
+
+        # Record direction lock + last-entry held price + count BEFORE
+        # the actual order goes out, so any concurrent tick that fires
+        # during submission cannot bypass these gates.
+        if active_slug:
+            self._market_direction.setdefault(active_slug, direction)
+            self._market_last_entry_held_price[active_slug] = held_entry_price
+            self._market_trade_count[active_slug] = (
+                self._market_trade_count.get(active_slug, 0) + 1
+            )
 
         if is_simulation:
             await self._record_paper_trade(
@@ -1787,8 +2081,15 @@ class IntegratedBTCStrategy(Strategy):
                     ("ML engine", ml_engine_state),
                     (
                         "Risk",
-                        f"SL=-{self._stop_loss_pct:.0%}  TP=+{self._take_profit_pct:.0%}  "
-                        f"exit_cutoff={self._exit_cutoff_seconds}s",
+                        (
+                            (
+                                f"SL=-{self._stop_loss_frac:.0%} of capital  "
+                                if self._stop_loss_enabled
+                                else "SL=DISABLED  "
+                            )
+                            + f"TP=+{self._take_profit_frac:.0%} of upside  "
+                            + f"exit_cutoff={self._exit_cutoff_seconds}s"
+                        ),
                     ),
                     ("", ""),
                     (
@@ -1830,12 +2131,15 @@ class IntegratedBTCStrategy(Strategy):
                 "ml_trade_id": ml_trade_id,
                 "signal_score": signal_score,
                 "signal_confidence": signal_conf,
-                "stop_loss_pct": self._stop_loss_pct,
-                "take_profit_pct": self._take_profit_pct,
+                "stop_loss_frac": self._stop_loss_frac,
+                "stop_loss_enabled": self._stop_loss_enabled,
+                "take_profit_frac": self._take_profit_frac,
                 "submitted_at": datetime.now(timezone.utc),
             }
 
-            self._track_order_event("placed")
+            # NOTE: do not call _track_order_event("placed") again here —
+            # we already counted it right after submit_order() above. The
+            # old code double-counted every placed order.
 
         except Exception as e:
             logger.error(f"Error placing real order: {e}")
@@ -1996,13 +2300,42 @@ class IntegratedBTCStrategy(Strategy):
         except Exception as e:
             logger.warning(f"Failed to record live fill in risk engine: {e}")
 
-        sl_pct = Decimal(str(pending.get("stop_loss_pct", self._stop_loss_pct)))
-        tp_pct = Decimal(str(pending.get("take_profit_pct", self._take_profit_pct)))
-        # Stop-loss / take-profit thresholds are relative to the held token's
-        # price. For both LONG (YES bought) and SHORT (NO bought), a falling
-        # token price means the position is losing.
-        stop_loss = max(Decimal("0.01"), fill_price * (Decimal("1") - sl_pct))
-        take_profit = min(Decimal("0.99"), fill_price * (Decimal("1") + tp_pct))
+        # Payoff-relative TP for binary outcome tokens.
+        # The token can only move within [0, 1], so the OLD math
+        # ("TP = price * (1 + tp_pct)") clamped to 0.99 and fired
+        # immediately at fills near 1.0. Instead:
+        #
+        #   TP price = entry + tp_frac * (1 - entry)
+        #              fraction of the remaining upside we want to take
+        #
+        # For both LONG (YES bought) and SHORT (NO bought) the held token's
+        # price falling = losing, so the same direction logic applies.
+        tp_frac = Decimal(str(
+            pending.get("take_profit_frac",
+                pending.get("take_profit_pct", self._take_profit_frac))
+        ))
+        remaining_upside = max(Decimal("0"), Decimal("1") - fill_price)
+        take_profit = min(Decimal("0.99"), fill_price + tp_frac * remaining_upside)
+        if take_profit - fill_price < Decimal("0.01"):
+            take_profit = min(Decimal("0.99"), fill_price + Decimal("0.01"))
+
+        # Stop-loss is OPT-IN via ENABLE_STOP_LOSS=true.
+        # When disabled we set the SL price to Decimal(0), which the
+        # exit handler treats as "never fires" because a token bid can
+        # only go to 0 at settlement (and we skip exits in the last
+        # _exit_cutoff_seconds anyway).
+        sl_enabled = bool(pending.get("stop_loss_enabled", self._stop_loss_enabled))
+        if sl_enabled:
+            sl_frac = Decimal(str(
+                pending.get("stop_loss_frac",
+                    pending.get("stop_loss_pct", self._stop_loss_frac))
+            ))
+            stop_loss = max(Decimal("0.01"), fill_price - sl_frac * fill_price)
+            if fill_price - stop_loss < Decimal("0.01"):
+                stop_loss = max(Decimal("0.01"), fill_price - Decimal("0.01"))
+        else:
+            sl_frac = Decimal("0")
+            stop_loss = Decimal("0")
 
         position = {
             "instrument_id": pending["instrument_id"],
@@ -2012,6 +2345,7 @@ class IntegratedBTCStrategy(Strategy):
             "entry_price": fill_price,
             "filled_qty": fill_qty,
             "stop_loss": stop_loss,
+            "stop_loss_enabled": sl_enabled,
             "take_profit": take_profit,
             "market_end_ts": int(pending.get("market_end_ts", 0)),
             "market_slug": pending.get("market_slug", ""),
@@ -2053,8 +2387,21 @@ class IntegratedBTCStrategy(Strategy):
                 ("Qty",       f"{float(fill_qty):.6f} tokens"),
                 ("Notional",  f"${notional_usd:.2f}"),
                 ("", ""),
-                ("Stop-loss", f"${float(stop_loss):.4f}  (-{float(sl_pct):.0%})"),
-                ("Take-prof", f"${float(take_profit):.4f}  (+{float(tp_pct):.0%})"),
+                (
+                    "Stop-loss",
+                    (
+                        f"${float(stop_loss):.4f}  "
+                        f"(-{float(sl_frac):.0%} of capital, "
+                        f"${float(fill_price - stop_loss):.4f} below entry)"
+                        if sl_enabled
+                        else "DISABLED  (rides to TP or settlement)"
+                    ),
+                ),
+                (
+                    "Take-prof",
+                    f"${float(take_profit):.4f}  "
+                    f"(+{float(tp_frac):.0%} of upside, ${float(take_profit - fill_price):.4f} above entry)",
+                ),
                 (
                     "Mkt close",
                     f"{mins_left_v:+.1f} min" if mins_left_v is not None else "n/a",
@@ -2386,8 +2733,8 @@ class IntegratedBTCStrategy(Strategy):
             kw in reason.lower() for kw in ("no orders found", "fak", "no match")
         )
         if is_fak:
-            self.last_trade_time = -1
-            note = "no liquidity (FAK) — trade timer reset; will retry on next tick"
+            self._last_entry_ts = 0.0
+            note = "no liquidity (FAK) — cooldown cleared; will retry on next tick"
         else:
             note = "venue rejected order — see reason"
 
@@ -2472,9 +2819,13 @@ class IntegratedBTCStrategy(Strategy):
 
             stop_loss = position["stop_loss"]
             take_profit = position["take_profit"]
+            sl_enabled = bool(position.get("stop_loss_enabled", True))
 
             trigger: Optional[str] = None
-            if bid <= stop_loss:
+            # Only consider stop-loss when it's enabled AND the SL price is
+            # strictly positive (disabled positions store stop_loss=0 which
+            # would otherwise match any bid <= 0 case).
+            if sl_enabled and stop_loss > 0 and bid <= stop_loss:
                 trigger = "STOP-LOSS"
             elif bid >= take_profit:
                 trigger = "TAKE-PROFIT"
