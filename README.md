@@ -4,8 +4,7 @@
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
 ---
-<img width="1983" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/c73980d1-51e9-4d77-8200-cac77b8f9c7e" />
----
+<img width="1983" height="793" alt="acd1982e-6965-4a92-8031-3f19849936b0" src="https://github.com/user-attachments/assets/e6633b79-f765-46d8-80d9-25963ce5a132" />
 
 <p align="center">
   <strong>⭐ Want more profitable trading bots?</strong><br><br>
@@ -19,8 +18,6 @@
 ## How do this bot work on polymarket?
 
 https://github.com/user-attachments/assets/cd194cab-0566-4f3a-8b88-f1c1bb152cb4
-
----
 
 ---
 
