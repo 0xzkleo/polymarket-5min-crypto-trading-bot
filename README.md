@@ -6,7 +6,8 @@
 ---
 <img width="1991" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/74c48148-0002-496e-9f42-efa4d6408029" />
 
-<br>
+<br><br>
+
 <p align="center">
   <strong>⭐ Want more profitable trading bots?</strong><br><br>
   Built by <a href="https://github.com/gamma-trade-lab"><strong>Gamma Trade Lab</strong></a> — high-performance automated trading systems for Polymarket.<br><br>
