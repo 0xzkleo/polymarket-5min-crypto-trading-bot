@@ -4,6 +4,8 @@
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
 ---
+<img width="1983" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/c73980d1-51e9-4d77-8200-cac77b8f9c7e" />
+---
 
 <p align="center">
   <strong>⭐ Want more profitable trading bots?</strong><br><br>
@@ -12,6 +14,13 @@
   <a href="mailto:gammatradeorg@gmail.com"><img alt="Email" src="https://img.shields.io/badge/Email-gammatradeorg@gmail.com-EA4335?logo=gmail&logoColor=white"></a>&nbsp;
   <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>
 </p>
+
+---
+## How do this bot work on polymarket?
+
+https://github.com/user-attachments/assets/cd194cab-0566-4f3a-8b88-f1c1bb152cb4
+
+---
 
 ---
 
