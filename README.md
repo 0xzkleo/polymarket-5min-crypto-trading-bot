@@ -1,27 +1,32 @@
 # Polymarket Trading Bot
 
-**what is your native language?**
-[🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
+**What is your native language** [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
 ---
-
+<img width="1981" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/31efdf63-1172-46b2-8713-e1173dc06722" />
+<br><br>
 <p align="center">
   <strong>⭐ Want more profitable trading bots?</strong><br><br>
-  Built by <a href="https://github.com/gamma-trade-lab"><strong>Gamma Trade Lab</strong></a> — high-performance automated trading systems for Polymarket.<br><br>
-  <a href="https://github.com/gamma-trade-lab"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-gamma--trade--lab-181717?logo=github&logoColor=white"></a>&nbsp;
-  <a href="mailto:gammatradeorg@gmail.com"><img alt="Email" src="https://img.shields.io/badge/Email-gammatradeorg@gmail.com-EA4335?logo=gmail&logoColor=white"></a>&nbsp;
+  Built by <a href="https://github.com/RetroValixx"><strong>Retro Valix</strong></a> — high-performance automated trading systems for Polymarket.<br><br>
+  <a href="https://github.com/RetroValixx"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-RetroValixx-181717?logo=github&logoColor=white"></a>&nbsp;
   <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>
 </p>
 
 ---
+## How does the bot work
 
+<video width="100%" controls src="https://github.com/user-attachments/assets/d89a6bc1-0cf6-4a1f-a29e-5e0549945e6f">
+  <a href="https://github.com/user-attachments/assets/d89a6bc1-0cf6-4a1f-a29e-5e0549945e6f">Watch demo video</a>
+</video>
+
+---
 ## Proof of work
 
-<img width="1919" height="1032" alt="2" src="https://github.com/user-attachments/assets/447c9671-3f47-4bde-a4be-744af27bdbb1" />
+<img width="100%" alt="2" src="https://github.com/user-attachments/assets/447c9671-3f47-4bde-a4be-744af27bdbb1" />
 
-<img width="1916" height="1008" alt="4" src="https://github.com/user-attachments/assets/8b88610b-c54b-4e3d-b7a6-2ccef7b72ca4" />
+<img width="100%" alt="4" src="https://github.com/user-attachments/assets/8b88610b-c54b-4e3d-b7a6-2ccef7b72ca4" />
 
-<img width="1823" height="942" alt="3" src="https://github.com/user-attachments/assets/f7052333-8107-40d8-9703-d1bbd2b77bc7" />
+<img width="100%" alt="3" src="https://github.com/user-attachments/assets/f7052333-8107-40d8-9703-d1bbd2b77bc7" />
 
 ---
 
@@ -252,12 +257,10 @@ Trading cryptocurrencies and prediction-market instruments involves **substantia
 - [NautilusTrader](https://nautilustrader.io/) — Trading framework
 - [Polymarket](https://polymarket.com) — Prediction market venue
 
-
 <div align="center">
   <h2>Made with ❤️ by</h2>
-  <a href="https://t.me/appledog_xyz">
-    <img width="85" height="85" alt="thumbnail" src="https://github.com/user-attachments/assets/7ff7ea4c-516e-46b9-bce9-81ce42cb5665" />
-    <br>
-    <span>James Chen</span>
+  <a href="https://t.me/RetroValix">
+    <img width="85" height="85" alt="XTLLbabR_400x400" src="https://github.com/user-attachments/assets/66c994bf-c618-40e7-a0f4-d295e09d1e91" />    <br>
+    <span>Retro Valix</span>
   </a>
 </div>
