@@ -8,8 +8,9 @@
 <p align="center">
   <strong>⭐ 想要更多盈利的交易机器人？</strong><br><br>
   由 <a href="https://github.com/RetroValixx"><strong>Retro Valix</strong></a> 打造 — 面向 Polymarket 的高性能自动化交易系统。<br><br>
-  <a href="https://github.com/RetroValixx"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-gamma--trade--lab-181717?logo=github&logoColor=white"></a>&nbsp;
-  <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>
+  <a href="https://github.com/RetroValixx"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-RetroValixx-181717?logo=github&logoColor=white"></a>&nbsp;
+  <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
+  <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>
 </p>
 
 ---
