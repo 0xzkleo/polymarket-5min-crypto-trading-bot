@@ -1,0 +1,886 @@
+2026-06-01 17:31:12 | INFO    | __main__ | Logging to: logs/bot_test_20260601_173112.log
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | Applying Polymarket Gamma-API patches (loguru-instrumented)
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets |   platform: win32  using_httpx_fallback: True
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | [gamma] patched build_markets_query (array params)
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | [gamma] patched PolymarketInstrumentProvider.load_all_async
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | [gamma] patched PolymarketDataLoader._fetch_event_by_slug (Windows-safe httpx)
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | [gamma] all patches applied successfully
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | [gamma] verify: build_markets_query slug is list: True
+2026-06-01 17:31:15 | INFO    | patches.gamma_markets | [gamma] verify: load_all_async is patched: True
+2026-06-01 17:31:15 | INFO    | __main__ | Starting bot: simulation=True test_mode=True grafana=True
+2026-06-01 17:31:30 | WARNING | bot.runner | Redis connection failed: Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.
+2026-06-01 17:31:30 | WARNING | bot.runner | Simulation mode will be static (from .env)
+2026-06-01 17:31:30 | INFO    | bot.runner | ================================================================================
+2026-06-01 17:31:30 | INFO    | bot.runner | LOADING BTC 15-MIN MARKETS BY SLUG
+2026-06-01 17:31:30 | INFO    | bot.runner |   Interval start: 1780349400 | Count: 98
+2026-06-01 17:31:30 | INFO    | bot.runner |   First: btc-updown-15m-1780348500  Last: btc-updown-15m-1780435800
+2026-06-01 17:31:30 | INFO    | bot.runner | ================================================================================
+2026-06-01 17:31:30 | INFO    | bot.runner | Polymarket wallet config: signature_type=2 (POLY_GNOSIS_SAFE)
+2026-06-01 17:31:30 | INFO    | bot.runner |   Funder (USDC holder): 0x23342a623A760cf11cFdc1736f8B05cf7A70A3F4
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.spike | Initialized Spike Detector: deviation=8.0%, velocity=3.0%, lookback=20
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.sentiment | Initialized Sentiment Processor: fear<25, greed>75
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.divergence | Initialized Price Divergence Processor: momentum=0.3%, extreme_fade=68%/32%
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.orderbook | Initialized OrderBook Processor: imbalance=30%, wall=20%, min_vol=$50
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.tick_velocity | Initialized Tick Velocity Processor: 60s=1.5%, 30s=1.0%
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.deribit_pcr | Initialized Deribit PCR Processor: bullish>1.2, bearish<0.7, max_dte=2d
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.liquidation | Initialized Liquidation Processor: window=60s, min=$0.5M, imbalance=65%
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.funding_oi | Initialized Funding+OI Processor: bullish<-0.0300%, bearish>0.0500%
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.cvd_orderbook | Initialized CVD+OrderBook Processor: window=900s, cvd_threshold=$5M
+2026-06-01 17:31:30 | INFO    | core.strategy.processors.ohlcv_momentum | Initialized OHLCV Momentum Processor: RSI(32.0/68.0), BB(0.15/0.85)
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Initialized Signal Fusion Engine
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Default weights: {'SpikeDetection': 0.4, 'PriceDivergence': 0.3, 'SentimentAnalysis': 0.2, 'default': 0.1}
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for OHLCVMomentum: 0.35
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for TickVelocity: 0.30
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for CVDOrderBook: 0.25
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for OrderBookImbalance: 0.25
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for Liquidations: 0.20
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for SpikeDetection: 0.15
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for PriceDivergence: 0.12
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for FundingRateOI: 0.06
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for DeribitPCR: 0.05
+2026-06-01 17:31:30 | INFO    | core.strategy.fusion | Set weight for SentimentAnalysis: 0.03
+2026-06-01 17:31:30 | INFO    | execution.risk_engine | Initialized Risk Engine: balance=$100.00, max_position=$1.00, max_exposure=$10.00, max_daily_loss=$25.00, max_drawdown=15%
+2026-06-01 17:31:30 | INFO    | monitoring.performance_tracker | Initialized Performance Tracker (capital=$1000.0)
+2026-06-01 17:31:30 | INFO    | feedback.learning_engine | Initialized Learning Engine (learning_rate=0.1, min_trades=10)
+2026-06-01 17:31:30 | INFO    | core.strategy.ml_engine | Initialized ML Prediction Engine: samples=9, active=False, min_edge=7%
+2026-06-01 17:31:32 | INFO    | core.settlement.tracker | SettlementTracker: connected to Chainlink feed (decimals=8)
+2026-06-01 17:31:32 | INFO    | core.recording.signal_recorder | SignalRecorder initialised (db=signal_recordings.db)
+2026-06-01 17:31:32 | INFO    | bot.strategy | ML edge gate: bet only when |p_up - poly_price| >= 7% (active once ML has 200 samples; currently 9)
+2026-06-01 17:31:32 | INFO    | execution.execution_engine | Initialized Execution Engine [DRY RUN]
+2026-06-01 17:31:32 | INFO    | monitoring.metrics_exporter | Prometheus metrics initialised — %d metric families registered
+2026-06-01 17:31:32 | INFO    | monitoring.metrics_exporter | Initialized Grafana Metrics Exporter (port 8000)
+2026-06-01 17:31:32 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:32 | INFO    | bot.strategy |   TEST MODE ACTIVE - Trading every minute!
+2026-06-01 17:31:32 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:32 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:32 | INFO    | bot.strategy | INTEGRATED BTC STRATEGY INITIALIZED
+2026-06-01 17:31:32 | INFO    | bot.strategy |   All signal processors ready
+2026-06-01 17:31:32 | INFO    | bot.strategy |   Risk engine ready
+2026-06-01 17:31:32 | INFO    | bot.strategy |   ML engine ready
+2026-06-01 17:31:32 | INFO    | bot.strategy |   $1 per trade maximum
+2026-06-01 17:31:32 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:32 | INFO    | bot.runner | Nautilus node built successfully
+2026-06-01 17:31:34 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:34 | INFO    | bot.strategy | INTEGRATED BTC STRATEGY STARTED
+2026-06-01 17:31:34 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:35 | INFO    | bot.strategy | Direct Gamma load: 97 markets parsed, 194 instruments added to cache, 0 errors.
+2026-06-01 17:31:35 | INFO    | bot.strategy | Cache empty but providers hold 194 instruments; added 194 to strategy cache.
+2026-06-01 17:31:35 | INFO    | bot.strategy | Loading BTC instruments from 194 total...
+2026-06-01 17:31:35 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:35 | INFO    | bot.strategy | FOUND 96 BTC 15-MIN MARKETS:
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [0] btc-updown-15m-1780349400: ACTIVE [YN] (starts 21:30:00, ends 21:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [1] btc-updown-15m-1780350300: FUTURE [YN] (starts 21:45:00, ends 22:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [2] btc-updown-15m-1780351200: FUTURE [YN] (starts 22:00:00, ends 22:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [3] btc-updown-15m-1780352100: FUTURE [YN] (starts 22:15:00, ends 22:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [4] btc-updown-15m-1780353000: FUTURE [YN] (starts 22:30:00, ends 22:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [5] btc-updown-15m-1780353900: FUTURE [YN] (starts 22:45:00, ends 23:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [6] btc-updown-15m-1780354800: FUTURE [YN] (starts 23:00:00, ends 23:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [7] btc-updown-15m-1780355700: FUTURE [YN] (starts 23:15:00, ends 23:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [8] btc-updown-15m-1780356600: FUTURE [YN] (starts 23:30:00, ends 23:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [9] btc-updown-15m-1780357500: FUTURE [YN] (starts 23:45:00, ends 00:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [10] btc-updown-15m-1780358400: FUTURE [YN] (starts 00:00:00, ends 00:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [11] btc-updown-15m-1780359300: FUTURE [YN] (starts 00:15:00, ends 00:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [12] btc-updown-15m-1780360200: FUTURE [YN] (starts 00:30:00, ends 00:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [13] btc-updown-15m-1780361100: FUTURE [YN] (starts 00:45:00, ends 01:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [14] btc-updown-15m-1780362000: FUTURE [YN] (starts 01:00:00, ends 01:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [15] btc-updown-15m-1780362900: FUTURE [YN] (starts 01:15:00, ends 01:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [16] btc-updown-15m-1780363800: FUTURE [YN] (starts 01:30:00, ends 01:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [17] btc-updown-15m-1780364700: FUTURE [YN] (starts 01:45:00, ends 02:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [18] btc-updown-15m-1780365600: FUTURE [YN] (starts 02:00:00, ends 02:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [19] btc-updown-15m-1780366500: FUTURE [YN] (starts 02:15:00, ends 02:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [20] btc-updown-15m-1780367400: FUTURE [YN] (starts 02:30:00, ends 02:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [21] btc-updown-15m-1780368300: FUTURE [YN] (starts 02:45:00, ends 03:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [22] btc-updown-15m-1780369200: FUTURE [YN] (starts 03:00:00, ends 03:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [23] btc-updown-15m-1780370100: FUTURE [YN] (starts 03:15:00, ends 03:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [24] btc-updown-15m-1780371000: FUTURE [YN] (starts 03:30:00, ends 03:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [25] btc-updown-15m-1780371900: FUTURE [YN] (starts 03:45:00, ends 04:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [26] btc-updown-15m-1780372800: FUTURE [YN] (starts 04:00:00, ends 04:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [27] btc-updown-15m-1780373700: FUTURE [YN] (starts 04:15:00, ends 04:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [28] btc-updown-15m-1780374600: FUTURE [YN] (starts 04:30:00, ends 04:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [29] btc-updown-15m-1780375500: FUTURE [YN] (starts 04:45:00, ends 05:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [30] btc-updown-15m-1780376400: FUTURE [YN] (starts 05:00:00, ends 05:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [31] btc-updown-15m-1780377300: FUTURE [YN] (starts 05:15:00, ends 05:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [32] btc-updown-15m-1780378200: FUTURE [YN] (starts 05:30:00, ends 05:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [33] btc-updown-15m-1780379100: FUTURE [YN] (starts 05:45:00, ends 06:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [34] btc-updown-15m-1780380000: FUTURE [YN] (starts 06:00:00, ends 06:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [35] btc-updown-15m-1780380900: FUTURE [YN] (starts 06:15:00, ends 06:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [36] btc-updown-15m-1780381800: FUTURE [YN] (starts 06:30:00, ends 06:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [37] btc-updown-15m-1780382700: FUTURE [YN] (starts 06:45:00, ends 07:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [38] btc-updown-15m-1780383600: FUTURE [YN] (starts 07:00:00, ends 07:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [39] btc-updown-15m-1780384500: FUTURE [YN] (starts 07:15:00, ends 07:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [40] btc-updown-15m-1780385400: FUTURE [YN] (starts 07:30:00, ends 07:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [41] btc-updown-15m-1780386300: FUTURE [YN] (starts 07:45:00, ends 08:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [42] btc-updown-15m-1780387200: FUTURE [YN] (starts 08:00:00, ends 08:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [43] btc-updown-15m-1780388100: FUTURE [YN] (starts 08:15:00, ends 08:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [44] btc-updown-15m-1780389000: FUTURE [YN] (starts 08:30:00, ends 08:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [45] btc-updown-15m-1780389900: FUTURE [YN] (starts 08:45:00, ends 09:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [46] btc-updown-15m-1780390800: FUTURE [YN] (starts 09:00:00, ends 09:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [47] btc-updown-15m-1780391700: FUTURE [YN] (starts 09:15:00, ends 09:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [48] btc-updown-15m-1780392600: FUTURE [YN] (starts 09:30:00, ends 09:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [49] btc-updown-15m-1780393500: FUTURE [YN] (starts 09:45:00, ends 10:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [50] btc-updown-15m-1780394400: FUTURE [YN] (starts 10:00:00, ends 10:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [51] btc-updown-15m-1780395300: FUTURE [YN] (starts 10:15:00, ends 10:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [52] btc-updown-15m-1780396200: FUTURE [YN] (starts 10:30:00, ends 10:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [53] btc-updown-15m-1780397100: FUTURE [YN] (starts 10:45:00, ends 11:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [54] btc-updown-15m-1780398000: FUTURE [YN] (starts 11:00:00, ends 11:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [55] btc-updown-15m-1780398900: FUTURE [YN] (starts 11:15:00, ends 11:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [56] btc-updown-15m-1780399800: FUTURE [YN] (starts 11:30:00, ends 11:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [57] btc-updown-15m-1780400700: FUTURE [YN] (starts 11:45:00, ends 12:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [58] btc-updown-15m-1780401600: FUTURE [YN] (starts 12:00:00, ends 12:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [59] btc-updown-15m-1780402500: FUTURE [YN] (starts 12:15:00, ends 12:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [60] btc-updown-15m-1780403400: FUTURE [YN] (starts 12:30:00, ends 12:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [61] btc-updown-15m-1780404300: FUTURE [YN] (starts 12:45:00, ends 13:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [62] btc-updown-15m-1780405200: FUTURE [YN] (starts 13:00:00, ends 13:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [63] btc-updown-15m-1780406100: FUTURE [YN] (starts 13:15:00, ends 13:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [64] btc-updown-15m-1780407000: FUTURE [YN] (starts 13:30:00, ends 13:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [65] btc-updown-15m-1780407900: FUTURE [YN] (starts 13:45:00, ends 14:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [66] btc-updown-15m-1780408800: FUTURE [YN] (starts 14:00:00, ends 14:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [67] btc-updown-15m-1780409700: FUTURE [YN] (starts 14:15:00, ends 14:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [68] btc-updown-15m-1780410600: FUTURE [YN] (starts 14:30:00, ends 14:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [69] btc-updown-15m-1780411500: FUTURE [YN] (starts 14:45:00, ends 15:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [70] btc-updown-15m-1780412400: FUTURE [YN] (starts 15:00:00, ends 15:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [71] btc-updown-15m-1780413300: FUTURE [YN] (starts 15:15:00, ends 15:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [72] btc-updown-15m-1780414200: FUTURE [YN] (starts 15:30:00, ends 15:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [73] btc-updown-15m-1780415100: FUTURE [YN] (starts 15:45:00, ends 16:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [74] btc-updown-15m-1780416000: FUTURE [YN] (starts 16:00:00, ends 16:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [75] btc-updown-15m-1780416900: FUTURE [YN] (starts 16:15:00, ends 16:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [76] btc-updown-15m-1780417800: FUTURE [YN] (starts 16:30:00, ends 16:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [77] btc-updown-15m-1780418700: FUTURE [YN] (starts 16:45:00, ends 17:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [78] btc-updown-15m-1780419600: FUTURE [YN] (starts 17:00:00, ends 17:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [79] btc-updown-15m-1780420500: FUTURE [YN] (starts 17:15:00, ends 17:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [80] btc-updown-15m-1780421400: FUTURE [YN] (starts 17:30:00, ends 17:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [81] btc-updown-15m-1780422300: FUTURE [YN] (starts 17:45:00, ends 18:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [82] btc-updown-15m-1780423200: FUTURE [YN] (starts 18:00:00, ends 18:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [83] btc-updown-15m-1780424100: FUTURE [YN] (starts 18:15:00, ends 18:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [84] btc-updown-15m-1780425000: FUTURE [YN] (starts 18:30:00, ends 18:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [85] btc-updown-15m-1780425900: FUTURE [YN] (starts 18:45:00, ends 19:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [86] btc-updown-15m-1780426800: FUTURE [YN] (starts 19:00:00, ends 19:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [87] btc-updown-15m-1780427700: FUTURE [YN] (starts 19:15:00, ends 19:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [88] btc-updown-15m-1780428600: FUTURE [YN] (starts 19:30:00, ends 19:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [89] btc-updown-15m-1780429500: FUTURE [YN] (starts 19:45:00, ends 20:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [90] btc-updown-15m-1780430400: FUTURE [YN] (starts 20:00:00, ends 20:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [91] btc-updown-15m-1780431300: FUTURE [YN] (starts 20:15:00, ends 20:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [92] btc-updown-15m-1780432200: FUTURE [YN] (starts 20:30:00, ends 20:45:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [93] btc-updown-15m-1780433100: FUTURE [YN] (starts 20:45:00, ends 21:00:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [94] btc-updown-15m-1780434000: FUTURE [YN] (starts 21:00:00, ends 21:15:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   [95] btc-updown-15m-1780434900: FUTURE [YN] (starts 21:15:00, ends 21:30:00)
+2026-06-01 17:31:35 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:35 | INFO    | bot.strategy | CURRENT MARKET: btc-updown-15m-1780349400 (index 0)
+2026-06-01 17:31:35 | INFO    | bot.strategy |   Next switch at: 21:45:00
+2026-06-01 17:31:35 | INFO    | bot.strategy |   Subscribed to: 0xd6c136439e3e65802863d07004310ac0770855008fee61f783d2264b343b59b2-107006344885936689410968305028404143828912057780444954942861554323129687706290.POLYMARKET
+2026-06-01 17:31:35 | INFO    | core.strategy.processors.liquidation | Liquidation stream thread started
+2026-06-01 17:31:35 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 1.6/15 | TRADE WINDOW OPEN (804s left) | no quotes yet | 0 ticks | open=0 pending=0
+2026-06-01 17:31:35 | INFO    | core.strategy.processors.cvd_orderbook | CVD aggTrade stream thread started
+2026-06-01 17:31:35 | INFO    | core.settlement.tracker | Settlement tracker thread started
+2026-06-01 17:31:35 | INFO    | core.recording.signal_recorder | SignalRecorder outcome-resolution thread started
+2026-06-01 17:31:35 | INFO    | bot.strategy | Liquidation stream started
+2026-06-01 17:31:35 | INFO    | bot.strategy | CVD aggTrade stream started
+2026-06-01 17:31:35 | INFO    | bot.strategy | Settlement tracker started
+2026-06-01 17:31:35 | INFO    | bot.strategy | Signal recorder started
+2026-06-01 17:31:35 | INFO    | bot.strategy | ML engine active: False (samples=9/200)
+2026-06-01 17:31:35 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:35 | INFO    | bot.strategy | Strategy active — TEST MODE: full 15-min market is tradeable
+2026-06-01 17:31:35 | INFO    | bot.strategy | Price history: 20 points
+2026-06-01 17:31:35 | INFO    | bot.strategy | READY TO TRADE
+2026-06-01 17:31:35 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:37 | INFO    | monitoring.metrics_exporter | Metrics server started on port 8000
+2026-06-01 17:31:37 | INFO    | bot.strategy | Grafana metrics started on port 8000
+2026-06-01 17:31:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:37 | INFO    | core.strategy.processors.liquidation | Connected to Binance forceOrders stream
+2026-06-01 17:31:37 | INFO    | core.strategy.processors.cvd_orderbook | Connected to Binance aggTrade stream
+2026-06-01 17:31:37 | DEBUG   | core.recording.signal_recorder | SignalRecorder: resolved 8 cycle outcome(s)
+2026-06-01 17:31:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:41 | INFO    | bot.strategy | Market STABLE after 3 tick(s)
+2026-06-01 17:31:41 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:41 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-01 21:31:41 UTC
+2026-06-01 17:31:41 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780349400
+2026-06-01 17:31:41 | INFO    | bot.strategy |   Sub-interval #0 (101.8s in = 1.7 min)
+2026-06-01 17:31:41 | INFO    | bot.strategy |   Price: $0.5850 | Bid: $0.5800 | Ask: $0.5900
+2026-06-01 17:31:41 | INFO    | bot.strategy |   Trend: WEAK
+2026-06-01 17:31:41 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:31:41 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-01 17:31:41 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-01 17:31:41 | INFO    | bot.strategy | │  Poly price             0.5850
+2026-06-01 17:31:41 | INFO    | bot.strategy | │  Price history          23 ticks
+2026-06-01 17:31:41 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:31:41 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-01 17:31:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:43 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-01 17:31:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:43 | DEBUG   | data_sources.news_social | Fear & Greed: 29 (Fear)
+2026-06-01 17:31:43 | INFO    | bot.strategy | Fear & Greed: 29 (Fear)
+2026-06-01 17:31:43 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-01 17:31:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:44 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-01 17:31:44 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $71,060.10
+2026-06-01 17:31:44 | INFO    | bot.strategy | Coinbase spot: $71,060.10
+2026-06-01 17:31:44 | INFO    | bot.strategy | Market context — deviation=24.40%, momentum=36.74%, volatility=0.0501, sentiment=29, spot=$71060.10
+2026-06-01 17:31:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:48 | INFO    | core.strategy.processors.ohlcv_momentum | OHLCV: RSI=54.1, MACD=-48.8/-55.0, %B=0.36, ATR=0.0346% [LOW]
+2026-06-01 17:31:48 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$+0.0M, funding=0.01000%, vol_regime=LOW
+2026-06-01 17:31:48 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.5850, MA=0.5850, deviation=+0.000%, velocity=+0.000%
+2026-06-01 17:31:48 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.585, spot_mom=+0.0000, spot=$71,060.10
+2026-06-01 17:31:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:49 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$337.2, asks=$16212.4, imbalance=-0.959
+2026-06-01 17:31:49 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.959, conf=90.00%
+2026-06-01 17:31:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:50 | INFO    | core.strategy.processors.deribit_pcr | Deribit: overall_PCR=0.626, short_PCR=1.059
+2026-06-01 17:31:50 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-01 17:31:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:51 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$-0.00M | OB imbalance=+0.600
+2026-06-01 17:31:51 | INFO    | core.strategy.processors.cvd_orderbook | CVDOrderBook BULLISH: cvd=$-0.00M, ob=+0.600, conf=75.99%, source=ob_only
+2026-06-01 17:31:51 | INFO    | core.strategy.fusion | Fused 3 signals → bearish (score=69.4, conf=73.7%)
+2026-06-01 17:31:51 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-01 17:31:51 | INFO    | bot.strategy | │  Signals fired          3  (2 bullish / 1 bearish)
+2026-06-01 17:31:51 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=55.00%  score=40.0
+2026-06-01 17:31:51 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-01 17:31:51 | INFO    | bot.strategy | │    CVDOrderBook         BULLISH   conf=75.99%  score=63.0
+2026-06-01 17:31:51 | INFO    | bot.strategy | │  
+2026-06-01 17:31:51 | INFO    | bot.strategy | │  Fused result           ▼ BEARISH  score=69.4  conf=73.66%
+2026-06-01 17:31:51 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:31:51 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-01 17:31:51 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-01 17:31:51 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-01 17:31:51 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:31:51 | INFO    | core.strategy.fusion | Fused 3 signals → bearish (score=69.4, conf=73.7%)
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Fusion                 ▼ BEARISH  score=69.4  conf=73.66%
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Poly price             0.5850
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT (NO)
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:31:51 | INFO    | bot.strategy | │  STEP 5 setup — feature vector saved, trade_id=23
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | ┌─[SIM  STEP 6 | [SIM] TRADE #1 OPENED — ▼ SHORT]───────────────────────
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Market                 btc-updown-15m-1780349400
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Settles at             21:45:00 UTC
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Entry token            $0.4150  (poly=0.5850)
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Qty / notional         2.4096 tokens  =  $1.00
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  BTC spot               $71,060
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  ML p(UP)               0.0000  edge=0.0000
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Signal                 score=69.4  conf=73.66%  n=3
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Sources                BEARISH
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | │  Status                 PENDING settlement
+2026-06-01 17:31:51 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:31:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:53 | INFO    | core.settlement.tracker | SettlementTracker: registered trade 23 (btc-updown-15m-1780349400) — entry BTC=$71035.93
+2026-06-01 17:31:53 | INFO    | bot.strategy | │  STEP 5 — Settlement tracker registered  trade_id=23  closes 21:45:00 UTC
+2026-06-01 17:31:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:31:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:05 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 2.1/15 | TRADE WINDOW OPEN (774s left) | bid=$0.6000 ask=$0.6100 mid=$0.6050 | 393 ticks (13.1/s) | open=0 pending=0
+2026-06-01 17:32:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:35 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 2.6/15 | TRADE WINDOW OPEN (744s left) | bid=$0.5800 ask=$0.5900 mid=$0.5850 | 290 ticks (9.7/s) | open=0 pending=0
+2026-06-01 17:32:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:32:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:05 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 3.1/15 | TRADE WINDOW OPEN (714s left) | bid=$0.6200 ask=$0.6300 mid=$0.6250 | 297 ticks (9.9/s) | open=0 pending=0
+2026-06-01 17:33:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:11 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:33:11 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-01 21:33:11 UTC
+2026-06-01 17:33:11 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780349400
+2026-06-01 17:33:11 | INFO    | bot.strategy |   Sub-interval #0 (191.8s in = 3.2 min)
+2026-06-01 17:33:11 | INFO    | bot.strategy |   Price: $0.6250 | Bid: $0.6200 | Ask: $0.6300
+2026-06-01 17:33:11 | INFO    | bot.strategy |   Trend: STRONG
+2026-06-01 17:33:11 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:33:11 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-01 17:33:11 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-01 17:33:11 | INFO    | bot.strategy | │  Poly price             0.6250
+2026-06-01 17:33:11 | INFO    | bot.strategy | │  Price history          100 ticks
+2026-06-01 17:33:11 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:33:11 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-01 17:33:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:12 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-01 17:33:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:13 | DEBUG   | data_sources.news_social | Fear & Greed: 29 (Fear)
+2026-06-01 17:33:13 | INFO    | bot.strategy | Fear & Greed: 29 (Fear)
+2026-06-01 17:33:13 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-01 17:33:13 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-01 17:33:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:14 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $71,071.08
+2026-06-01 17:33:14 | INFO    | bot.strategy | Coinbase spot: $71,071.07
+2026-06-01 17:33:14 | INFO    | bot.strategy | Market context — deviation=0.00%, momentum=0.00%, volatility=0.0000, sentiment=29, spot=$71071.07
+2026-06-01 17:33:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:17 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$+0.2M, funding=0.01000%, vol_regime=LOW
+2026-06-01 17:33:17 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.6250, MA=0.6195, deviation=+0.888%, velocity=+1.626%
+2026-06-01 17:33:17 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.625, spot_mom=+0.0000, spot=$71,071.08
+2026-06-01 17:33:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:18 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$337.6, asks=$16118.3, imbalance=-0.959
+2026-06-01 17:33:18 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.959, conf=90.00%
+2026-06-01 17:33:18 | INFO    | core.strategy.processors.tick_velocity | TickVelocity BULLISH: vel=+6.838%, accel=+6.8376%, conf=88.00%
+2026-06-01 17:33:18 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-01 17:33:18 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$+0.16M | OB imbalance=+0.512
+2026-06-01 17:33:18 | INFO    | core.strategy.processors.cvd_orderbook | CVDOrderBook BULLISH: cvd=$+0.16M, ob=+0.512, conf=72.90%, source=ob_only
+2026-06-01 17:33:18 | INFO    | core.strategy.fusion | Fused 4 signals → bullish (score=61.5, conf=76.5%)
+2026-06-01 17:33:18 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-01 17:33:18 | INFO    | bot.strategy | │  Signals fired          4  (3 bullish / 1 bearish)
+2026-06-01 17:33:18 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=55.00%  score=40.0
+2026-06-01 17:33:18 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-01 17:33:18 | INFO    | bot.strategy | │    TickVelocity         BULLISH   conf=88.00%  score=94.0
+2026-06-01 17:33:18 | INFO    | bot.strategy | │    CVDOrderBook         BULLISH   conf=72.90%  score=61.5
+2026-06-01 17:33:18 | INFO    | bot.strategy | │  
+2026-06-01 17:33:18 | INFO    | bot.strategy | │  Fused result           ▲ BULLISH  score=61.5  conf=76.48%
+2026-06-01 17:33:18 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:33:18 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-01 17:33:18 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-01 17:33:18 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-01 17:33:18 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:33:18 | INFO    | core.strategy.fusion | Fused 4 signals → bullish (score=61.5, conf=76.5%)
+2026-06-01 17:33:18 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-01 17:33:18 | SUCCESS | bot.strategy | │  Fusion                 ▲ BULLISH  score=61.5  conf=76.48%
+2026-06-01 17:33:18 | SUCCESS | bot.strategy | │  Poly price             0.6250
+2026-06-01 17:33:18 | SUCCESS | bot.strategy | │  Direction              ▲ LONG (YES)
+2026-06-01 17:33:18 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:33:18 | INFO    | bot.strategy | DIRECTION LOCK — market btc-updown-15m-1780349400 already locked to SHORT; refusing LONG (fusion may have flipped post-win)
+2026-06-01 17:33:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:35 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 3.6/15 | TRADE WINDOW OPEN (684s left) | bid=$0.5300 ask=$0.5400 mid=$0.5350 | 470 ticks (15.7/s) | open=0 pending=0
+2026-06-01 17:33:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:33:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:05 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 4.1/15 | TRADE WINDOW OPEN (654s left) | bid=$0.4400 ask=$0.4500 mid=$0.4450 | 458 ticks (15.2/s) | open=0 pending=0
+2026-06-01 17:34:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:35 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 4.6/15 | TRADE WINDOW OPEN (624s left) | bid=$0.4200 ask=$0.4300 mid=$0.4250 | 969 ticks (32.3/s) | open=0 pending=0
+2026-06-01 17:34:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:43 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:34:43 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-01 21:34:43 UTC
+2026-06-01 17:34:43 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780349400
+2026-06-01 17:34:43 | INFO    | bot.strategy |   Sub-interval #0 (283.1s in = 4.7 min)
+2026-06-01 17:34:43 | INFO    | bot.strategy |   Price: $0.4250 | Bid: $0.4200 | Ask: $0.4300
+2026-06-01 17:34:43 | INFO    | bot.strategy |   Trend: WEAK
+2026-06-01 17:34:43 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:34:43 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-01 17:34:43 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-01 17:34:43 | INFO    | bot.strategy | │  Poly price             0.4250
+2026-06-01 17:34:43 | INFO    | bot.strategy | │  Price history          100 ticks
+2026-06-01 17:34:43 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:34:43 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-01 17:34:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:44 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-01 17:34:44 | DEBUG   | data_sources.news_social | Fear & Greed: 29 (Fear)
+2026-06-01 17:34:44 | INFO    | bot.strategy | Fear & Greed: 29 (Fear)
+2026-06-01 17:34:44 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-01 17:34:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:45 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-01 17:34:45 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $71,035.10
+2026-06-01 17:34:45 | INFO    | bot.strategy | Coinbase spot: $71,035.10
+2026-06-01 17:34:45 | INFO    | bot.strategy | Market context — deviation=0.00%, momentum=0.00%, volatility=0.0000, sentiment=29, spot=$71035.10
+2026-06-01 17:34:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:49 | INFO    | core.strategy.processors.ohlcv_momentum | OHLCV: RSI=30.4, MACD=-45.1/-48.8, %B=0.18, ATR=0.0349% [LOW]
+2026-06-01 17:34:49 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$-0.1M, funding=0.01000%, vol_regime=LOW
+2026-06-01 17:34:49 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.4250, MA=0.4150, deviation=+2.410%, velocity=+2.410%
+2026-06-01 17:34:49 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.425, spot_mom=-0.0004, spot=$71,035.10
+2026-06-01 17:34:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:50 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$376.5, asks=$15271.6, imbalance=-0.952
+2026-06-01 17:34:50 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.952, conf=90.00%
+2026-06-01 17:34:50 | INFO    | core.strategy.processors.tick_velocity | TickVelocity BULLISH: vel=+4.938%, accel=+0.0000%, conf=82.00%
+2026-06-01 17:34:50 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-01 17:34:50 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$-0.16M | OB imbalance=-0.015
+2026-06-01 17:34:50 | INFO    | core.strategy.processors.ohlcv_momentum | OHLCVMomentum BULLISH: votes=2B/0Be, RSI=30.4, vol=LOW, session=normal, conf=77.00%
+2026-06-01 17:34:50 | DEBUG   | monitoring.metrics_exporter | _apply_processor_metadata(TickVelocity) error: float() argument must be a string or a real number, not 'NoneType'
+2026-06-01 17:34:50 | INFO    | core.strategy.fusion | Fused 4 signals → bullish (score=58.5, conf=76.0%)
+2026-06-01 17:34:50 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-01 17:34:50 | INFO    | bot.strategy | │  Signals fired          4  (3 bullish / 1 bearish)
+2026-06-01 17:34:50 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=55.00%  score=40.0
+2026-06-01 17:34:50 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-01 17:34:50 | INFO    | bot.strategy | │    TickVelocity         BULLISH   conf=82.00%  score=91.0
+2026-06-01 17:34:50 | INFO    | bot.strategy | │    OHLCVMomentum        BULLISH   conf=77.00%  score=51.0
+2026-06-01 17:34:50 | INFO    | bot.strategy | │  
+2026-06-01 17:34:50 | INFO    | bot.strategy | │  Fused result           ▲ BULLISH  score=58.5  conf=76.00%
+2026-06-01 17:34:50 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:34:50 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-01 17:34:50 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-01 17:34:50 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-01 17:34:50 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:34:50 | INFO    | core.strategy.fusion | Fused 4 signals → bullish (score=58.5, conf=76.0%)
+2026-06-01 17:34:50 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-01 17:34:50 | SUCCESS | bot.strategy | │  Fusion                 ▲ BULLISH  score=58.5  conf=76.00%
+2026-06-01 17:34:50 | SUCCESS | bot.strategy | │  Poly price             0.4250
+2026-06-01 17:34:50 | SUCCESS | bot.strategy | │  Direction              ▲ LONG (YES)
+2026-06-01 17:34:50 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:34:50 | INFO    | bot.strategy | DIRECTION LOCK — market btc-updown-15m-1780349400 already locked to SHORT; refusing LONG (fusion may have flipped post-win)
+2026-06-01 17:34:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:34:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:06 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 5.1/15 | TRADE WINDOW OPEN (594s left) | bid=$0.4500 ask=$0.4600 mid=$0.4550 | 731 ticks (24.3/s) | open=0 pending=0
+2026-06-01 17:35:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:36 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 5.6/15 | TRADE WINDOW OPEN (564s left) | bid=$0.4200 ask=$0.4300 mid=$0.4250 | 438 ticks (14.6/s) | open=0 pending=0
+2026-06-01 17:35:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:35:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:06 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 6.1/15 | TRADE WINDOW OPEN (534s left) | bid=$0.4000 ask=$0.4100 mid=$0.4050 | 239 ticks (8.0/s) | open=0 pending=0
+2026-06-01 17:36:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:13 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:36:13 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-01 21:36:13 UTC
+2026-06-01 17:36:13 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780349400
+2026-06-01 17:36:13 | INFO    | bot.strategy |   Sub-interval #0 (373.2s in = 6.2 min)
+2026-06-01 17:36:13 | INFO    | bot.strategy |   Price: $0.4050 | Bid: $0.4000 | Ask: $0.4100
+2026-06-01 17:36:13 | INFO    | bot.strategy |   Trend: WEAK
+2026-06-01 17:36:13 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:36:13 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-01 17:36:13 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-01 17:36:13 | INFO    | bot.strategy | │  Poly price             0.4050
+2026-06-01 17:36:13 | INFO    | bot.strategy | │  Price history          100 ticks
+2026-06-01 17:36:13 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:36:13 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-01 17:36:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:14 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-01 17:36:14 | DEBUG   | data_sources.news_social | Fear & Greed: 29 (Fear)
+2026-06-01 17:36:14 | INFO    | bot.strategy | Fear & Greed: 29 (Fear)
+2026-06-01 17:36:14 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-01 17:36:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:15 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-01 17:36:15 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $71,018.34
+2026-06-01 17:36:15 | INFO    | bot.strategy | Coinbase spot: $71,018.34
+2026-06-01 17:36:15 | INFO    | bot.strategy | Market context — deviation=-0.00%, momentum=0.00%, volatility=0.0000, sentiment=29, spot=$71018.34
+2026-06-01 17:36:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:19 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$-0.1M, funding=0.01000%, vol_regime=LOW
+2026-06-01 17:36:19 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.4050, MA=0.3850, deviation=+5.195%, velocity=+5.195%
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.405, spot_mom=-0.0007, spot=$71,018.34
+2026-06-01 17:36:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$343.5, asks=$15497.8, imbalance=-0.957
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.957, conf=90.00%
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.tick_velocity | TickVelocity BEARISH: vel=-1.220%, accel=-0.0294%, conf=57.63%
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$-0.08M | OB imbalance=-0.968
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.cvd_orderbook | CVDOrderBook BEARISH: cvd=$-0.08M, ob=-0.968, conf=78.00%, source=ob_only
+2026-06-01 17:36:19 | INFO    | core.strategy.processors.ohlcv_momentum | OHLCVMomentum BULLISH: votes=2B/0Be, RSI=30.4, vol=LOW, session=normal, conf=77.00%
+2026-06-01 17:36:19 | INFO    | core.strategy.fusion | Fused 5 signals → bearish (score=83.6, conf=71.5%)
+2026-06-01 17:36:19 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-01 17:36:19 | INFO    | bot.strategy | │  Signals fired          5  (2 bullish / 3 bearish)
+2026-06-01 17:36:19 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=55.00%  score=40.0
+2026-06-01 17:36:19 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-01 17:36:19 | INFO    | bot.strategy | │    TickVelocity         BEARISH   conf=57.63%  score=41.3
+2026-06-01 17:36:19 | INFO    | bot.strategy | │    CVDOrderBook         BEARISH   conf=78.00%  score=64.0
+2026-06-01 17:36:19 | INFO    | bot.strategy | │    OHLCVMomentum        BULLISH   conf=77.00%  score=51.0
+2026-06-01 17:36:19 | INFO    | bot.strategy | │  
+2026-06-01 17:36:19 | INFO    | bot.strategy | │  Fused result           ▼ BEARISH  score=83.6  conf=71.53%
+2026-06-01 17:36:19 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:36:19 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-01 17:36:19 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-01 17:36:19 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-01 17:36:19 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:36:19 | INFO    | core.strategy.fusion | Fused 5 signals → bearish (score=83.6, conf=71.5%)
+2026-06-01 17:36:19 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-01 17:36:19 | SUCCESS | bot.strategy | │  Fusion                 ▼ BEARISH  score=83.6  conf=71.53%
+2026-06-01 17:36:19 | SUCCESS | bot.strategy | │  Poly price             0.4050
+2026-06-01 17:36:19 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT (NO)
+2026-06-01 17:36:19 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:36:19 | INFO    | bot.strategy | ANTI-CHASE — SHORT entry 0.5950 is +0.1800 above last entry 0.4150 on this market (max chase=0.12) — skip
+2026-06-01 17:36:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:36 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 6.6/15 | TRADE WINDOW OPEN (504s left) | bid=$0.2800 ask=$0.2900 mid=$0.2850 | 572 ticks (19.1/s) | open=0 pending=0
+2026-06-01 17:36:36 | INFO    | bot.strategy | ============================================================
+2026-06-01 17:36:36 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-01 17:36:36 | INFO    | bot.strategy | ============================================================
+2026-06-01 17:36:36 | INFO    | feedback.learning_engine | ============================================================
+2026-06-01 17:36:36 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-01 17:36:36 | INFO    | feedback.learning_engine | ============================================================
+2026-06-01 17:36:36 | INFO    | feedback.learning_engine | Analyzed performance for 0 signal sources
+2026-06-01 17:36:36 | WARNING | feedback.learning_engine | No performance data available for optimization
+2026-06-01 17:36:36 | INFO    | bot.strategy | Learning engine complete: 11 weights updated. Next run in 0.1h
+2026-06-01 17:36:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:36:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:06 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 7.1/15 | TRADE WINDOW OPEN (474s left) | bid=$0.2500 ask=$0.2600 mid=$0.2550 | 937 ticks (31.2/s) | open=0 pending=0
+2026-06-01 17:37:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:36 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 7.6/15 | TRADE WINDOW OPEN (444s left) | bid=$0.3900 ask=$0.4000 mid=$0.3950 | 868 ticks (28.9/s) | open=0 pending=0
+2026-06-01 17:37:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:43 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:37:43 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-01 21:37:43 UTC
+2026-06-01 17:37:43 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780349400
+2026-06-01 17:37:43 | INFO    | bot.strategy |   Sub-interval #0 (463.5s in = 7.7 min)
+2026-06-01 17:37:43 | INFO    | bot.strategy |   Price: $0.4150 | Bid: $0.4100 | Ask: $0.4200
+2026-06-01 17:37:43 | INFO    | bot.strategy |   Trend: WEAK
+2026-06-01 17:37:43 | INFO    | bot.strategy | ================================================================================
+2026-06-01 17:37:43 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-01 17:37:43 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-01 17:37:43 | INFO    | bot.strategy | │  Poly price             0.4150
+2026-06-01 17:37:43 | INFO    | bot.strategy | │  Price history          100 ticks
+2026-06-01 17:37:43 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:37:43 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-01 17:37:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:44 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-01 17:37:44 | DEBUG   | data_sources.news_social | Fear & Greed: 29 (Fear)
+2026-06-01 17:37:44 | INFO    | bot.strategy | Fear & Greed: 29 (Fear)
+2026-06-01 17:37:44 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-01 17:37:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:45 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-01 17:37:45 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $71,017.92
+2026-06-01 17:37:45 | INFO    | bot.strategy | Coinbase spot: $71,017.91
+2026-06-01 17:37:45 | INFO    | bot.strategy | Market context — deviation=0.00%, momentum=0.00%, volatility=0.0000, sentiment=29, spot=$71017.91
+2026-06-01 17:37:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:50 | INFO    | core.strategy.processors.ohlcv_momentum | OHLCV: RSI=39.8, MACD=-43.3/-46.4, %B=0.33, ATR=0.0345% [LOW]
+2026-06-01 17:37:50 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$-0.1M, funding=0.01000%, vol_regime=LOW
+2026-06-01 17:37:50 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.4150, MA=0.4450, deviation=-6.742%, velocity=-6.742%
+2026-06-01 17:37:50 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.415, spot_mom=-0.0002, spot=$71,017.92
+2026-06-01 17:37:50 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$400.6, asks=$13283.6, imbalance=-0.941
+2026-06-01 17:37:50 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.941, conf=90.00%
+2026-06-01 17:37:50 | INFO    | core.strategy.processors.tick_velocity | TickVelocity BULLISH: vel=+23.881%, accel=+0.0000%, conf=82.00%
+2026-06-01 17:37:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:51 | INFO    | core.strategy.processors.deribit_pcr | Deribit: overall_PCR=0.626, short_PCR=1.059
+2026-06-01 17:37:51 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-01 17:37:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:53 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$-0.06M | OB imbalance=+0.791
+2026-06-01 17:37:53 | INFO    | core.strategy.processors.cvd_orderbook | CVDOrderBook BULLISH: cvd=$-0.06M, ob=+0.791, conf=78.00%, source=ob_only
+2026-06-01 17:37:53 | DEBUG   | monitoring.metrics_exporter | _apply_processor_metadata(TickVelocity) error: float() argument must be a string or a real number, not 'NoneType'
+2026-06-01 17:37:53 | INFO    | core.strategy.fusion | Fused 4 signals → bullish (score=60.7, conf=76.2%)
+2026-06-01 17:37:53 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-01 17:37:53 | INFO    | bot.strategy | │  Signals fired          4  (3 bullish / 1 bearish)
+2026-06-01 17:37:53 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=55.00%  score=40.0
+2026-06-01 17:37:53 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-01 17:37:53 | INFO    | bot.strategy | │    TickVelocity         BULLISH   conf=82.00%  score=91.0
+2026-06-01 17:37:53 | INFO    | bot.strategy | │    CVDOrderBook         BULLISH   conf=78.00%  score=64.0
+2026-06-01 17:37:53 | INFO    | bot.strategy | │  
+2026-06-01 17:37:53 | INFO    | bot.strategy | │  Fused result           ▲ BULLISH  score=60.7  conf=76.25%
+2026-06-01 17:37:53 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:37:53 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-01 17:37:53 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-01 17:37:53 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-01 17:37:53 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:37:53 | INFO    | core.strategy.fusion | Fused 4 signals → bullish (score=60.7, conf=76.2%)
+2026-06-01 17:37:53 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-01 17:37:53 | SUCCESS | bot.strategy | │  Fusion                 ▲ BULLISH  score=60.7  conf=76.25%
+2026-06-01 17:37:53 | SUCCESS | bot.strategy | │  Poly price             0.4150
+2026-06-01 17:37:53 | SUCCESS | bot.strategy | │  Direction              ▲ LONG (YES)
+2026-06-01 17:37:53 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-01 17:37:53 | INFO    | bot.strategy | DIRECTION LOCK — market btc-updown-15m-1780349400 already locked to SHORT; refusing LONG (fusion may have flipped post-win)
+2026-06-01 17:37:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:37:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:06 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780349400 | min 8.1/15 | TRADE WINDOW OPEN (414s left) | bid=$0.3700 ask=$0.3800 mid=$0.3750 | 553 ticks (18.4/s) | open=0 pending=0
+2026-06-01 17:38:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-01 17:38:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated

@@ -2,12 +2,44 @@
 Risk Engine
 Manages position sizing, risk limits, and portfolio constraints
 """
-from decimal import Decimal
+import os
+from decimal import Decimal, InvalidOperation
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
 from loguru import logger
+
+
+def _env_decimal(name: str, default: Decimal) -> Decimal:
+    raw = os.getenv(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return Decimal(str(raw).strip())
+    except (InvalidOperation, ValueError):
+        logger.warning(f"Invalid {name}={raw!r}; using default {default}")
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return int(float(raw))
+    except (TypeError, ValueError):
+        return default
 
 
 class RiskLevel(Enum):
@@ -58,40 +90,94 @@ class RiskEngine:
     def __init__(
         self,
         limits: Optional[RiskLimits] = None,
+        account_balance: Optional[Decimal] = None,
     ):
         """
         Initialize risk engine.
-        
+
         Args:
-            limits: Risk limits configuration
+            limits: Risk limits configuration. When ``None``, limits are built
+                from environment variables (see ``_build_limits_from_env``).
+            account_balance: Real account balance (USDC). When ``None``, read
+                from ``ACCOUNT_BALANCE_USD`` / ``STARTING_BALANCE_USD`` so the
+                drawdown / daily-loss controls track the wallet rather than a
+                hardcoded $1000.
         """
-        # Default conservative limits with $1 max per trade
-        self.limits = limits or RiskLimits(
-            max_position_size=Decimal("1.0"),  # $1 max per position
-            max_total_exposure=Decimal("10.0"),  # $10 total
-            max_positions=5,
-            max_drawdown_pct=0.15,  # 15% max drawdown
-            max_loss_per_day=Decimal("5.0"),  # $5 daily loss limit
-            max_leverage=1.0,
-        )
-        
+        # Real wallet balance drives drawdown + daily-loss limits.
+        if account_balance is None:
+            bal = _env_decimal(
+                "ACCOUNT_BALANCE_USD",
+                _env_decimal("STARTING_BALANCE_USD", Decimal("100.0")),
+            )
+        else:
+            bal = Decimal(str(account_balance))
+        if bal <= 0:
+            logger.warning(f"Account balance {bal} <= 0; defaulting to $100")
+            bal = Decimal("100.0")
+
+        self.limits = limits or self._build_limits_from_env(bal)
+
         # Track positions
         self._positions: Dict[str, PositionRisk] = {}
-        
+
         # Track daily statistics
         self._daily_pnl = Decimal("0")
         self._daily_trades = 0
-        self._peak_balance = Decimal("1000.0")  # Starting balance
-        self._current_balance = Decimal("1000.0")
-        
+        self._starting_balance = bal
+        self._peak_balance = bal
+        self._current_balance = bal
+
         # Alerts
         self._alerts: List[Dict[str, Any]] = []
-        
+
         logger.info(
-            f"Initialized Risk Engine: "
+            f"Initialized Risk Engine: balance=${self._current_balance:.2f}, "
             f"max_position=${self.limits.max_position_size}, "
-            f"max_exposure=${self.limits.max_total_exposure}"
+            f"max_exposure=${self.limits.max_total_exposure}, "
+            f"max_daily_loss=${self.limits.max_loss_per_day}, "
+            f"max_drawdown={self.limits.max_drawdown_pct:.0%}"
         )
+
+    @staticmethod
+    def _build_limits_from_env(balance: Decimal) -> RiskLimits:
+        """Build risk limits from env, scaling money limits to the balance."""
+        # Per-trade cap defaults to the configured market order size.
+        max_position = _env_decimal(
+            "MAX_POSITION_USD", _env_decimal("MARKET_BUY_USD", Decimal("1.0"))
+        )
+        max_exposure = _env_decimal("MAX_TOTAL_EXPOSURE_USD", max_position * Decimal("10"))
+        # Daily loss defaults to 25% of capital (configurable) so it scales
+        # with the wallet instead of a flat $5.
+        default_daily = (balance * Decimal("0.25")).quantize(Decimal("0.01"))
+        max_daily_loss = _env_decimal("MAX_DAILY_LOSS_USD", default_daily)
+        return RiskLimits(
+            max_position_size=max_position,
+            max_total_exposure=max_exposure,
+            max_positions=_env_int("MAX_CONCURRENT_POSITIONS", 5),
+            max_drawdown_pct=_env_float("MAX_DRAWDOWN_PCT", 0.15),
+            max_loss_per_day=max_daily_loss,
+            max_leverage=1.0,
+        )
+
+    def set_account_balance(self, balance: Decimal, *, reset_peak: bool = True) -> None:
+        """Update the tracked account balance from a real wallet reading.
+
+        Call this once a live USDC balance is known so drawdown / daily-loss
+        controls reflect actual capital. ``reset_peak`` re-anchors the peak to
+        the new balance (use at session start).
+        """
+        try:
+            bal = Decimal(str(balance))
+        except (InvalidOperation, ValueError):
+            logger.warning(f"set_account_balance: invalid value {balance!r}")
+            return
+        if bal <= 0:
+            return
+        self._current_balance = bal
+        self._starting_balance = bal
+        if reset_peak or bal > self._peak_balance:
+            self._peak_balance = bal
+        logger.info(f"Risk engine balance set to ${bal:.2f} (peak=${self._peak_balance:.2f})")
     
     def validate_new_position(
         self,

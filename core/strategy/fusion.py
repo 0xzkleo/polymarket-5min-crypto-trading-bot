@@ -38,10 +38,18 @@ class SignalFusionEngine:
 
     def __init__(self):
         self.weights: Dict[str, float] = {
-            "SpikeDetection":    0.40,
-            "PriceDivergence":   0.30,
-            "SentimentAnalysis": 0.20,
-            "default":           0.10,
+            "OrderBookImbalance": 0.30,
+            "TickVelocity":       0.25,
+            "PriceDivergence":    0.18,
+            "SpikeDetection":     0.12,
+            "DeribitPCR":         0.10,
+            "SentimentAnalysis":  0.05,
+            # Not in active fusion set — zero unless re-weighted
+            "OHLCVMomentum":      0.0,
+            "CVDOrderBook":       0.0,
+            "Liquidations":       0.0,
+            "FundingRateOI":      0.0,
+            "default":            0.0,
         }
         self._signal_history: List[FusedSignal] = []
         self._max_history = 100

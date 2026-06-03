@@ -34,6 +34,7 @@ from bot.models import (
     PaperTrade,
     _make_stub_signal,
 )
+from core.recording import get_signal_recorder
 from core.settlement import get_settlement_tracker
 from core.strategy.fusion import get_fusion_engine
 from core.strategy.ml_engine import get_ml_engine
@@ -61,9 +62,9 @@ class IntegratedBTCStrategy(Strategy):
     ---------
     1. ``on_start`` — loads all BTC 15-min instruments, subscribes, starts
        background threads (WebSocket streams, settlement tracker, Grafana).
-    2. ``on_quote_tick`` — buffers ticks; when inside the 9–10-min trade
-       window (seconds 540-600 of each 15-min market) fires
-       ``_make_trading_decision_sync`` via executor.
+    2. ``on_quote_tick`` — buffers ticks; when inside the trade window fires
+       ``_make_trading_decision_sync``. Open positions (live and paper) exit
+       via TP / SL / TIME-EXIT on every tick; survivors settle at market end.
     3. ``_make_trading_decision`` — the 6-step ML decision loop.
     4. ``on_stop`` — saves paper trades.
     """
@@ -112,6 +113,11 @@ class IntegratedBTCStrategy(Strategy):
         self._heartbeat_secs: int = 30
         self._tick_count_since_last_heartbeat: int = 0
 
+        # Decision-cycle logging — groups the 6-step loop into one block.
+        self._decision_cycle_counter: int = 0
+        self._current_cycle_id: Optional[int] = None
+        self._current_cycle_outcome: str = ""
+
         # ── Live position / exit management ─────────────────────────────────
         # Pending BUY orders awaiting their first fill report.
         self._pending_orders: Dict[str, dict] = {}
@@ -127,12 +133,12 @@ class IntegratedBTCStrategy(Strategy):
         # Old behaviour ("+X% of token price") was broken for tokens near
         # 1.0 because TP clamped to 0.99 and fired immediately at fill.
         #
-        # ENABLE_STOP_LOSS=false (default) disables the SL trigger entirely;
-        # positions then only close via TAKE-PROFIT or via Polymarket
-        # settlement (binary payout 0 or 1). A losing trade will then lose
-        # ~100% of its stake instead of being clipped at the SL price.
+        # ENABLE_STOP_LOSS defaults to TRUE: without it a losing trade rides to
+        # binary settlement and loses ~100% of its stake. The SL clips that
+        # downside at STOP_LOSS_PCT of capital. Set ENABLE_STOP_LOSS=false to
+        # revert to hold-to-settlement behaviour.
         self._stop_loss_enabled = os.getenv(
-            "ENABLE_STOP_LOSS", "false"
+            "ENABLE_STOP_LOSS", "true"
         ).strip().lower() in ("1", "true", "yes", "on")
         try:
             self._stop_loss_frac = max(0.0, min(1.0, float(os.getenv("STOP_LOSS_PCT", "0.50"))))
@@ -151,33 +157,33 @@ class IntegratedBTCStrategy(Strategy):
         # R:R on binary outcome tokens) or when the bid-ask spread is so
         # wide that crossing it eats most of the expected edge.
         try:
-            self._min_entry_price = max(0.01, min(0.99, float(os.getenv("MIN_ENTRY_PRICE", "0.25"))))
+            self._min_entry_price = max(0.01, min(0.99, float(os.getenv("MIN_ENTRY_PRICE", "0.20"))))
         except (TypeError, ValueError):
-            self._min_entry_price = 0.25
+            self._min_entry_price = 0.20
         try:
-            self._max_entry_price = max(self._min_entry_price + 0.01, min(0.99, float(os.getenv("MAX_ENTRY_PRICE", "0.75"))))
+            self._max_entry_price = max(self._min_entry_price + 0.01, min(0.99, float(os.getenv("MAX_ENTRY_PRICE", "0.98"))))
         except (TypeError, ValueError):
-            self._max_entry_price = 0.75
+            self._max_entry_price = 0.98
         try:
             self._max_spread_pct = max(0.0, float(os.getenv("MAX_SPREAD_PCT", "0.05")))
         except (TypeError, ValueError):
             self._max_spread_pct = 0.05
 
         # ── Trade-window / cooldown ──────────────────────────────────────
-        # Widened from the old 540-600s slot to 300-780s (minutes 5-13) so
-        # the bot has 8 minutes of decision time per 15-min market instead
-        # of 1 minute, and can re-enter after each closed position.
+        # Entry window: seconds 780-870 of each 15-min market (13:00 – 14:30).
+        # The 90-second window lets the strategy enter once the market trend is
+        # fully established, then exit via the forced time-based sell at 14:30.
         try:
-            self._trade_window_start = max(0, int(float(os.getenv("TRADE_WINDOW_SEC_START", "300"))))
+            self._trade_window_start = max(0, int(float(os.getenv("TRADE_WINDOW_SEC_START", "780"))))
         except (TypeError, ValueError):
-            self._trade_window_start = 300
+            self._trade_window_start = 780
         try:
             self._trade_window_end = max(
                 self._trade_window_start + 30,
-                int(float(os.getenv("TRADE_WINDOW_SEC_END", "780"))),
+                int(float(os.getenv("TRADE_WINDOW_SEC_END", "870"))),
             )
         except (TypeError, ValueError):
-            self._trade_window_end = 780
+            self._trade_window_end = 870
         try:
             self._entry_cooldown_sec = max(0, int(float(os.getenv("ENTRY_COOLDOWN_SEC", "90"))))
         except (TypeError, ValueError):
@@ -200,12 +206,14 @@ class IntegratedBTCStrategy(Strategy):
             self._filter_reject_cooldown_sec = 15
 
         # Late-entry cutoff — refuse new entries this close to settlement.
+        # Set to 30s: entries are valid up to second 870 (14:30), which is
+        # the same moment the forced time-based exit fires.
         try:
             self._late_entry_cutoff_sec = max(
-                0, int(float(os.getenv("LATE_ENTRY_CUTOFF_SEC", "120")))
+                0, int(float(os.getenv("LATE_ENTRY_CUTOFF_SEC", "30")))
             )
         except (TypeError, ValueError):
-            self._late_entry_cutoff_sec = 120
+            self._late_entry_cutoff_sec = 30
 
         # ── Per-market constraints ───────────────────────────────────────
         # LOCK_MARKET_DIRECTION blocks the "win then fade" anti-pattern:
@@ -247,6 +255,9 @@ class IntegratedBTCStrategy(Strategy):
         # Hard cap (seconds after market end) before we give up waiting for a
         # definitive settlement price and resolve at the last seen bid.
         self._settle_grace_seconds: int = 600  # 10 min
+        # Paper trades resolve faster: Chainlink (if configured) usually settles
+        # within ~30s of market end, so we only briefly wait before falling
+        # back to Coinbase spot. Shorter still in test mode (1-min markets).
 
         self._tick_buffer: deque = deque(maxlen=500)
         self._yes_token_id: Optional[str] = None
@@ -307,7 +318,7 @@ class IntegratedBTCStrategy(Strategy):
             cache_seconds=120,
         )
 
-        # ── Signal fusion weights ────────────────────────────────────────────
+        # ── Signal fusion weights (must sum to 1.0 for active processors) ───
         self.fusion_engine = get_fusion_engine()
         self.fusion_engine.set_weight("OrderBookImbalance", 0.30)
         self.fusion_engine.set_weight("TickVelocity",       0.25)
@@ -315,10 +326,11 @@ class IntegratedBTCStrategy(Strategy):
         self.fusion_engine.set_weight("SpikeDetection",     0.12)
         self.fusion_engine.set_weight("DeribitPCR",         0.10)
         self.fusion_engine.set_weight("SentimentAnalysis",  0.05)
-        self.fusion_engine.set_weight("Liquidations",       0.20)
-        self.fusion_engine.set_weight("CVDOrderBook",       0.18)
-        self.fusion_engine.set_weight("FundingRateOI",      0.10)
-        self.fusion_engine.set_weight("OHLCVMomentum",      0.10)
+        # Processors still run for ML features / Grafana but do not vote in fusion
+        self.fusion_engine.set_weight("OHLCVMomentum",      0.0)
+        self.fusion_engine.set_weight("CVDOrderBook",       0.0)
+        self.fusion_engine.set_weight("Liquidations",       0.0)
+        self.fusion_engine.set_weight("FundingRateOI",      0.0)
 
         # ── Supporting systems ────────────────────────────────────────────────
         self.risk_engine = get_risk_engine()
@@ -326,6 +338,12 @@ class IntegratedBTCStrategy(Strategy):
         self.learning_engine = get_learning_engine()
         self.ml_engine = get_ml_engine()
         self.settlement_tracker = get_settlement_tracker()
+        # Records every decision cycle (all processor signals + fused result +
+        # ML p_up) and resolves the real BTC outcome later, enabling an
+        # offline fused-signal backtest (see backtest/replay_recordings.py).
+        self.signal_recorder = get_signal_recorder(
+            price_fn=self.settlement_tracker.get_current_btc_price
+        )
 
         # Override the ML engine's min_edge with the env-configured value.
         # Once ML is active (>= min_samples outcomes recorded), the bot
@@ -351,6 +369,8 @@ class IntegratedBTCStrategy(Strategy):
         self.price_history: list = []
         self.max_history = 100
         self.paper_trades: List[PaperTrade] = []
+        # Open paper positions live in ``_open_positions`` with is_paper=True so
+        # exit timing, sizing, and settlement mirror the live path.
 
         self.test_mode = test_mode
         self._last_learning_optimization = datetime.now(timezone.utc)
@@ -390,6 +410,59 @@ class IntegratedBTCStrategy(Strategy):
             logger.warning(f"Market stability RESET{' – ' + reason if reason else ''}")
         self._market_stable = False
         self._stable_tick_count = 0
+
+    def _simulated_entry_price(
+        self,
+        direction: str,
+        bid: Decimal,
+        ask: Decimal,
+        poly_mid: Decimal,
+    ) -> Decimal:
+        """Mirror live market BUY: LONG pays YES ask; SHORT pays NO ask ≈ 1 − YES bid."""
+        if direction == "long":
+            px = ask if ask > 0 else poly_mid
+        else:
+            px = Decimal("1") - bid if bid > 0 else (Decimal("1") - poly_mid)
+        return max(Decimal("0.01"), min(Decimal("0.99"), px))
+
+    def _compute_exit_levels(
+        self,
+        fill_price: Decimal,
+        *,
+        stop_loss_enabled: Optional[bool] = None,
+        stop_loss_frac: Optional[float] = None,
+        take_profit_frac: Optional[float] = None,
+    ) -> tuple:
+        """Payoff-relative TP/SL levels shared by live fills and paper simulation."""
+        sl_enabled = (
+            self._stop_loss_enabled if stop_loss_enabled is None else stop_loss_enabled
+        )
+        sl_frac = Decimal(str(
+            self._stop_loss_frac if stop_loss_frac is None else stop_loss_frac
+        ))
+        tp_frac = Decimal(str(
+            self._take_profit_frac if take_profit_frac is None else take_profit_frac
+        ))
+
+        remaining_upside = max(Decimal("0"), Decimal("1") - fill_price)
+        take_profit = min(Decimal("0.99"), fill_price + tp_frac * remaining_upside)
+        if take_profit - fill_price < Decimal("0.01"):
+            take_profit = min(Decimal("0.99"), fill_price + Decimal("0.01"))
+
+        if sl_enabled:
+            stop_loss = max(Decimal("0.01"), fill_price - sl_frac * fill_price)
+            if fill_price - stop_loss < Decimal("0.01"):
+                stop_loss = max(Decimal("0.01"), fill_price - Decimal("0.01"))
+        else:
+            stop_loss = Decimal("0")
+
+        return stop_loss, take_profit, sl_enabled
+
+    def _held_trade_instrument(self, direction: str):
+        """Instrument id for the token the bot buys (YES for long, NO for short)."""
+        if direction == "long":
+            return getattr(self, "_yes_instrument_id", None) or self.instrument_id
+        return getattr(self, "_no_instrument_id", None)
 
     # ── Redis ─────────────────────────────────────────────────────────────────
 
@@ -449,18 +522,25 @@ class IntegratedBTCStrategy(Strategy):
         self.liquidation_processor.start_stream()
         self.cvd_ob_processor.start_stream()
         self.settlement_tracker.start_tracking()
+        self.signal_recorder.start()
         logger.info("Liquidation stream started")
         logger.info("CVD aggTrade stream started")
         logger.info("Settlement tracker started")
+        logger.info("Signal recorder started")
         logger.info(
             f"ML engine active: {self.ml_engine.is_active} "
             f"(samples={self.ml_engine._sample_count}/{self.ml_engine.min_samples})"
         )
 
         logger.info("=" * 80)
-        logger.info(
-            "Strategy active — trade window opens at minute 9 of each 15-min market (1 min wide)"
-        )
+        if self.test_mode:
+            logger.info("Strategy active — TEST MODE: full 15-min market is tradeable")
+        else:
+            logger.info(
+                f"Strategy active — trade window {self._trade_window_start}-"
+                f"{self._trade_window_end}s into each 15-min market "
+                f"(minutes {self._trade_window_start/60:.1f}-{self._trade_window_end/60:.1f})"
+            )
         logger.info(f"Price history: {len(self.price_history)} points")
         if len(self.price_history) >= 20:
             logger.info("READY TO TRADE")
@@ -621,25 +701,71 @@ class IntegratedBTCStrategy(Strategy):
 
         self.all_btc_instruments = btc_instruments
 
+        # Pick the market to bind. Critically, DON'T bind a market that is
+        # already too far into its cycle to trade — that just burns a full
+        # 15-min wait with "no quotes yet" before the bot can do anything
+        # useful. If the live market has no usable trade window left, bind the
+        # next FUTURE market in waiting mode so we're subscribed and ready the
+        # moment it opens (and actually catch its trade window).
         active_idx = None
         for i, inst in enumerate(btc_instruments):
             if inst["time_diff_minutes"] <= 0 and inst["end_timestamp"] > current_timestamp:
                 active_idx = i
                 break
 
-        if active_idx is not None:
+        future_markets = [inst for inst in btc_instruments if inst["time_diff_minutes"] > 0]
+        nearest_future_idx = (
+            btc_instruments.index(min(future_markets, key=lambda x: x["time_diff_minutes"]))
+            if future_markets
+            else None
+        )
+
+        if active_idx is not None and self._market_has_usable_window(
+            btc_instruments[active_idx], current_timestamp
+        ):
+            self._bind_market(active_idx, waiting=False)
+        elif nearest_future_idx is not None:
+            if active_idx is not None:
+                logger.info(
+                    f"Active market {btc_instruments[active_idx]['slug']} has no usable "
+                    f"trade window left — binding next market and waiting for open."
+                )
+            self._bind_market(nearest_future_idx, waiting=True)
+        elif active_idx is not None:
+            # No future market available yet; fall back to the live one.
             self._bind_market(active_idx, waiting=False)
         else:
-            future_markets = [inst for inst in btc_instruments if inst["time_diff_minutes"] > 0]
-            nearest = (
-                min(future_markets, key=lambda x: x["time_diff_minutes"])
-                if future_markets
-                else btc_instruments[-1]
-            )
-            self._bind_market(btc_instruments.index(nearest), waiting=True)
+            self._bind_market(len(btc_instruments) - 1, waiting=True)
 
         self._instruments_loaded = True
         return True
+
+    def _market_has_usable_window(self, market: dict, now_ts: float) -> bool:
+        """True if ``market`` still has enough of its trade window left to act.
+
+        Guards against binding to an about-to-settle market (the root cause of
+        repeated "no quotes yet / window CLOSED" startups). Requires that the
+        current time is before the end of the trade window with a small lead,
+        and not already inside the late-entry cutoff before settlement.
+        """
+        try:
+            start_ts = int(market.get("market_timestamp") or 0)
+            end_ts = int(market.get("end_timestamp") or 0)
+        except (TypeError, ValueError):
+            return False
+        if not start_ts or not end_ts:
+            return False
+
+        if self.test_mode:
+            # Whole market is tradeable in test mode; just need some time left.
+            return (end_ts - now_ts) > self._late_entry_cutoff_sec
+
+        elapsed = now_ts - start_ts
+        # Need at least a small lead (30s) of trade window remaining...
+        window_time_left = self._trade_window_end - elapsed
+        # ...and we must not already be inside the late-entry cutoff.
+        secs_to_settle = end_ts - now_ts
+        return window_time_left >= 30 and secs_to_settle > self._late_entry_cutoff_sec
 
     def _refresh_cache_from_providers(self) -> tuple[int, int]:
         """
@@ -930,11 +1056,11 @@ class IntegratedBTCStrategy(Strategy):
         market_end_ts = int(market["end_timestamp"])
         elapsed_in_market = now_ts - market_start_ts
 
-        # Trade window — keep in sync with on_quote_tick (seconds 540-600).
+        # Trade window — keep in sync with on_quote_tick.
         if self.test_mode:
             win_start, win_end = 0, 900
         else:
-            win_start, win_end = 540, 600
+            win_start, win_end = self._trade_window_start, self._trade_window_end
 
         if elapsed_in_market < 0:
             window_status = (
@@ -1009,6 +1135,142 @@ class IntegratedBTCStrategy(Strategy):
     # to insert a blank separator row inside the banner.
 
     _BANNER_WIDTH: int = 80
+    _STEP_BOX_WIDTH: int = 78
+
+    # Brief description shown at the top of each staged log block.
+    _STAGE_DESCRIPTIONS: Dict[str, str] = {
+        "DECISION START": (
+            "Open a new decision cycle for this quote tick."
+        ),
+        "CONTEXT": (
+            "Fetch external data: spot, funding, CVD, liquidations, OHLCV."
+        ),
+        "FILTER": (
+            "Cheap pre-trade guards — skip before heavy work if rules fail."
+        ),
+        "STEP 1": (
+            "Run all signal processors and fuse them into one consensus."
+        ),
+        "STEP 2": (
+            "Build the feature vector and run XGBoost to predict P(BTC UP)."
+        ),
+        "STEP 3": (
+            "Compare ML probability vs Polymarket implied odds (YES price)."
+        ),
+        "STEP 4": (
+            "Apply ML edge threshold or fusion fallback to choose bet/skip."
+        ),
+        "STEP 5": (
+            "Final gates, save ML features, register settlement tracking."
+        ),
+        "STEP 6": (
+            "Submit a live order or open a simulated paper position."
+        ),
+        "SETTLE": (
+            "Resolve a closed position against settlement and record P&L."
+        ),
+    }
+
+    def _begin_decision_cycle(self, poly_price: float, is_simulation: bool) -> int:
+        """Open a visually distinct decision-cycle block in the logs."""
+        self._decision_cycle_counter += 1
+        self._current_cycle_id = self._decision_cycle_counter
+        self._current_cycle_outcome = "running"
+        mode = "SIM" if is_simulation else "LIVE"
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        sep = "═" * self._STEP_BOX_WIDTH
+        logger.info("")
+        logger.info(sep)
+        logger.info(
+            f"  DECISION CYCLE #{self._current_cycle_id}  ·  {mode}  ·  "
+            f"{ts}  ·  poly={poly_price:.4f}"
+        )
+        logger.info(sep)
+        return self._current_cycle_id
+
+    def _set_cycle_outcome(self, outcome: str) -> None:
+        """Record how this decision cycle ended (shown in the cycle footer)."""
+        self._current_cycle_outcome = outcome
+
+    def _end_decision_cycle(self, is_simulation: bool) -> None:
+        """Close the decision-cycle block."""
+        if self._current_cycle_id is None:
+            return
+        mode = "SIM" if is_simulation else "LIVE"
+        outcome = self._current_cycle_outcome or "ended"
+        logger.info(
+            f"└─ {mode} CYCLE #{self._current_cycle_id} END ── {outcome} "
+            + "─" * max(0, self._STEP_BOX_WIDTH - 28 - len(str(self._current_cycle_id)) - len(outcome))
+        )
+        logger.info("")
+        self._current_cycle_id = None
+
+    def _stage_description(self, step: str) -> str:
+        """Lookup the human-readable blurb for a stage key."""
+        return self._STAGE_DESCRIPTIONS.get(step, "")
+
+    def _finish_decision_cycle(self, is_simulation: bool, outcome: str) -> None:
+        """Record outcome and close the grouped decision-cycle log block."""
+        self._set_cycle_outcome(outcome)
+        self._end_decision_cycle(is_simulation)
+
+    def _publish_order_metrics(
+        self,
+        *,
+        direction: str,
+        size_usd: float,
+        poly_price: float,
+        held_entry_price: float,
+        signal,
+        ml_p_up: Optional[float],
+        ml_edge: float,
+        metadata: dict,
+        market_slug: str,
+        is_simulation: bool,
+        fused,
+    ) -> None:
+        """Push pre-submit order details to Prometheus for Grafana."""
+        if not self.grafana_exporter:
+            return
+        try:
+            held = max(0.01, min(0.99, held_entry_price))
+            qty = float(size_usd) / held if held > 0 else 0.0
+            bid = ask = None
+            if self._last_bid_ask:
+                bid = float(self._last_bid_ask[0])
+                ask = float(self._last_bid_ask[1])
+            secs_to_settle = None
+            if 0 <= self.current_instrument_index < len(self.all_btc_instruments):
+                end_ts = self.all_btc_instruments[self.current_instrument_index].get(
+                    "end_timestamp"
+                )
+                if end_ts:
+                    secs_to_settle = float(end_ts) - time.time()
+            fusion_score = (
+                float(fused.score)
+                if fused is not None
+                else float(getattr(signal, "score", 0.0) or 0.0)
+            )
+            self.grafana_exporter.update_order_metrics(
+                direction=direction,
+                size_usd=float(size_usd),
+                entry_price=held,
+                poly_yes_price=float(poly_price),
+                qty_tokens=qty,
+                signal_score=float(getattr(signal, "score", 0.0) or 0.0),
+                signal_confidence=float(getattr(signal, "confidence", 0.0) or 0.0),
+                ml_edge=float(ml_edge or 0.0),
+                ml_p_up=ml_p_up,
+                fusion_score=fusion_score,
+                btc_spot=float(metadata.get("spot_price", 0.0) or 0.0),
+                bid_price=bid,
+                ask_price=ask,
+                seconds_to_settle=secs_to_settle,
+                market_slug=market_slug,
+                is_simulation=is_simulation,
+            )
+        except Exception:
+            pass
 
     def _log_event_banner(
         self,
@@ -1048,6 +1310,58 @@ class IntegratedBTCStrategy(Strategy):
                 log(f"#  {value}")
         log(border)
         log("")
+
+    def _log_step(
+        self,
+        step: str,
+        title: str,
+        lines: List[tuple] = None,
+        *,
+        is_simulation: bool = True,
+        level: str = "info",
+        description: Optional[str] = None,
+    ) -> None:
+        """Emit a grouped, labelled block for one stage of the decision loop.
+
+        Format::
+
+            ┌─[SIM │ CYCLE #12 │ STEP 1 │ SIGNALS + FUSION]────────────── ...
+            │  ▸ Run all signal processors and fuse them into one consensus.
+            │
+            │  Signals fired          3  (2 bullish / 1 bearish)
+            │    SpikeDetection       BULLISH  conf=82%  score=74.0
+            └────────────────────────────────────────────────────────────── ...
+        """
+        mode_tag = "SIM" if is_simulation else "LIVE"
+        cycle_part = (
+            f"CYCLE #{self._current_cycle_id} │ "
+            if self._current_cycle_id is not None
+            else ""
+        )
+        header_core = f"[{mode_tag} │ {cycle_part}{step} │ {title}]"
+        header = "┌─" + header_core
+        header = header + "─" * max(0, self._STEP_BOX_WIDTH - len(header))
+
+        desc = (description or self._stage_description(step)).strip()
+        log = {
+            "info": logger.info,
+            "warning": logger.warning,
+            "success": getattr(logger, "success", logger.info),
+            "error": logger.error,
+        }.get(level, logger.info)
+
+        log(header)
+        if desc:
+            log(f"│  ▸ {desc}")
+            log("│")
+        for label, value in (lines or []):
+            if label:
+                log(f"│  {label:<22} {value}")
+            elif value:
+                log(f"│  {value}")
+            else:
+                log("│")
+        log("└" + "─" * self._STEP_BOX_WIDTH)
 
     # ── Timer loop ────────────────────────────────────────────────────────────
 
@@ -1170,12 +1484,23 @@ class IntegratedBTCStrategy(Strategy):
             except Exception:
                 return
 
-            # Live exit check runs for every tick on any held token (YES or
-            # NO), independent of which market is currently active for trading.
+            # Live / paper exit check on every tick for held tokens.
             try:
                 self._check_position_exits(tick.instrument_id, bid_decimal, ask_decimal)
             except Exception as e:
                 logger.warning(f"Exit check failed: {e}")
+
+            # Paper SHORT (NO token): derive NO bid/ask from YES when NO stream
+            # is quiet but YES ticks are flowing on the active market.
+            yes_id = getattr(self, "_yes_instrument_id", None) or self.instrument_id
+            no_id = getattr(self, "_no_instrument_id", None)
+            if no_id and tick.instrument_id == yes_id:
+                derived_bid = max(Decimal("0.01"), Decimal("1") - ask_decimal)
+                derived_ask = max(Decimal("0.01"), Decimal("1") - bid_decimal)
+                try:
+                    self._check_position_exits(no_id, derived_bid, derived_ask)
+                except Exception as e:
+                    logger.warning(f"Derived NO exit check failed: {e}")
 
             # Everything below is signal/decision logic for the active market
             # only. Position exits already ran above for any held instrument.
@@ -1220,8 +1545,8 @@ class IntegratedBTCStrategy(Strategy):
             seconds_into_sub = elapsed_secs % MARKET_INTERVAL_SECONDS
 
             # Trade window: configurable via TRADE_WINDOW_SEC_{START,END}.
-            # Default 300-780s (minutes 5-13) — was 540-600s (1-min slot)
-            # which capped throughput at 4 trades/hour.
+            # Default 780-870s (13:00–14:30) — enter once the market trend is
+            # fully established; forced time-exit fires at second 870.
             if self.test_mode:
                 # In test mode the whole 15-min market is the trade window.
                 window_start, window_end = 0, 900
@@ -1304,7 +1629,7 @@ class IntegratedBTCStrategy(Strategy):
         finally:
             loop.close()
 
-    async def _fetch_market_context(self, current_price: Decimal) -> dict:
+    async def _fetch_market_context(self, current_price: Decimal) -> tuple:
         """Fetch real external data to populate all signal-processor metadata."""
         current_price_float = float(current_price)
 
@@ -1337,14 +1662,14 @@ class IntegratedBTCStrategy(Strategy):
             if fg and "value" in fg:
                 metadata["sentiment_score"] = float(fg["value"])
                 metadata["sentiment_classification"] = fg.get("classification", "")
-                logger.info(
+                logger.debug(
                     f"Fear & Greed: {metadata['sentiment_score']:.0f} "
                     f"({metadata['sentiment_classification']})"
                 )
             else:
-                logger.warning("Fear & Greed fetch returned no data")
+                logger.debug("Fear & Greed fetch returned no data")
         except Exception as e:
-            logger.warning(f"Could not fetch Fear & Greed: {e}")
+            logger.debug(f"Could not fetch Fear & Greed: {e}")
 
         # Coinbase spot price
         try:
@@ -1355,13 +1680,13 @@ class IntegratedBTCStrategy(Strategy):
             await coinbase.disconnect()
             if spot:
                 metadata["spot_price"] = float(spot)
-                logger.info(f"Coinbase spot: ${float(spot):,.2f}")
+                logger.debug(f"Coinbase spot: ${float(spot):,.2f}")
             else:
-                logger.warning("Coinbase price fetch returned None")
+                logger.debug("Coinbase price fetch returned None")
         except Exception as e:
-            logger.warning(f"Could not fetch Coinbase spot price: {e}")
+            logger.debug(f"Could not fetch Coinbase spot price: {e}")
 
-        logger.info(
+        logger.debug(
             f"Market context — deviation={deviation:.2%}, "
             f"momentum={momentum:.2%}, volatility={volatility:.4f}, "
             f"sentiment={'%.0f' % metadata['sentiment_score'] if 'sentiment_score' in metadata else 'N/A'}, "
@@ -1422,14 +1747,7 @@ class IntegratedBTCStrategy(Strategy):
         except Exception:
             pass
 
-        logger.info(
-            f"Extended context — liq_imb={liq_imbalance:+.3f}, "
-            f"cvd=${cvd_snap['cvd_delta']/1e6:+.1f}M, "
-            f"funding={metadata.get('funding_rate', 0):.5%}, "
-            f"vol_regime={metadata.get('vol_regime', 'N/A')}"
-        )
-
-        return metadata
+        return metadata, liq_imbalance, cvd_snap
 
     async def _make_trading_decision(self, current_price: Decimal) -> None:
         """
@@ -1443,14 +1761,24 @@ class IntegratedBTCStrategy(Strategy):
         Step 6  Weekly retrain triggered by settlement tracker
         """
         is_simulation = await self.check_simulation_mode()
-        logger.info(f"Mode: {'SIMULATION' if is_simulation else 'LIVE TRADING'}")
 
         if len(self.price_history) < 20:
             logger.warning(f"Not enough price history ({len(self.price_history)}/20)")
             return
 
         poly_price = float(current_price)
-        logger.info(f"Current Polymarket price: {poly_price:.4f}")
+        self._begin_decision_cycle(poly_price, is_simulation)
+
+        self._log_step(
+            "DECISION START", "MODE",
+            [
+                ("Mode",          "SIMULATION (paper)" if is_simulation else "*** LIVE TRADING ***"),
+                ("Poly price",    f"{poly_price:.4f}"),
+                ("Price history", f"{len(self.price_history)} ticks"),
+            ],
+            is_simulation=is_simulation,
+            level="info" if is_simulation else "warning",
+        )
 
         # Helper: schedule the next entry attempt `delay` seconds from
         # now (instead of "right now" which busy-loops at full tick rate
@@ -1469,12 +1797,18 @@ class IntegratedBTCStrategy(Strategy):
         # 1. Entry-price band — refuse the bet when the token is already
         #    pricing the outcome near-certain. R:R is junk at extremes.
         if not (self._min_entry_price <= poly_price <= self._max_entry_price):
-            logger.info(
-                f"PRE-TRADE — price {poly_price:.4f} outside band "
-                f"[{self._min_entry_price:.2f}, {self._max_entry_price:.2f}] — "
-                f"re-check in {self._filter_reject_cooldown_sec}s"
+            self._log_step(
+                "FILTER", "PRICE BAND — SKIP",
+                [
+                    ("Price",    f"{poly_price:.4f}"),
+                    ("Band",     f"[{self._min_entry_price:.2f}, {self._max_entry_price:.2f}]"),
+                    ("Reason",   "price outside bet band — R:R junk at extremes"),
+                    ("Retry in", f"{self._filter_reject_cooldown_sec}s"),
+                ],
+                is_simulation=is_simulation,
             )
             _backoff_after_filter_reject()
+            self._finish_decision_cycle(is_simulation, "SKIP — price outside bet band")
             return
 
         # 2. Spread filter — buying through a wide spread eats the edge.
@@ -1486,17 +1820,49 @@ class IntegratedBTCStrategy(Strategy):
             if mid_f > 0:
                 spread_pct = (last_ask_f - last_bid_f) / mid_f
                 if spread_pct > self._max_spread_pct:
-                    logger.info(
-                        f"PRE-TRADE — spread {spread_pct:.1%} > max "
-                        f"{self._max_spread_pct:.1%} (bid=${last_bid_f:.4f} "
-                        f"ask=${last_ask_f:.4f}) — re-check in "
-                        f"{self._filter_reject_cooldown_sec}s"
+                    self._log_step(
+                        "FILTER", "SPREAD — SKIP",
+                        [
+                            ("Spread",   f"{spread_pct:.2%}  >  max {self._max_spread_pct:.2%}"),
+                            ("Bid/Ask",  f"${last_bid_f:.4f} / ${last_ask_f:.4f}"),
+                            ("Reason",   "wide spread eats the edge"),
+                            ("Retry in", f"{self._filter_reject_cooldown_sec}s"),
+                        ],
+                        is_simulation=is_simulation,
                     )
                     _backoff_after_filter_reject()
+                    self._finish_decision_cycle(is_simulation, "SKIP — spread too wide")
                     return
 
-        metadata = await self._fetch_market_context(current_price)
+        metadata, liq_imbalance, cvd_snap = await self._fetch_market_context(current_price)
+        self._log_step(
+            "CONTEXT", "MARKET DATA",
+            [
+                ("BTC spot",    f"${metadata.get('spot_price', 0):,.0f}" if metadata.get("spot_price") else "n/a"),
+                ("Liq imbalance", f"{liq_imbalance:+.3f}"),
+                ("CVD delta",   f"${cvd_snap['cvd_delta']/1e6:+.1f}M"),
+                ("Funding rate", f"{metadata.get('funding_rate', 0):.5%}"),
+                ("Vol regime",  str(metadata.get("vol_regime", "N/A"))),
+            ],
+            is_simulation=is_simulation,
+        )
         signals = self._process_signals(current_price, metadata)
+
+        # ── Grafana: push per-processor metrics ──────────────────────────────
+        if self.grafana_exporter:
+            try:
+                for sig in signals:
+                    _dir = str(getattr(sig, "direction", "neutral")).lower()
+                    _dir = "bullish" if "bull" in _dir else ("bearish" if "bear" in _dir else "neutral")
+                    self.grafana_exporter.update_signal_processor(
+                        name=sig.source,
+                        score=float(getattr(sig, "score", 0.0) or 0.0),
+                        confidence=float(getattr(sig, "confidence", 0.0) or 0.0),
+                        direction=_dir,
+                        metadata=sig.metadata or {},
+                    )
+            except Exception:
+                pass
 
         for sig in signals:
             if sig.source == "TickVelocity":
@@ -1506,17 +1872,57 @@ class IntegratedBTCStrategy(Strategy):
 
         fused = self.fusion_engine.fuse_signals(signals, min_signals=1, min_score=40.0)
 
+        # ── Grafana: push fusion metrics ──────────────────────────────────────
+        if self.grafana_exporter and fused:
+            try:
+                _fdir = str(getattr(fused, "direction", "neutral")).lower()
+                self.grafana_exporter.update_fusion_metrics(
+                    score=float(fused.score),
+                    confidence=float(fused.confidence),
+                    num_signals=int(fused.num_signals),
+                    direction=("bullish" if "bull" in _fdir else ("bearish" if "bear" in _fdir else "neutral")),
+                )
+            except Exception:
+                pass
+
         if signals:
             n_bull = sum(1 for s in signals if "BULLISH" in str(s.direction).upper())
             n_bear = sum(1 for s in signals if "BEARISH" in str(s.direction).upper())
-            logger.info(f"Signals: {len(signals)} fired — {n_bull} bullish / {n_bear} bearish")
+            sig_lines: List[tuple] = [
+                ("Signals fired",  f"{len(signals)}  ({n_bull} bullish / {n_bear} bearish)"),
+            ]
+            for _s in signals:
+                _dir = str(getattr(_s, "direction", "")).replace("SignalDirection.", "").upper()
+                _conf = getattr(_s, "confidence", 0.0) or 0.0
+                _score = getattr(_s, "score", 0.0) or 0.0
+                sig_lines.append((
+                    f"  {_s.source}",
+                    f"{_dir:<8}  conf={float(_conf):.2%}  score={float(_score):.1f}",
+                ))
+            if fused:
+                fused_dir = fused.direction.value.upper()
+                arrow = "▲" if "BULL" in fused_dir else "▼"
+                sig_lines.append(("", ""))
+                sig_lines.append((
+                    "Fused result",
+                    f"{arrow} {fused_dir}  score={fused.score:.1f}  conf={fused.confidence:.2%}",
+                ))
+            else:
+                sig_lines.append(("Fused result", "NONE  (below min_score=40)"))
         else:
-            logger.info("No individual signals fired — proceeding to ML/trend filter")
+            sig_lines = [
+                ("Signals fired", "0 — proceeding to ML / trend filter"),
+            ]
+            if fused:
+                sig_lines.append(("Fused result", f"{fused.direction.value.upper()}"))
+            else:
+                sig_lines.append(("Fused result", "NONE"))
 
-        if fused:
-            logger.info(
-                f"Fusion: {fused.direction.value} score={fused.score:.1f} conf={fused.confidence:.2%}"
-            )
+        self._log_step(
+            "STEP 1", "SIGNALS + FUSION",
+            sig_lines,
+            is_simulation=is_simulation,
+        )
 
         # STEP 2 — ML model
         flat_metadata = {
@@ -1532,15 +1938,83 @@ class IntegratedBTCStrategy(Strategy):
         ml_p_up: Optional[float] = None
         if self.ml_engine.is_active and feature_vector is not None:
             ml_p_up = self.ml_engine.predict(feature_vector)
-            logger.info(
-                f"STEP 2 — ML model active: p(UP)={ml_p_up:.3f} | "
-                f"poly={poly_price:.3f} | samples={self.ml_engine._sample_count}"
+            implied_edge = abs(ml_p_up - poly_price) if ml_p_up is not None else 0.0
+            # ── Grafana: push ML metrics ──────────────────────────────────────
+            if self.grafana_exporter and ml_p_up is not None:
+                try:
+                    self.grafana_exporter.update_ml_metrics(
+                        edge=implied_edge,
+                        prediction=float(ml_p_up),
+                    )
+                except Exception:
+                    pass
+            self._log_step(
+                "STEP 2", "ML MODEL",
+                [
+                    ("Status",    f"ACTIVE  ({self.ml_engine._sample_count} samples)"),
+                    ("p(UP)",     f"{ml_p_up:.4f}"),
+                    ("Poly price", f"{poly_price:.4f}"),
+                    ("Implied edge", f"{implied_edge:.4f}  (min={self.ml_engine.min_edge:.4f})"),
+                ],
+                is_simulation=is_simulation,
+            )
+            gap = ml_p_up - poly_price
+            self._log_step(
+                "STEP 3", "MARKET vs ML",
+                [
+                    ("ML p(UP)",      f"{ml_p_up:.4f}"),
+                    ("Poly (implied)", f"{poly_price:.4f}"),
+                    ("Gap (ML−Poly)", f"{gap:+.4f}"),
+                    ("Interpretation", (
+                        "ML sees higher UP prob than market"
+                        if gap > 0.01
+                        else "ML sees lower UP prob than market"
+                        if gap < -0.01
+                        else "ML roughly agrees with market"
+                    )),
+                ],
+                is_simulation=is_simulation,
             )
         else:
-            logger.info(
-                f"STEP 2 — ML warming up "
-                f"({self.ml_engine._sample_count}/{self.ml_engine.min_samples} samples)"
+            self._log_step(
+                "STEP 2", "ML MODEL",
+                [
+                    ("Status",    f"WARMING UP  "
+                                  f"({self.ml_engine._sample_count}/{self.ml_engine.min_samples} samples needed)"),
+                    ("p(UP)",     "N/A — falling back to fusion direction"),
+                ],
+                is_simulation=is_simulation,
             )
+            self._log_step(
+                "STEP 3", "MARKET vs ML",
+                [
+                    ("ML p(UP)",      "N/A — model warming up"),
+                    ("Poly (implied)", f"{poly_price:.4f}"),
+                    ("Note",          "STEP 4 will use fusion fallback rules"),
+                ],
+                is_simulation=is_simulation,
+            )
+
+        # Record the full cycle snapshot (all processor signals + fused result +
+        # ML p_up) for offline fused-signal backtesting. This runs on EVERY
+        # evaluated cycle — even when no trade is ultimately placed — so the
+        # recorded dataset captures the strategy's behaviour across all regimes.
+        try:
+            if 0 <= self.current_instrument_index < len(self.all_btc_instruments):
+                _mkt = self.all_btc_instruments[self.current_instrument_index]
+                self.signal_recorder.record_cycle(
+                    market_slug=_mkt.get("slug", "unknown"),
+                    market_start_ts=_mkt.get("market_timestamp"),
+                    market_end_ts=_mkt.get("end_timestamp"),
+                    poly_price=poly_price,
+                    btc_spot=metadata.get("spot_price"),
+                    signals=signals,
+                    fused=fused,
+                    ml_p_up=ml_p_up,
+                    metadata=flat_metadata,
+                )
+        except Exception as _rec_e:
+            logger.debug(f"Signal recording skipped: {_rec_e}")
 
         # STEPS 3 + 4 — Edge check / fallback trend filter
         # The market-order patch reads MARKET_BUY_USD at submit time, so the
@@ -1560,9 +2034,15 @@ class IntegratedBTCStrategy(Strategy):
                 poly_price=poly_price,
             )
             if not should_bet:
-                logger.info(
-                    f"STEP 4 — No edge: model={ml_p_up:.3f} market={poly_price:.3f} "
-                    f"gap={abs(ml_p_up - poly_price):.3f} < required={self.ml_engine.min_edge:.3f}"
+                self._log_step(
+                    "STEP 4", "EDGE CHECK — NO BET",
+                    [
+                        ("ML p(UP)",   f"{ml_p_up:.4f}"),
+                        ("Poly price", f"{poly_price:.4f}"),
+                        ("Gap",        f"{abs(ml_p_up - poly_price):.4f}  <  min={self.ml_engine.min_edge:.4f}"),
+                        ("Decision",   "SKIP — insufficient edge"),
+                    ],
+                    is_simulation=is_simulation,
                 )
                 if feature_vector is not None:
                     slug = (
@@ -1575,12 +2055,20 @@ class IntegratedBTCStrategy(Strategy):
                         poly_price=poly_price,
                         feature_vector=feature_vector,
                     )
+                self._finish_decision_cycle(is_simulation, "SKIP — insufficient ML edge")
                 return
             direction = ml_direction
             bet_edge = _edge
-            logger.info(
-                f"STEP 4 — Edge found: model={ml_p_up:.3f} market={poly_price:.3f} "
-                f"edge={bet_edge:.3f} → bet {direction.upper()}"
+            self._log_step(
+                "STEP 4", "EDGE CHECK — BET",
+                [
+                    ("ML p(UP)",   f"{ml_p_up:.4f}"),
+                    ("Poly price", f"{poly_price:.4f}"),
+                    ("Edge",       f"{bet_edge:.4f}  ≥  min={self.ml_engine.min_edge:.4f}"),
+                    ("Direction",  f"{'▲ LONG (YES)' if direction == 'long' else '▼ SHORT (NO)'}"),
+                ],
+                is_simulation=is_simulation,
+                level="success" if is_simulation else "warning",
             )
         else:
             # ML is warming up — fall back to the fused signal direction.
@@ -1597,9 +2085,14 @@ class IntegratedBTCStrategy(Strategy):
             ) if signals else None
 
             if fallback_fused is None:
-                logger.info(
-                    f"STEP 4 (fallback) — ML warming up, no fusion consensus "
-                    f"({len(signals)} signal(s)) — skip"
+                self._log_step(
+                    "STEP 4", "FALLBACK — NO CONSENSUS — SKIP",
+                    [
+                        ("ML",      "warming up — no model yet"),
+                        ("Signals", f"{len(signals)} fired, insufficient fusion consensus"),
+                        ("Decision","SKIP"),
+                    ],
+                    is_simulation=is_simulation,
                 )
                 if feature_vector is not None:
                     slug = (
@@ -1612,25 +2105,42 @@ class IntegratedBTCStrategy(Strategy):
                         poly_price=poly_price,
                         feature_vector=feature_vector,
                     )
+                self._finish_decision_cycle(is_simulation, "SKIP — no fusion consensus")
                 return
 
             fused_dir = str(fallback_fused.direction).upper()
             if "BULLISH" in fused_dir:
                 direction = "long"
-                logger.info(
-                    f"STEP 4 (fallback) — fusion BULLISH "
-                    f"poly={poly_price:.2%} score={fallback_fused.score:.1f} → YES"
+                self._log_step(
+                    "STEP 4", "FALLBACK — FUSION BET",
+                    [
+                        ("Fusion",    f"▲ BULLISH  score={fallback_fused.score:.1f}  conf={fallback_fused.confidence:.2%}"),
+                        ("Poly price", f"{poly_price:.4f}"),
+                        ("Direction", "▲ LONG (YES)"),
+                    ],
+                    is_simulation=is_simulation,
+                    level="success" if is_simulation else "warning",
                 )
             elif "BEARISH" in fused_dir:
                 direction = "short"
-                logger.info(
-                    f"STEP 4 (fallback) — fusion BEARISH "
-                    f"poly={poly_price:.2%} score={fallback_fused.score:.1f} → NO"
+                self._log_step(
+                    "STEP 4", "FALLBACK — FUSION BET",
+                    [
+                        ("Fusion",    f"▼ BEARISH  score={fallback_fused.score:.1f}  conf={fallback_fused.confidence:.2%}"),
+                        ("Poly price", f"{poly_price:.4f}"),
+                        ("Direction", "▼ SHORT (NO)"),
+                    ],
+                    is_simulation=is_simulation,
+                    level="success" if is_simulation else "warning",
                 )
             else:
-                logger.info(
-                    f"STEP 4 (fallback) — fusion direction NEUTRAL/unknown "
-                    f"({fused_dir}) — skip"
+                self._log_step(
+                    "STEP 4", "FALLBACK — NEUTRAL — SKIP",
+                    [
+                        ("Fusion dir", fused_dir),
+                        ("Decision",  "SKIP — neutral/unknown direction"),
+                    ],
+                    is_simulation=is_simulation,
                 )
                 if feature_vector is not None:
                     slug = (
@@ -1643,6 +2153,7 @@ class IntegratedBTCStrategy(Strategy):
                         poly_price=poly_price,
                         feature_vector=feature_vector,
                     )
+                self._finish_decision_cycle(is_simulation, "SKIP — neutral fusion direction")
                 return
 
         # ── Per-market direction lock + anti-chase guard ────────────────
@@ -1664,10 +2175,15 @@ class IntegratedBTCStrategy(Strategy):
         if active_slug and self._lock_market_direction:
             locked_dir = self._market_direction.get(active_slug)
             if locked_dir and locked_dir != direction:
-                logger.info(
-                    f"DIRECTION LOCK — market {active_slug} already locked "
-                    f"to {locked_dir.upper()}; refusing {direction.upper()} "
-                    f"(fusion may have flipped post-win)"
+                self._log_step(
+                    "STEP 5", "EXECUTION GATE — DIRECTION LOCK",
+                    [
+                        ("Market",   active_slug),
+                        ("Locked to", locked_dir.upper()),
+                        ("Requested", direction.upper()),
+                        ("Decision", "SKIP — opposite direction blocked on this market"),
+                    ],
+                    is_simulation=is_simulation,
                 )
                 if feature_vector is not None:
                     self.ml_engine.record_trade(
@@ -1675,6 +2191,7 @@ class IntegratedBTCStrategy(Strategy):
                         poly_price=poly_price,
                         feature_vector=feature_vector,
                     )
+                self._finish_decision_cycle(is_simulation, "SKIP — direction lock")
                 return
 
         # 2. Anti-chase guard — refuse re-entry on the same market at a
@@ -1686,11 +2203,16 @@ class IntegratedBTCStrategy(Strategy):
                 # Worse = paying more for the same exposure.
                 delta = held_entry_price - last_held
                 if delta > self._max_chase_delta:
-                    logger.info(
-                        f"ANTI-CHASE — {direction.upper()} entry "
-                        f"{held_entry_price:.4f} is {delta:+.4f} above last "
-                        f"entry {last_held:.4f} on this market (max "
-                        f"chase={self._max_chase_delta:.2f}) — skip"
+                    self._log_step(
+                        "STEP 5", "EXECUTION GATE — ANTI-CHASE",
+                        [
+                            ("Direction",  direction.upper()),
+                            ("Entry price", f"{held_entry_price:.4f}"),
+                            ("Last entry",  f"{last_held:.4f}"),
+                            ("Chase delta", f"{delta:+.4f}  >  max {self._max_chase_delta:.2f}"),
+                            ("Decision",   "SKIP — price chased too far"),
+                        ],
+                        is_simulation=is_simulation,
                     )
                     if feature_vector is not None:
                         self.ml_engine.record_trade(
@@ -1698,6 +2220,7 @@ class IntegratedBTCStrategy(Strategy):
                             poly_price=poly_price,
                             feature_vector=feature_vector,
                         )
+                    self._finish_decision_cycle(is_simulation, "SKIP — anti-chase")
                     return
 
         # Risk engine
@@ -1707,7 +2230,16 @@ class IntegratedBTCStrategy(Strategy):
             current_price=current_price,
         )
         if not is_valid:
-            logger.warning(f"Risk engine blocked: {error}")
+            self._log_step(
+                "STEP 5", "EXECUTION GATE — RISK ENGINE",
+                [
+                    ("Decision", "BLOCKED"),
+                    ("Reason",   str(error)),
+                ],
+                is_simulation=is_simulation,
+                level="warning",
+            )
+            self._finish_decision_cycle(is_simulation, "BLOCKED — risk engine")
             return
 
         # Liquidity guard
@@ -1716,22 +2248,44 @@ class IntegratedBTCStrategy(Strategy):
             last_bid, last_ask = last_tick
             MIN_LIQ = Decimal("0.02")
             if direction == "long" and last_ask <= MIN_LIQ:
-                logger.warning(
-                    f"No ask liquidity ({float(last_ask):.4f}) — "
-                    f"re-check in {self._filter_reject_cooldown_sec}s"
+                self._log_step(
+                    "STEP 5", "EXECUTION GATE — LIQUIDITY",
+                    [
+                        ("Side",     "LONG — need ask"),
+                        ("Ask",      f"{float(last_ask):.4f}"),
+                        ("Min liq",  f"{float(MIN_LIQ):.4f}"),
+                        ("Retry in", f"{self._filter_reject_cooldown_sec}s"),
+                    ],
+                    is_simulation=is_simulation,
+                    level="warning",
                 )
                 _backoff_after_filter_reject()
+                self._finish_decision_cycle(is_simulation, "SKIP — no ask liquidity")
                 return
             if direction == "short" and last_bid <= MIN_LIQ:
-                logger.warning(
-                    f"No bid liquidity ({float(last_bid):.4f}) — "
-                    f"re-check in {self._filter_reject_cooldown_sec}s"
+                self._log_step(
+                    "STEP 5", "EXECUTION GATE — LIQUIDITY",
+                    [
+                        ("Side",     "SHORT — need bid"),
+                        ("Bid",      f"{float(last_bid):.4f}"),
+                        ("Min liq",  f"{float(MIN_LIQ):.4f}"),
+                        ("Retry in", f"{self._filter_reject_cooldown_sec}s"),
+                    ],
+                    is_simulation=is_simulation,
+                    level="warning",
                 )
                 _backoff_after_filter_reject()
+                self._finish_decision_cycle(is_simulation, "SKIP — no bid liquidity")
                 return
 
-        # STEP 5 setup — save feature vector
+        # STEP 5 — persist features + register settlement before order
         trade_id: Optional[int] = None
+        step5_lines: List[tuple] = [
+            ("Direction lock", "PASS"),
+            ("Anti-chase",     "PASS"),
+            ("Risk engine",    "PASS"),
+            ("Liquidity",      "PASS"),
+        ]
         if feature_vector is not None:
             slug = (
                 self.all_btc_instruments[self.current_instrument_index]["slug"]
@@ -1743,7 +2297,32 @@ class IntegratedBTCStrategy(Strategy):
                 poly_price=poly_price,
                 feature_vector=feature_vector,
             )
-            logger.info(f"STEP 5 setup — feature vector saved, trade_id={trade_id}")
+            step5_lines.append(("ML features", f"saved  trade_id={trade_id}"))
+        else:
+            step5_lines.append(("ML features", "skipped — no feature vector"))
+
+        settlement_line = "not registered"
+        if trade_id is not None and self.current_instrument_index >= 0:
+            market_info = self.all_btc_instruments[self.current_instrument_index]
+            self.settlement_tracker.register_trade(
+                trade_id=trade_id,
+                market_slug=market_info["slug"],
+                market_start_ts=market_info["market_timestamp"],
+                market_end_ts=market_info["end_timestamp"],
+                direction=direction,
+                poly_price=poly_price,
+            )
+            settlement_line = (
+                f"registered  trade_id={trade_id}  "
+                f"closes {market_info['end_time'].strftime('%H:%M:%S')} UTC"
+            )
+        step5_lines.append(("Settlement", settlement_line))
+        self._log_step(
+            "STEP 5", "PRE-EXECUTION — ALL GATES PASSED",
+            step5_lines,
+            is_simulation=is_simulation,
+            level="success",
+        )
 
         signal_for_logging = fused if fused is not None else _make_stub_signal(direction, ml_p_up)
 
@@ -1757,13 +2336,29 @@ class IntegratedBTCStrategy(Strategy):
                 self._market_trade_count.get(active_slug, 0) + 1
             )
 
+        self._publish_order_metrics(
+            direction=direction,
+            size_usd=float(POSITION_SIZE_USD),
+            poly_price=poly_price,
+            held_entry_price=held_entry_price,
+            signal=signal_for_logging,
+            ml_p_up=ml_p_up,
+            ml_edge=bet_edge if ml_p_up is not None else 0.0,
+            metadata=flat_metadata,
+            market_slug=active_slug,
+            is_simulation=is_simulation,
+            fused=fused,
+        )
+
         if is_simulation:
             await self._record_paper_trade(
                 signal_for_logging, POSITION_SIZE_USD, current_price, direction,
                 ml_p_up=ml_p_up if ml_p_up is not None else 0.0,
                 ml_edge=bet_edge if ml_p_up is not None else 0.0,
                 metadata=flat_metadata,
+                ml_trade_id=trade_id,
             )
+            self._finish_decision_cycle(is_simulation, "TRADE OPENED (simulation)")
         else:
             await self._place_real_order(
                 signal_for_logging,
@@ -1772,22 +2367,7 @@ class IntegratedBTCStrategy(Strategy):
                 direction,
                 ml_trade_id=trade_id,
             )
-
-        # STEP 5 — Register settlement
-        if trade_id is not None and self.current_instrument_index >= 0:
-            market_info = self.all_btc_instruments[self.current_instrument_index]
-            self.settlement_tracker.register_trade(
-                trade_id=trade_id,
-                market_slug=market_info["slug"],
-                market_start_ts=market_info["market_timestamp"],
-                market_end_ts=market_info["end_timestamp"],
-                direction=direction,
-                poly_price=poly_price,
-            )
-            logger.info(
-                f"STEP 5 — Settlement tracker registered trade_id={trade_id} "
-                f"(closes {market_info['end_time'].strftime('%H:%M:%S')} UTC)"
-            )
+            self._finish_decision_cycle(is_simulation, "ORDER SUBMITTED (live)")
 
     # ── Paper trading ─────────────────────────────────────────────────────────
 
@@ -1800,120 +2380,325 @@ class IntegratedBTCStrategy(Strategy):
         ml_p_up: float = 0.0,
         ml_edge: float = 0.0,
         metadata: dict = None,
+        ml_trade_id: Optional[int] = None,
     ) -> None:
+        """Open a simulated position using the same economics as live trading.
+
+        Entry fills at the ask (LONG → YES ask, SHORT → NO ask ≈ 1 − YES bid).
+        Exits are managed by ``_check_position_exits`` (TP / SL / TIME-EXIT)
+        with simulated market sells at the bid. Positions still open at market
+        end settle through ``_settle_open_positions`` — same path as live.
+        """
         if metadata is None:
             metadata = {}
 
         now = datetime.now(timezone.utc)
-        exit_delta = timedelta(minutes=1) if self.test_mode else timedelta(minutes=15)
-        exit_time = now + exit_delta
-
-        if "BULLISH" in str(signal.direction):
-            movement = random.uniform(-0.04, 0.10)
-        else:
-            movement = random.uniform(-0.10, 0.04)
-
-        exit_price_raw = max(0.01, min(0.99, float(current_price) + movement))
-        exit_price_dec = Decimal(str(exit_price_raw))
-
-        if direction == "long":
-            pnl = float(position_size) * (exit_price_raw - float(current_price))
-        else:
-            pnl = float(position_size) * (float(current_price) - exit_price_raw)
-
-        pnl_pct = pnl / float(position_size) if float(position_size) > 0 else 0.0
-        outcome = "WIN" if pnl > 0 else "LOSS"
 
         slug = ""
+        market_end_ts = 0
         if 0 <= self.current_instrument_index < len(self.all_btc_instruments):
-            slug = self.all_btc_instruments[self.current_instrument_index].get("slug", "")
+            market = self.all_btc_instruments[self.current_instrument_index]
+            slug = market.get("slug", "")
+            try:
+                market_end_ts = int(market.get("end_timestamp") or 0)
+            except (TypeError, ValueError):
+                market_end_ts = 0
+
+        trade_instrument_id = self._held_trade_instrument(direction)
+        if trade_instrument_id is None:
+            logger.warning("NO token instrument not found — cannot simulate SHORT. Skipping.")
+            return
+
+        poly_price = float(current_price)
+        last_tick = getattr(self, "_last_bid_ask", None)
+        if last_tick:
+            bid_dec, ask_dec = last_tick
+        else:
+            bid_dec = ask_dec = current_price
+
+        fill_price = self._simulated_entry_price(direction, bid_dec, ask_dec, current_price)
+        size_usd = float(position_size)
+        try:
+            max_usd = max(0.01, float(os.getenv("MARKET_BUY_USD", str(size_usd))))
+        except (TypeError, ValueError):
+            max_usd = size_usd
+        size_usd = max_usd
+        fill_qty = size_usd / float(fill_price) if float(fill_price) > 0 else 0.0
 
         trade_id = f"paper_{int(now.timestamp() * 1000)}"
         session_num = len(self.paper_trades) + 1
+        entry_spot = float(metadata.get("spot_price", 0.0) or 0.0)
+
+        num_signals = signal.num_signals if hasattr(signal, "num_signals") else 1
+        signal_sources = (
+            [s.source for s in signal.contributing_signals]
+            if hasattr(signal, "contributing_signals") and signal.contributing_signals
+            else [str(signal.direction).replace("SignalDirection.", "")]
+        )
+
+        label = "YES (UP)" if direction == "long" else "NO (DOWN)"
 
         paper_trade = PaperTrade(
             trade_id=trade_id,
             timestamp=now,
             direction=direction.upper(),
-            size_usd=float(position_size),
-            entry_price=float(current_price),
-            exit_price=exit_price_raw,
-            pnl_usd=pnl,
-            pnl_pct=pnl_pct,
-            outcome=outcome,
+            size_usd=size_usd,
+            entry_price=float(fill_price),
+            exit_price=float(fill_price),
+            pnl_usd=0.0,
+            pnl_pct=0.0,
+            outcome="PENDING",
             signal_score=signal.score,
             signal_confidence=signal.confidence,
-            num_signals=signal.num_signals if hasattr(signal, "num_signals") else 1,
+            num_signals=num_signals,
             ml_p_up=ml_p_up,
             ml_edge=ml_edge,
             market_slug=slug,
-            btc_spot_price=float(metadata.get("spot_price", 0.0) or 0.0),
+            btc_spot_price=entry_spot,
             vol_regime=str(metadata.get("vol_regime", "") or ""),
             funding_rate=float(metadata.get("funding_rate", 0.0) or 0.0),
+            filled_qty=fill_qty,
+            close_reason="",
+            ml_trade_id=ml_trade_id,
             session_trade_num=session_num,
         )
         self.paper_trades.append(paper_trade)
 
+        try:
+            self.risk_engine.add_position(
+                position_id=trade_id,
+                size=Decimal(str(size_usd)),
+                entry_price=fill_price,
+                direction=direction,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record paper fill in risk engine: {e}")
+
+        stop_loss, take_profit, sl_enabled = self._compute_exit_levels(fill_price)
+
+        position = {
+            "instrument_id": trade_instrument_id,
+            "direction": direction,
+            "label": label,
+            "size_usd": size_usd,
+            "entry_price": fill_price,
+            "filled_qty": Decimal(str(fill_qty)),
+            "stop_loss": stop_loss,
+            "stop_loss_enabled": sl_enabled,
+            "take_profit": take_profit,
+            "market_end_ts": market_end_ts,
+            "market_slug": slug,
+            "ml_trade_id": ml_trade_id,
+            "signal_score": float(signal.score),
+            "signal_confidence": float(signal.confidence),
+            "exit_in_flight": False,
+            "exit_order_id": None,
+            "opened_at": now,
+            "last_bid": None,
+            "last_bid_ts": None,
+            "last_bid_post_settle": None,
+            "last_bid_post_settle_ts": None,
+            "is_paper": True,
+            "paper_trade": paper_trade,
+            "signal_sources": signal_sources,
+            "ml_p_up": ml_p_up,
+            "ml_edge": ml_edge,
+            "num_signals": num_signals,
+            "entry_spot": entry_spot,
+        }
+        self._open_positions[trade_id] = position
+
+        if trade_instrument_id != self.instrument_id:
+            try:
+                self.subscribe_quote_ticks(trade_instrument_id)
+            except Exception as e:
+                logger.warning(
+                    f"Could not subscribe to {trade_instrument_id} for paper "
+                    f"exit monitoring: {e}"
+                )
+
+        end_str = (
+            datetime.fromtimestamp(market_end_ts, tz=timezone.utc).strftime("%H:%M:%S")
+            if market_end_ts else "unknown"
+        )
+        dir_arrow = "▲" if direction == "long" else "▼"
+        risk_str = (
+            f"SL=-{self._stop_loss_frac:.0%}  " if self._stop_loss_enabled else "SL=DISABLED  "
+        ) + f"TP=+{self._take_profit_frac:.0%}  exit_cutoff={self._exit_cutoff_seconds}s"
+        self._log_step(
+            "STEP 6", f"[SIM] TRADE #{session_num} OPENED — {dir_arrow} {direction.upper()}",
+            [
+                ("Market",     f"{slug or 'unknown'}"),
+                ("Settles at", f"{end_str} UTC"),
+                ("Token",      label),
+                ("Entry fill", f"${float(fill_price):.4f}  (poly mid={poly_price:.4f})"),
+                ("Qty / notional", f"{fill_qty:.4f} tokens  =  ${size_usd:.2f}"),
+                ("BTC spot",   f"${entry_spot:,.0f}"),
+                ("ML p(UP)",   f"{ml_p_up:.4f}  edge={ml_edge:.4f}"),
+                ("Signal",     f"score={signal.score:.1f}  conf={signal.confidence:.2%}  n={num_signals}"),
+                ("Sources",    ", ".join(signal_sources) or "n/a"),
+                ("Risk",       risk_str),
+                ("Status",     "OPEN — same exit rules as live"),
+            ],
+            is_simulation=True,
+            level="success",
+        )
+
+        self._save_paper_trades()
+
+    def _close_paper_position(
+        self,
+        entry_id: str,
+        position: dict,
+        exit_price: Decimal,
+        close_reason: str,
+    ) -> None:
+        """Record a closed paper position — mirrors ``_close_live_position``."""
+        try:
+            self.risk_engine.remove_position(entry_id, exit_price=exit_price)
+        except Exception as e:
+            logger.warning(f"Failed to remove paper position from risk engine: {e}")
+
+        pt: PaperTrade = position["paper_trade"]
+        entry_price_dec = (
+            position["entry_price"]
+            if isinstance(position["entry_price"], Decimal)
+            else Decimal(str(position["entry_price"]))
+        )
+        qty_dec = (
+            position["filled_qty"]
+            if isinstance(position["filled_qty"], Decimal)
+            else Decimal(str(position["filled_qty"]))
+        )
+
+        entry_price_f = float(entry_price_dec)
+        exit_price_f = float(exit_price)
+        qty_f = float(qty_dec)
+
+        realized = qty_f * (exit_price_f - entry_price_f)
+        pnl_pct = (exit_price_f - entry_price_f) / entry_price_f if entry_price_f > 0 else 0.0
+
+        if realized > 1e-6:
+            outcome = "WIN"
+        elif realized < -1e-6:
+            outcome = "LOSS"
+        else:
+            outcome = "BREAKEVEN"
+        if close_reason == "SETTLEMENT_UNRESOLVED":
+            outcome = "UNRESOLVED"
+
+        now = datetime.now(timezone.utc)
+        opened_at = position.get("opened_at") or pt.timestamp
+
+        pt.exit_price = exit_price_f
+        pt.pnl_usd = realized
+        pt.pnl_pct = pnl_pct
+        pt.outcome = outcome
+        pt.close_reason = close_reason
+
+        try:
+            self.performance_tracker.record_trade(
+                trade_id=pt.trade_id,
+                direction=position["direction"],
+                entry_price=entry_price_dec,
+                exit_price=exit_price,
+                size=Decimal(str(position["size_usd"])),
+                entry_time=opened_at,
+                exit_time=now,
+                signal_score=position.get("signal_score", 0.0),
+                signal_confidence=position.get("signal_confidence", 0.0),
+                metadata={
+                    "simulated": True,
+                    "num_signals": position.get("num_signals", 1),
+                    "fusion_score": position.get("signal_score", 0.0),
+                    "ml_p_up": position.get("ml_p_up", 0.0),
+                    "ml_edge": position.get("ml_edge", 0.0),
+                    "market_slug": position.get("market_slug", ""),
+                    "close_reason": close_reason,
+                    "signal_sources": position.get("signal_sources", []),
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record paper trade in PerformanceTracker: {e}")
+
+        if hasattr(self, "grafana_exporter") and self.grafana_exporter and outcome in ("WIN", "LOSS"):
+            try:
+                self.grafana_exporter.increment_trade_counter(won=(outcome == "WIN"))
+                self.grafana_exporter.record_trade_duration((now - opened_at).total_seconds())
+            except Exception:
+                pass
+
         settled = [t for t in self.paper_trades if t.outcome in ("WIN", "LOSS")]
         wins = sum(1 for t in settled if t.outcome == "WIN")
         win_rate = wins / len(settled) if settled else 0.0
-        total_pnl = sum(t.pnl_usd for t in self.paper_trades)
-
-        self.performance_tracker.record_trade(
-            trade_id=trade_id,
-            direction=direction,
-            entry_price=current_price,
-            exit_price=exit_price_dec,
-            size=position_size,
-            entry_time=now,
-            exit_time=exit_time,
-            signal_score=signal.score,
-            signal_confidence=signal.confidence,
-            metadata={
-                "simulated": True,
-                "num_signals": signal.num_signals if hasattr(signal, "num_signals") else 1,
-                "fusion_score": signal.score,
-                "ml_p_up": ml_p_up,
-                "ml_edge": ml_edge,
-                "market_slug": slug,
-                "signal_sources": (
-                    [s.source for s in signal.contributing_signals]
-                    if hasattr(signal, "contributing_signals") and signal.contributing_signals
-                    else [str(signal.direction).replace("SignalDirection.", "")]
-                ),
-            },
+        total_pnl = sum(
+            t.pnl_usd for t in self.paper_trades if t.outcome in ("WIN", "LOSS", "BREAKEVEN")
         )
 
-        if hasattr(self, "grafana_exporter") and self.grafana_exporter:
-            self.grafana_exporter.increment_trade_counter(won=(pnl > 0))
-            self.grafana_exporter.record_trade_duration(exit_delta.total_seconds())
+        outcome_icon = {
+            "WIN":        "✔ WIN",
+            "LOSS":       "✘ LOSS",
+            "BREAKEVEN":  "= BREAKEVEN",
+            "UNRESOLVED": "? UNRESOLVED",
+        }.get(outcome, outcome)
+        outcome_level = {"WIN": "success", "LOSS": "warning"}.get(outcome, "info")
+        dir_arrow = "▲" if pt.direction == "LONG" else "▼"
+        hold_secs = (now - opened_at).total_seconds()
+        hold_str = f"{hold_secs:.0f}s" if hold_secs < 90 else f"{hold_secs/60:.1f}m"
 
-        icon = "[WIN]" if outcome == "WIN" else "[LOSS]"
-        logger.info("=" * 80)
-        logger.info(f"[SIM] TRADE #{session_num}  {icon}  {direction.upper()}")
-        logger.info(f"  Market:     {slug or 'unknown'}")
-        logger.info(
-            f"  Entry prob: {float(current_price):.4f}  -->  "
-            f"Exit: {exit_price_raw:.4f}  (move: {movement:+.4f})"
+        reason_label = {
+            "EXIT_TP": "TAKE-PROFIT",
+            "EXIT_STOP": "STOP-LOSS",
+            "TIME-EXIT": "TIME-EXIT",
+            "SETTLEMENT": "SETTLEMENT",
+            "SETTLEMENT_FALLBACK": "SETTLEMENT (fallback bid)",
+            "SETTLEMENT_UNRESOLVED": "SETTLEMENT (unresolved)",
+        }.get(close_reason, close_reason)
+
+        self._log_step(
+            "SETTLE", f"[SIM] TRADE #{pt.session_trade_num} CLOSED — {outcome_icon}",
+            [
+                ("Direction",   f"{dir_arrow} {pt.direction}"),
+                ("Market",      pt.market_slug or "unknown"),
+                ("Close reason", reason_label),
+                ("Token price", f"${entry_price_f:.4f}  →  ${exit_price_f:.4f}"),
+                ("Qty",         f"{qty_f:.4f}"),
+                ("Hold",        hold_str),
+                ("P&L",         f"${realized:+.4f}  ({pnl_pct * 100:+.2f}%)"),
+                ("", ""),
+                ("Session",     f"{wins}/{len(settled)} wins  ({win_rate:.1%})"),
+                ("Cumul P&L",   f"${total_pnl:+.4f}"),
+                ("Open trades", str(len(self._open_positions))),
+            ],
+            is_simulation=True,
+            level=outcome_level,
         )
-        logger.info(f"  BTC spot:   ${metadata.get('spot_price', 0):,.0f}")
-        logger.info(f"  P&L:        ${pnl:+.4f}  ({pnl_pct*100:+.2f}%)")
-        logger.info(f"  ML p(UP):   {ml_p_up:.3f}  edge={ml_edge:.3f}")
-        logger.info(
-            f"  Signal:     score={signal.score:.1f}  conf={signal.confidence:.2%}  "
-            f"n={signal.num_signals if hasattr(signal,'num_signals') else 1}"
-        )
-        logger.info(
-            f"  Vol regime: {metadata.get('vol_regime', 'N/A')}   "
-            f"funding={metadata.get('funding_rate', 0):.5%}"
-        )
-        logger.info(
-            f"  Session:    {wins}/{len(settled)} wins  ({win_rate:.1%})   "
-            f"cumulative PnL=${total_pnl:+.4f}"
-        )
-        logger.info("=" * 80)
 
         self._save_paper_trades()
+
+    def _simulate_paper_exit(
+        self,
+        entry_id: str,
+        position: dict,
+        bid: Decimal,
+        reason: str,
+    ) -> None:
+        """Simulate a market SELL at the current bid — same triggers as live."""
+        if position.get("exit_in_flight"):
+            return
+
+        exit_price = max(Decimal("0.01"), bid)
+        position["exit_in_flight"] = True
+
+        reason_map = {
+            "STOP-LOSS": "EXIT_STOP",
+            "TAKE-PROFIT": "EXIT_TP",
+            "TIME-EXIT": "TIME-EXIT",
+        }
+        close_reason = reason_map.get(reason, "EXIT_MANUAL")
+
+        self._open_positions.pop(entry_id, None)
+        self._close_paper_position(entry_id, position, exit_price, close_reason)
 
     def _save_paper_trades(self) -> None:
         try:
@@ -2050,54 +2835,33 @@ class IntegratedBTCStrategy(Strategy):
                 else 0.0
             )
 
-            self._log_event_banner(
-                level="warning",
-                tag="ORDER PLACED",
-                title=f"BUY {trade_label}  ${max_usd_amount:.2f} USD",
-                lines=[
-                    ("Order ID",  unique_id),
-                    ("Market",    market_slug_v or "(unknown)"),
-                    ("Token",     str(trade_instrument_id)),
+            dir_arrow_live = "▲" if direction == "long" else "▼"
+            risk_str = (
+                f"SL=-{self._stop_loss_frac:.0%}  " if self._stop_loss_enabled else "SL=DISABLED  "
+            ) + f"TP=+{self._take_profit_frac:.0%}  exit_cutoff={self._exit_cutoff_seconds}s"
+            self._log_step(
+                "STEP 6",
+                f"[LIVE] ORDER PLACED — {dir_arrow_live} BUY {trade_label}  ${max_usd_amount:.2f}",
+                [
+                    ("Order ID",   unique_id),
+                    ("Market",     market_slug_v or "(unknown)"),
+                    ("Token",      str(trade_instrument_id)),
                     ("", ""),
-                    ("Side",      f"BUY  ({trade_label})"),
-                    ("Notional",  f"${max_usd_amount:.2f} USD  (quote_quantity=True, p={usd_precision})"),
-                    ("TIF",       "IOC  (immediate-or-cancel)"),
-                    ("Ref price", f"${float(current_price):.4f}"),
-                    ("Quote",     quote_v),
-                    (
-                        "Mkt close",
-                        f"{mins_left_v:+.1f} min" if mins_left_v is not None else "n/a",
-                    ),
+                    ("Side",       f"BUY  ({trade_label})"),
+                    ("Notional",   f"${max_usd_amount:.2f} USD  (IOC)"),
+                    ("Ref price",  f"${float(current_price):.4f}"),
+                    ("Quote",      quote_v),
+                    ("Mkt close",  f"{mins_left_v:+.1f} min" if mins_left_v is not None else "n/a"),
                     ("", ""),
-                    (
-                        "Signal",
-                        f"{sig_dir_v}  score={signal_score_v:.1f}  "
-                        f"conf={signal_conf_v:.1%}  n={num_signals_v}",
-                    ),
-                    (
-                        "Sources",
-                        ", ".join(contributing) if contributing else "(fallback)",
-                    ),
-                    ("ML engine", ml_engine_state),
-                    (
-                        "Risk",
-                        (
-                            (
-                                f"SL=-{self._stop_loss_frac:.0%} of capital  "
-                                if self._stop_loss_enabled
-                                else "SL=DISABLED  "
-                            )
-                            + f"TP=+{self._take_profit_frac:.0%} of upside  "
-                            + f"exit_cutoff={self._exit_cutoff_seconds}s"
-                        ),
-                    ),
+                    ("Signal",     f"{sig_dir_v}  score={signal_score_v:.1f}  conf={signal_conf_v:.1%}  n={num_signals_v}"),
+                    ("Sources",    ", ".join(contributing) if contributing else "(fallback)"),
+                    ("ML engine",  ml_engine_state),
+                    ("Risk",       risk_str),
                     ("", ""),
-                    (
-                        "Session",
-                        f"trades={session_total}  pnl=${session_pnl:+.4f}  "
-                        f"open={len(self._open_positions)}  pending={len(self._pending_orders)}",
-                    ),
+                    ("Session",    f"trades={session_total}  pnl=${session_pnl:+.4f}  open={len(self._open_positions)}"),
                 ],
+                is_simulation=False,
+                level="warning",
             )
 
             market_end_ts = 0
@@ -2300,42 +3064,23 @@ class IntegratedBTCStrategy(Strategy):
         except Exception as e:
             logger.warning(f"Failed to record live fill in risk engine: {e}")
 
-        # Payoff-relative TP for binary outcome tokens.
-        # The token can only move within [0, 1], so the OLD math
-        # ("TP = price * (1 + tp_pct)") clamped to 0.99 and fired
-        # immediately at fills near 1.0. Instead:
-        #
-        #   TP price = entry + tp_frac * (1 - entry)
-        #              fraction of the remaining upside we want to take
-        #
-        # For both LONG (YES bought) and SHORT (NO bought) the held token's
-        # price falling = losing, so the same direction logic applies.
+        # Payoff-relative TP/SL — shared with paper simulation via
+        # ``_compute_exit_levels``.
+        sl_enabled = bool(pending.get("stop_loss_enabled", self._stop_loss_enabled))
+        stop_loss, take_profit, sl_enabled = self._compute_exit_levels(
+            fill_price,
+            stop_loss_enabled=sl_enabled,
+            stop_loss_frac=pending.get("stop_loss_frac", self._stop_loss_frac),
+            take_profit_frac=pending.get("take_profit_frac", self._take_profit_frac),
+        )
+        sl_frac = Decimal(str(
+            pending.get("stop_loss_frac",
+                pending.get("stop_loss_pct", self._stop_loss_frac))
+        )) if sl_enabled else Decimal("0")
         tp_frac = Decimal(str(
             pending.get("take_profit_frac",
                 pending.get("take_profit_pct", self._take_profit_frac))
         ))
-        remaining_upside = max(Decimal("0"), Decimal("1") - fill_price)
-        take_profit = min(Decimal("0.99"), fill_price + tp_frac * remaining_upside)
-        if take_profit - fill_price < Decimal("0.01"):
-            take_profit = min(Decimal("0.99"), fill_price + Decimal("0.01"))
-
-        # Stop-loss is OPT-IN via ENABLE_STOP_LOSS=true.
-        # When disabled we set the SL price to Decimal(0), which the
-        # exit handler treats as "never fires" because a token bid can
-        # only go to 0 at settlement (and we skip exits in the last
-        # _exit_cutoff_seconds anyway).
-        sl_enabled = bool(pending.get("stop_loss_enabled", self._stop_loss_enabled))
-        if sl_enabled:
-            sl_frac = Decimal(str(
-                pending.get("stop_loss_frac",
-                    pending.get("stop_loss_pct", self._stop_loss_frac))
-            ))
-            stop_loss = max(Decimal("0.01"), fill_price - sl_frac * fill_price)
-            if fill_price - stop_loss < Decimal("0.01"):
-                stop_loss = max(Decimal("0.01"), fill_price - Decimal("0.01"))
-        else:
-            sl_frac = Decimal("0")
-            stop_loss = Decimal("0")
 
         position = {
             "instrument_id": pending["instrument_id"],
@@ -2703,13 +3448,21 @@ class IntegratedBTCStrategy(Strategy):
                     continue
 
             self._open_positions.pop(entry_id, None)
-            self._close_live_position(
-                entry_id=entry_id,
-                position=position,
-                exit_price=settle_price,
-                exit_order_id=None,
-                close_reason=close_reason,
-            )
+            if position.get("is_paper"):
+                self._close_paper_position(
+                    entry_id=entry_id,
+                    position=position,
+                    exit_price=settle_price,
+                    close_reason=close_reason,
+                )
+            else:
+                self._close_live_position(
+                    entry_id=entry_id,
+                    position=position,
+                    exit_price=settle_price,
+                    exit_order_id=None,
+                    close_reason=close_reason,
+                )
 
     def on_order_denied(self, event) -> None:
         client_id = str(getattr(event, "client_order_id", "?"))
@@ -2812,9 +3565,19 @@ class IntegratedBTCStrategy(Strategy):
             if position["filled_qty"] <= 0:
                 continue
 
-            # Skip exits in the final seconds before settlement: the FAK is
-            # likely to fail and the binary outcome is about to pay out.
+            # Force-sell at the 14:30 mark (30s before settlement).
+            # The entry window closes at second 870, so any open position
+            # must be exited here rather than held to binary settlement.
             if end_ts and (end_ts - now_ts) <= self._exit_cutoff_seconds:
+                if not position["exit_in_flight"]:
+                    logger.info(
+                        f"TIME-EXIT triggered for {position.get('label', '')} "
+                        f"— forced sell at 14:30 ({self._exit_cutoff_seconds}s before settlement)"
+                    )
+                    if position.get("is_paper"):
+                        self._simulate_paper_exit(entry_id, position, bid, "TIME-EXIT")
+                    else:
+                        self._submit_exit_order(entry_id, position, "TIME-EXIT")
                 continue
 
             stop_loss = position["stop_loss"]
@@ -2840,7 +3603,9 @@ class IntegratedBTCStrategy(Strategy):
                 f"tp=${float(take_profit):.4f})"
             )
 
-            self._submit_exit_order(entry_id, position, trigger)
+            self._simulate_paper_exit(entry_id, position, bid, trigger) \
+                if position.get("is_paper") \
+                else self._submit_exit_order(entry_id, position, trigger)
 
     def _submit_exit_order(self, entry_id: str, position: dict, reason: str) -> None:
         """Submit a market SELL for the held token quantity to close ``position``."""
@@ -2974,7 +3739,23 @@ class IntegratedBTCStrategy(Strategy):
 
     def on_stop(self) -> None:
         logger.info("Integrated BTC strategy stopped")
-        logger.info(f"Total paper trades recorded: {len(self.paper_trades)}")
+
+        # Final settlement sweep for any position whose market has already ended.
+        if self._open_positions:
+            now = datetime.now(timezone.utc)
+            self._settle_open_positions(now)
+
+        p_wins = sum(1 for t in self.paper_trades if t.outcome == "WIN")
+        p_losses = sum(1 for t in self.paper_trades if t.outcome == "LOSS")
+        p_pending = sum(1 for t in self.paper_trades if t.outcome == "PENDING")
+        p_pnl = sum(
+            t.pnl_usd for t in self.paper_trades if t.outcome in ("WIN", "LOSS", "BREAKEVEN")
+        )
+        logger.info(
+            f"Paper trades recorded: {len(self.paper_trades)} "
+            f"({p_wins}W / {p_losses}L / {p_pending} pending)  "
+            f"cumulative P&L=${p_pnl:+.4f}"
+        )
         if self.live_trades:
             wins = sum(1 for t in self.live_trades if t.outcome == "WIN")
             losses = sum(1 for t in self.live_trades if t.outcome == "LOSS")

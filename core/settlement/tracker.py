@@ -88,9 +88,17 @@ class SettlementTracker:
         self._thread: Optional[threading.Thread] = None
         self._running = False
         self._ml_engine = None
+        self._rest_warned = False
 
         if WEB3_AVAILABLE and self.rpc_url:
             self._connect()
+
+        if self._feed is None:
+            logger.info(
+                "SettlementTracker: Chainlink feed unavailable "
+                "(no ETH_RPC_URL or web3) — using REST BTC price fallback so "
+                "outcomes are still recorded for ML training."
+            )
 
     def _connect(self) -> bool:
         try:
@@ -113,16 +121,64 @@ class SettlementTracker:
             return False
 
     def _get_btc_price(self) -> Optional[float]:
-        if self._feed is None:
-            return None
+        """Return the current BTC/USD price.
+
+        Prefers the on-chain Chainlink feed (authoritative for how Polymarket
+        resolves these markets). Falls back to a public REST quote so the
+        settlement loop — and therefore ML label collection — keeps working
+        even when no ``ETH_RPC_URL`` is configured.
+        """
+        if self._feed is not None:
+            try:
+                data = self._feed.functions.latestRoundData().call()
+                return float(data[1]) / (10 ** self._decimals)
+            except Exception as e:
+                logger.warning(f"Chainlink price fetch failed: {e} — trying REST fallback")
+
+        return self._get_btc_price_rest()
+
+    def _get_btc_price_rest(self) -> Optional[float]:
+        """Fetch BTC/USD from public REST APIs (no auth, synchronous)."""
+        endpoints = (
+            ("Coinbase", "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+             lambda j: float(j["data"]["amount"])),
+            ("Binance", "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+             lambda j: float(j["price"])),
+        )
         try:
-            data = self._feed.functions.latestRoundData().call()
-            return float(data[1]) / (10 ** self._decimals)
-        except Exception as e:
-            logger.warning(f"Chainlink price fetch failed: {e}")
-            return None
+            import httpx
+        except ImportError:
+            httpx = None
+
+        for name, url, parse in endpoints:
+            try:
+                if httpx is not None:
+                    with httpx.Client(timeout=6.0) as client:
+                        resp = client.get(url)
+                        resp.raise_for_status()
+                        return parse(resp.json())
+                else:
+                    import json as _json
+                    import urllib.request
+                    with urllib.request.urlopen(url, timeout=6.0) as r:
+                        return parse(_json.loads(r.read().decode()))
+            except Exception as e:
+                if not self._rest_warned:
+                    logger.warning(f"REST BTC price ({name}) failed: {e}")
+        self._rest_warned = True
+        return None
 
     # ── Public API ────────────────────────────────────────────────────────────
+
+    def get_current_btc_price(self) -> Optional[float]:
+        """Public accessor for the current BTC/USD price.
+
+        Returns the on-chain Chainlink price when an ``ETH_RPC_URL`` is
+        configured, otherwise a public REST quote. Exposed so other components
+        (e.g. the signal recorder) can settle outcomes against the *same* price
+        source the bot itself uses, without duplicating the fetch logic.
+        """
+        return self._get_btc_price()
 
     def start_tracking(self) -> None:
         if self._running:
@@ -266,6 +322,7 @@ class SettlementTracker:
             settled  = [p for p in self._pending if p.settled]
         return {
             "chainlink_connected": self._feed is not None,
+            "price_source": "chainlink" if self._feed is not None else "rest_fallback",
             "pending_settlements": len(pending),
             "settled_today": len(settled),
             "rpc_configured": bool(self.rpc_url),

@@ -3,7 +3,7 @@
     {
       "name": "DS_PROMETHEUS",
       "label": "Prometheus",
-      "description": "Instance scraping the bot exporter (e.g. host:8000/metrics)",
+      "description": "Prometheus instance scraping the bot exporter on port 8000/metrics",
       "type": "datasource",
       "pluginId": "prometheus",
       "pluginName": "Prometheus"
@@ -11,15 +11,15 @@
   ],
   "overwrite": true,
   "dashboard": {
-    "uid": "polymarket-ai-trading",
-    "title": "Polymarket AI Bot — Professional trading analytics",
-    "description": "P&L, risk, signal quality, execution flow, and order health. Uses metrics from monitoring/grafana_exporter.py.",
-    "tags": ["polymarket", "prometheus", "trading"],
+    "uid": "polymarket-ai-trading-v2",
+    "title": "Polymarket AI Bot — Full Analytics",
+    "description": "P&L, risk-adjusted returns, drawdown, signal processors, ML engine, order flow. Source: monitoring/metrics_exporter.py @ port 8000.",
+    "tags": ["polymarket", "prometheus", "trading", "signals"],
     "timezone": "browser",
     "schemaVersion": 39,
-    "version": 1,
-    "refresh": "5s",
-    "time": { "from": "now-24h", "to": "now" },
+    "version": 2,
+    "refresh": "1s",
+    "time": { "from": "now-6h", "to": "now" },
     "timepicker": {},
     "editable": true,
     "graphTooltip": 1,
@@ -41,773 +41,733 @@
       ]
     },
     "panels": [
+
+      { "id": 100, "type": "row", "title": "⚡ Portfolio Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false },
+
       {
-        "id": 1,
-        "type": "row",
-        "title": "Overview — P&L & quality",
-        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
-        "collapsed": false
-      },
-      {
-        "id": 2,
-        "title": "Capital",
-        "type": "stat",
+        "id": 1, "title": "Capital", "type": "stat",
         "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_current_capital",
-            "legendFormat": "__auto",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "currencyUSD",
-            "decimals": 2,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "yellow", "value": 900 },
-                { "color": "green", "value": 1000 }
-              ]
-            }
-          },
-          "overrides": []
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "area",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-          "orientation": "horizontal"
-        }
+        "targets": [{ "refId": "A", "expr": "trading_current_capital", "legendFormat": "__auto", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 900 }, { "color": "green", "value": 1000 }] } } },
+        "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 3,
-        "title": "Total P&L",
-        "type": "stat",
+        "id": 2, "title": "Total P&L", "type": "stat",
         "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_total_pnl",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "currencyUSD",
-            "decimals": 2,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "orange", "value": -0.001 },
-                { "color": "green", "value": 0.001 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "area",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-          "orientation": "horizontal"
-        }
+        "targets": [{ "refId": "A", "expr": "trading_total_pnl", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": -0.001 }, { "color": "green", "value": 0.001 }] } } },
+        "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 4,
-        "title": "ROI %",
-        "type": "stat",
+        "id": 3, "title": "ROI %", "type": "stat",
         "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_roi",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "decimals": 2,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "orange", "value": -0.01 },
-                { "color": "green", "value": 0.01 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_roi", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": -1 }, { "color": "green", "value": 0 }] } } },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 5,
-        "title": "Expectancy / trade",
-        "type": "stat",
+        "id": 4, "title": "Daily ROI %", "type": "stat",
         "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_expectancy_usd",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "currencyUSD",
-            "decimals": 3,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "yellow", "value": -0.001 },
-                { "color": "green", "value": 0.001 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "area",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_daily_roi", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": -0.5 }, { "color": "green", "value": 0 }] } } },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 6,
-        "title": "Profit factor",
-        "type": "stat",
+        "id": 5, "title": "7-day ROI %", "type": "stat",
         "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
-        "description": "Gross winning $ / |gross losing $|. High when payoffs dominate losses.",
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_profit_factor",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "decimals": 2,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "yellow", "value": 1 },
-                { "color": "green", "value": 1.25 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_weekly_roi", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": -2 }, { "color": "green", "value": 0 }] } } },
+        "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 7,
-        "title": "Avg hold",
-        "type": "stat",
+        "id": 6, "title": "30-day ROI %", "type": "stat",
         "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
-        "description": "Average seconds in position for closed trades.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_monthly_roi", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": -5 }, { "color": "green", "value": 0 }] } } },
+        "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+
+      { "id": 101, "type": "row", "title": "📐 Risk-Adjusted Metrics", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "collapsed": false },
+
+      {
+        "id": 10, "title": "Sharpe Ratio", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 0, "y": 7 },
+        "description": "Annualised Sharpe (trade-level returns). Target > 1.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_sharpe_ratio", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 2, "min": -3, "max": 5, "thresholds": { "mode": "absolute", "steps": [{ "color": "dark-red", "value": null }, { "color": "orange", "value": 0 }, { "color": "yellow", "value": 0.5 }, { "color": "green", "value": 1 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 11, "title": "Sortino Ratio", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 6, "y": 7 },
+        "description": "Like Sharpe but only penalises downside volatility.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_sortino_ratio", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 2, "min": -3, "max": 10, "thresholds": { "mode": "absolute", "steps": [{ "color": "dark-red", "value": null }, { "color": "orange", "value": 0 }, { "color": "yellow", "value": 1 }, { "color": "green", "value": 2 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 12, "title": "Calmar Ratio", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 12, "y": 7 },
+        "description": "Annualised ROI ÷ max drawdown. High = good recovery.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_calmar_ratio", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 2, "min": -2, "max": 8, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0 }, { "color": "green", "value": 1 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 13, "title": "Kelly Fraction", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 18, "y": 7 },
+        "description": "Optimal bet fraction 0–0.5. Use half-Kelly in practice.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_kelly_fraction", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 3, "min": 0, "max": 0.5, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.05 }, { "color": "green", "value": 0.15 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+
+      { "id": 102, "type": "row", "title": "📉 Drawdown & Capital", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "collapsed": false },
+
+      {
+        "id": 20, "title": "Max Drawdown %", "type": "gauge",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 15 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_max_drawdown", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "min": 0, "max": 50, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "orange", "value": 10 }, { "color": "red", "value": 20 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 21, "title": "Max Drawdown USD", "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 6, "y": 15 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_max_drawdown_usd", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2, "color": { "fixedColor": "orange", "mode": "fixed" } } },
+        "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 22, "title": "Peak Capital", "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 12, "y": 15 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_peak_capital", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } },
+        "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 23, "title": "Recovery Factor", "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 18, "y": 15 },
+        "description": "Net P&L ÷ max drawdown USD. > 1 = fully recovered.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_recovery_factor", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0 }, { "color": "green", "value": 1 }] } } },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+
+      { "id": 103, "type": "row", "title": "🎲 Trade Statistics", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }, "collapsed": false },
+
+      {
+        "id": 30, "title": "Win Rate %", "type": "gauge",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 22 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_win_rate", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 40 }, { "color": "green", "value": 55 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 31, "title": "Profit Factor", "type": "stat",
+        "gridPos": { "h": 6, "w": 4, "x": 6, "y": 22 },
+        "description": "Gross profit ÷ gross loss. > 1.25 is healthy.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_profit_factor", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 1 }, { "color": "green", "value": 1.25 }] } } },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 32, "title": "Expectancy / Trade", "type": "stat",
+        "gridPos": { "h": 6, "w": 4, "x": 10, "y": 22 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_expectancy_usd", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 3, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": -0.001 }, { "color": "green", "value": 0.001 }] } } },
+        "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 33, "title": "Avg Win / Avg Loss", "type": "stat",
+        "gridPos": { "h": 6, "w": 4, "x": 14, "y": 22 },
+        "description": "Reward:Risk ratio from closed trades.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_avg_win_usd / clamp_min(trading_avg_loss_usd, 0.0001)", "legendFormat": "Win:Loss", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "green", "value": 1.5 }] } } },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 34, "title": "Streaks", "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 18, "y": 22 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_avg_hold_seconds",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "trading_consecutive_wins",   "legendFormat": "Consec Wins",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_consecutive_losses", "legendFormat": "Consec Losses", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
+        "fieldConfig": { "defaults": { "decimals": 0 }, "overrides": [{ "matcher": { "id": "byName", "options": "Consec Wins" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }, { "matcher": { "id": "byName", "options": "Consec Losses" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }] },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "vertical" }
+      },
+
+      { "id": 104, "type": "row", "title": "🤖 Signal Processors — Live Scores", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }, "collapsed": false },
+
+      {
+        "id": 40, "title": "OHLCV Momentum", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 0, "y": 29 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"OHLCVMomentum\"}", "legendFormat": "Score", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 41, "title": "Tick Velocity", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 5, "y": 29 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"TickVelocity\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 42, "title": "CVD + Order Book", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 10, "y": 29 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"CVDOrderBook\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 43, "title": "Order Book Imbalance", "type": "gauge",
+        "gridPos": { "h": 5, "w": 4, "x": 15, "y": 29 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"OrderBookImbalance\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 44, "title": "Liquidations", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 19, "y": 29 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"Liquidations\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "orange", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 45, "title": "Spike Detection", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 0, "y": 34 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"SpikeDetection\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 46, "title": "Price Divergence", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 5, "y": 34 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"PriceDivergence\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 47, "title": "Funding Rate + OI", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 10, "y": 34 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"FundingRateOI\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 48, "title": "Deribit PCR", "type": "gauge",
+        "gridPos": { "h": 5, "w": 4, "x": 15, "y": 34 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"DeribitPCR\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 49, "title": "Sentiment Analysis", "type": "gauge",
+        "gridPos": { "h": 5, "w": 5, "x": 19, "y": 34 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_processor_score{processor=\"SentimentAnalysis\"}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 75 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+
+      { "id": 105, "type": "row", "title": "📊 Signal Processor — Direction & Confidence", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }, "collapsed": false },
+
+      {
+        "id": 50, "title": "All Processor Scores (time-series)", "type": "timeseries",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 40 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "signal_processor_score{processor=\"OHLCVMomentum\"}",    "legendFormat": "OHLCV Momentum",    "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "signal_processor_score{processor=\"TickVelocity\"}",       "legendFormat": "Tick Velocity",      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "signal_processor_score{processor=\"CVDOrderBook\"}",       "legendFormat": "CVD + Order Book",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "D", "expr": "signal_processor_score{processor=\"OrderBookImbalance\"}", "legendFormat": "OB Imbalance",       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "E", "expr": "signal_processor_score{processor=\"Liquidations\"}",       "legendFormat": "Liquidations",       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "F", "expr": "signal_processor_score{processor=\"SpikeDetection\"}",     "legendFormat": "Spike Detection",    "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "G", "expr": "signal_processor_score{processor=\"PriceDivergence\"}",    "legendFormat": "Price Divergence",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "H", "expr": "signal_processor_score{processor=\"FundingRateOI\"}",      "legendFormat": "Funding + OI",       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "I", "expr": "signal_processor_score{processor=\"DeribitPCR\"}",         "legendFormat": "Deribit PCR",        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "J", "expr": "signal_processor_score{processor=\"SentimentAnalysis\"}",  "legendFormat": "Sentiment",          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "fillOpacity": 5, "lineWidth": 2 }, "decimals": 1, "min": 0, "max": 100 } },
+        "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+      },
+      {
+        "id": 51, "title": "Processor Direction (1=Bull, -1=Bear, 0=Neutral)", "type": "timeseries",
+        "gridPos": { "h": 7, "w": 12, "x": 0, "y": 49 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "signal_processor_direction{processor=\"OHLCVMomentum\"}",    "legendFormat": "OHLCV", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "signal_processor_direction{processor=\"SpikeDetection\"}",    "legendFormat": "Spike", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "signal_processor_direction{processor=\"PriceDivergence\"}",   "legendFormat": "Divergence", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "D", "expr": "signal_processor_direction{processor=\"FundingRateOI\"}",     "legendFormat": "FundingOI", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "E", "expr": "signal_processor_direction{processor=\"SentimentAnalysis\"}", "legendFormat": "Sentiment", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 }, "decimals": 0, "min": -1, "max": 1 } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 52, "title": "Signal Fires Total (by processor)", "type": "bargauge",
+        "gridPos": { "h": 7, "w": 12, "x": 12, "y": 49 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "signal_processor_fires_total", "legendFormat": "{{processor}}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "decimals": 0, "color": { "mode": "palette-classic-by-name" } } },
+        "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "showUnfilled": true }
+      },
+
+      { "id": 106, "type": "row", "title": "🔬 Processor-Specific Indicators", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 }, "collapsed": false },
+
+      {
+        "id": 60, "title": "OHLCV RSI", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 57 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_ohlcv_rsi", "legendFormat": "RSI", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
         "fieldConfig": {
-          "defaults": { "unit": "s", "decimals": 1 }
+          "defaults": { "decimals": 1, "min": 0, "max": 100, "custom": { "lineWidth": 2, "fillOpacity": 10 } },
+          "overrides": [{ "matcher": { "id": "byName", "options": "RSI" }, "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 30 }, { "color": "green", "value": 50 }, { "color": "orange", "value": 70 }, { "color": "red", "value": 80 }] } }, { "id": "custom.thresholdsStyle", "value": { "mode": "dashed" } }] }]
         },
-        "options": {
-          "colorMode": "none",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
       },
       {
-        "id": 8,
-        "type": "row",
-        "title": "Risk-adjusted metrics",
-        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
-        "collapsed": false
+        "id": 61, "title": "OHLCV MACD Histogram", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 57 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_ohlcv_macd_histogram", "legendFormat": "MACD Hist", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 20 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
       },
       {
-        "id": 9,
-        "title": "Sharpe (simplified)",
-        "type": "gauge",
-        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 7 },
-        "description": "From performance_tracker trade returns; illustrative only.",
+        "id": 62, "title": "CVD Delta", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 57 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_cvd_delta", "legendFormat": "CVD", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 15 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      {
+        "id": 63, "title": "Tick Velocity (30s / 60s)", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 63 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_sharpe_ratio",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "signal_tick_velocity_30s", "legendFormat": "30s velocity", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "signal_tick_velocity_60s", "legendFormat": "60s velocity", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
-        "fieldConfig": {
-          "defaults": {
-            "decimals": 2,
-            "min": -2,
-            "max": 4,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "dark-red", "value": null },
-                { "color": "orange", "value": 0 },
-                { "color": "green", "value": 1 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "orientation": "auto",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-          "showThresholdLabels": false,
-          "showThresholdMarkers": true
-        }
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
       },
       {
-        "id": 10,
-        "title": "Max drawdown %",
-        "type": "gauge",
-        "gridPos": { "h": 6, "w": 6, "x": 6, "y": 7 },
+        "id": 64, "title": "Order Book Bid/Ask Ratio", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 63 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_orderbook_bid_ask_ratio", "legendFormat": "Bid/Ask Ratio", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 3, "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      {
+        "id": 65, "title": "Liquidation Cascade Volume", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 63 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_liquidation_cascade_volume", "legendFormat": "Liq Volume", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "custom": { "lineWidth": 2, "fillOpacity": 20 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      {
+        "id": 66, "title": "Spike Magnitude", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 69 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "signal_spike_magnitude", "legendFormat": "Spike Mag", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      {
+        "id": 67, "title": "Funding Rate & OI Change %", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 69 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_max_drawdown",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "signal_funding_rate",    "legendFormat": "Funding Rate", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "signal_oi_change_pct",   "legendFormat": "OI Change %",  "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "decimals": 2,
-            "min": 0,
-            "max": 50,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 5 },
-                { "color": "orange", "value": 10 },
-                { "color": "red", "value": 20 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "orientation": "auto",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-          "showThresholdMarkers": true
-        }
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 }, "unit": "percentunit" } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
       },
       {
-        "id": 11,
-        "title": "Win rate %",
-        "type": "gauge",
-        "gridPos": { "h": 6, "w": 6, "x": 12, "y": 7 },
+        "id": 68, "title": "Deribit PCR & Fear/Greed Index", "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 69 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_win_rate",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "signal_pcr_value",          "legendFormat": "Put/Call Ratio",  "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "signal_fear_greed_index",   "legendFormat": "Fear & Greed",    "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "decimals": 1,
-            "min": 0,
-            "max": 100,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "yellow", "value": 40 },
-                { "color": "green", "value": 55 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "orientation": "auto",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-          "showThresholdMarkers": true
-        }
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+
+      { "id": 107, "type": "row", "title": "🧠 ML Engine & Fusion", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 75 }, "collapsed": false },
+
+      {
+        "id": 70, "title": "Fusion Score", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 0, "y": 76 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_fusion_score", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 1, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 70 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
       },
       {
-        "id": 12,
-        "title": "Risk utilization %",
-        "type": "gauge",
-        "gridPos": { "h": 6, "w": 6, "x": 18, "y": 7 },
+        "id": 71, "title": "Fusion Confidence", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 6, "y": 76 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_fusion_confidence", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 3, "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "green", "value": 0.7 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 72, "title": "ML Edge Score", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 12, "y": 76 },
+        "description": "ML predicted edge vs Polymarket market price. Positive = favourable bet.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_ml_edge_score", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 4, "min": -0.3, "max": 0.3, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": -0.05 }, { "color": "green", "value": 0.1 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 73, "title": "ML p(UP)", "type": "gauge",
+        "gridPos": { "h": 7, "w": 6, "x": 18, "y": 76 },
+        "description": "XGBoost predicted probability that BTC resolves UP.",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_ml_prediction", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 3, "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.4 }, { "color": "green", "value": 0.6 }] } } },
+        "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
+      },
+      {
+        "id": 74, "title": "Fusion Score & ML Edge vs time", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 83 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_risk_utilization",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "trading_fusion_score",    "legendFormat": "Fusion Score",    "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_ml_edge_score",   "legendFormat": "ML Edge",         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "trading_ml_prediction",   "legendFormat": "ML p(UP)",        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "decimals": 1,
-            "min": 0,
-            "max": 120,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 60 },
-                { "color": "orange", "value": 80 },
-                { "color": "red", "value": 95 }
-              ]
-            }
-          }
-        },
-        "options": {
-          "orientation": "auto",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-          "showThresholdMarkers": true
-        }
+        "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
       },
       {
-        "id": 13,
-        "type": "row",
-        "title": "Execution & positioning",
-        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
-        "collapsed": false
-      },
-      {
-        "id": 14,
-        "title": "Trades closed (counter)",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 14 },
+        "id": 75, "title": "Signals per fusion pass", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 83 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_trades_closed_total",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "decimals": 0, "unit": "none" }
-        },
-        "options": {
-          "colorMode": "none",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_fusion_num_signals", "legendFormat": "Signals used", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 0, "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
       },
+
+      { "id": 108, "type": "row", "title": "📦 Execution & Order Flow", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 91 }, "collapsed": false },
+
       {
-        "id": 15,
-        "title": "Wins",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 14 },
+        "id": 80, "title": "Trades (totals)", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 92 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_winning_trades_total",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "decimals": 0, "unit": "none", "color": { "fixedColor": "green", "mode": "fixed" } }
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_trades_closed_total", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 0 } },
+        "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 16,
-        "title": "Losses",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 14 },
+        "id": 81, "title": "Wins", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 92 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_losing_trades_total",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "decimals": 0, "unit": "none", "color": { "fixedColor": "red", "mode": "fixed" } }
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_winning_trades_total", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 0, "color": { "fixedColor": "green", "mode": "fixed" } } },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 17,
-        "title": "Open positions",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 14 },
+        "id": 82, "title": "Losses", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 92 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_open_positions",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "decimals": 0 }
-        },
-        "options": {
-          "colorMode": "none",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_losing_trades_total", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 0, "color": { "fixedColor": "red", "mode": "fixed" } } },
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 18,
-        "title": "Exposure USD",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 14 },
+        "id": 83, "title": "Open Positions", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 92 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_total_exposure",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "unit": "currencyUSD", "decimals": 2 }
-        },
-        "options": {
-          "colorMode": "none",
-          "graphMode": "area",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_open_positions", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 0 } },
+        "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 19,
-        "title": "Win % (counter-based)",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 14 },
-        "description": "Matches Prometheus counters incremented on exit.",
+        "id": 84, "title": "Exposure USD", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 92 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "100 * (trading_winning_trades_total / clamp_min(trading_trades_closed_total, 1))",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "unit": "percent", "decimals": 1 }
-        },
-        "options": {
-          "colorMode": "value",
-          "graphMode": "none",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_total_exposure", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } },
+        "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 20,
-        "type": "row",
-        "title": "Signal quality & latency",
-        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
-        "collapsed": false
-      },
-      {
-        "id": 21,
-        "title": "Avg signal score",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 8, "x": 0, "y": 19 },
+        "id": 85, "title": "Risk Utilisation %", "type": "gauge",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 92 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_avg_signal_score",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "decimals": 1, "min": 0, "max": 100 }
-        },
-        "options": {
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
+        "targets": [{ "refId": "A", "expr": "trading_risk_utilization", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "min": 0, "max": 120, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "orange", "value": 80 }, { "color": "red", "value": 95 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true }
       },
+
+      { "id": 110, "type": "row", "title": "🎯 Latest Order (snapshot at submit)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 96 }, "collapsed": false },
+
       {
-        "id": 22,
-        "title": "Avg confidence",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 8, "x": 8, "y": 19 },
+        "id": 111, "title": "Direction (UP / DOWN)", "type": "stat",
+        "description": "1 = UP / YES (long), -1 = DOWN / NO (short)",
+        "gridPos": { "h": 5, "w": 4, "x": 0, "y": 97 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_avg_signal_confidence",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "decimals": 3, "min": 0, "max": 1 }
-        },
-        "options": {
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
-      },
-      {
-        "id": 23,
-        "title": "Mean hold duration (histogram)",
-        "type": "stat",
-        "gridPos": { "h": 4, "w": 8, "x": 16, "y": 19 },
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_trade_duration_seconds_sum / clamp_min(trading_trade_duration_seconds_count, 1)",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "unit": "s", "decimals": 2 }
-        },
-        "options": {
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-        }
-      },
-      {
-        "id": 24,
-        "type": "row",
-        "title": "Order flow",
-        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
-        "collapsed": false
-      },
-      {
-        "id": 25,
-        "title": "Orders (totals)",
-        "type": "bargauge",
-        "gridPos": { "h": 7, "w": 24, "x": 0, "y": 24 },
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_orders_placed_total",
-            "legendFormat": "Placed",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "B",
-            "expr": "trading_orders_filled_total",
-            "legendFormat": "Filled",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "C",
-            "expr": "trading_orders_rejected_total",
-            "legendFormat": "Rejected",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
+        "targets": [{ "refId": "A", "expr": "trading_last_order_direction", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
         "fieldConfig": {
           "defaults": {
             "decimals": 0,
-            "color": { "mode": "palette-classic-by-name" },
-            "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
-          },
-          "overrides": []
-        },
-        "options": {
-          "displayMode": "gradient",
-          "orientation": "horizontal",
-          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-          "showUnfilled": true
-        }
-      },
-      {
-        "id": 26,
-        "type": "row",
-        "title": "Time series",
-        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
-        "collapsed": false
-      },
-      {
-        "id": 27,
-        "title": "Trade exit rate",
-        "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "targets": [
-          {
-            "refId": "A",
-            "expr": "rate(trading_trades_closed_total[5m]) * 60",
-            "legendFormat": "Exits/min",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "B",
-            "expr": "rate(trading_winning_trades_total[5m]) * 60",
-            "legendFormat": "Wins/min",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "C",
-            "expr": "rate(trading_losing_trades_total[5m]) * 60",
-            "legendFormat": "Losses/min",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "custom": { "fillOpacity": 12, "lineWidth": 2, "spanNulls": false },
-            "unit": "cpm",
-            "decimals": 3
+            "mappings": [
+              { "type": "value", "options": { "1": { "text": "▲ UP (YES)", "color": "green" } } },
+              { "type": "value", "options": { "-1": { "text": "▼ DOWN (NO)", "color": "red" } } },
+              { "type": "special", "options": { "match": "null", "result": { "text": "—" } } }
+            ]
           }
         },
-        "options": {
-          "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-          "tooltip": { "mode": "multi", "sort": "desc" }
-        }
+        "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
       },
       {
-        "id": 28,
-        "title": "Capital & P&L trajectory (scraped gauges)",
-        "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
-        "description": "Charts update at Prometheus scrape cadence.",
+        "id": 112, "title": "Order size", "type": "stat",
+        "gridPos": { "h": 5, "w": 4, "x": 4, "y": 97 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_size_usd", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } },
+        "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 113, "title": "Entry price (token)", "type": "stat",
+        "gridPos": { "h": 5, "w": 4, "x": 8, "y": 97 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_entry_price", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 4, "min": 0, "max": 1 } },
+        "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 114, "title": "Poly YES price", "type": "stat",
+        "gridPos": { "h": 5, "w": 4, "x": 12, "y": 97 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_poly_yes_price", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 4, "min": 0, "max": 1 } },
+        "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 115, "title": "Token qty", "type": "stat",
+        "gridPos": { "h": 5, "w": 4, "x": 16, "y": 97 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_qty_tokens", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 4 } },
+        "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 116, "title": "Time to settle", "type": "stat",
+        "gridPos": { "h": 5, "w": 4, "x": 20, "y": 97 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_seconds_to_settle", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "s", "decimals": 0 } },
+        "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 117, "title": "BTC spot @ entry", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 102 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_btc_spot_usd", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 118, "title": "ML edge @ entry", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 102 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_ml_edge", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 4 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 119, "title": "Signal score / conf", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 102 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_current_capital",
-            "legendFormat": "Capital $",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "B",
-            "expr": "trading_total_pnl",
-            "legendFormat": "Total PnL $",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "C",
-            "expr": "trading_roi",
-            "legendFormat": "ROI %",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "trading_last_order_signal_score", "legendFormat": "Score", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_last_order_signal_confidence", "legendFormat": "Conf", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
+        "fieldConfig": { "defaults": { "decimals": 2 } },
+        "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "vertical" }
+      },
+      {
+        "id": 120, "title": "Bid / Ask / Spread", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 102 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "trading_last_order_bid_price", "legendFormat": "Bid", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_last_order_ask_price", "legendFormat": "Ask", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "trading_last_order_spread_pct", "legendFormat": "Spread %", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "decimals": 4 }, "overrides": [{ "matcher": { "id": "byName", "options": "Spread %" }, "properties": [{ "id": "unit", "value": "percent" }] }] },
+        "options": { "orientation": "vertical", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 121, "title": "Mode", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 102 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "trading_last_order_is_simulation", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
         "fieldConfig": {
           "defaults": {
-            "custom": { "fillOpacity": 10, "lineWidth": 2 },
-            "decimals": 2
-          },
+            "mappings": [
+              { "type": "value", "options": { "1": { "text": "SIMULATION" } } },
+              { "type": "value", "options": { "0": { "text": "LIVE" } } }
+            ]
+          }
+        },
+        "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 122, "title": "Orders by direction", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 102 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "refId": "A", "expr": "sum by (direction) (trading_orders_submitted_total)", "legendFormat": "{{direction}}", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }],
+        "fieldConfig": { "defaults": { "decimals": 0 } },
+        "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      },
+      {
+        "id": 123, "title": "Order entry price & size over time", "type": "timeseries",
+        "gridPos": { "h": 7, "w": 24, "x": 0, "y": 106 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "trading_last_order_entry_price", "legendFormat": "Entry price", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_last_order_poly_yes_price", "legendFormat": "Poly YES", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "trading_last_order_size_usd", "legendFormat": "Size USD", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "D", "expr": "trading_last_order_direction", "legendFormat": "Direction (1=UP,-1=DOWN)", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": {
+          "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 8 } },
+          "overrides": [{ "matcher": { "id": "byName", "options": "Size USD" }, "properties": [{ "id": "custom.axisPlacement", "value": "right" }, { "id": "unit", "value": "currencyUSD" }] }]
+        },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+
+      {
+        "id": 86, "title": "Order Flow (totals)", "type": "bargauge",
+        "gridPos": { "h": 7, "w": 24, "x": 0, "y": 113 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "trading_orders_placed_total",   "legendFormat": "Placed",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_orders_filled_total",   "legendFormat": "Filled",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "trading_orders_rejected_total", "legendFormat": "Rejected", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "decimals": 0, "color": { "mode": "palette-classic-by-name" } } },
+        "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "showUnfilled": true }
+      },
+
+      { "id": 109, "type": "row", "title": "📈 Time Series — Capital, P&L, Drawdown", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 120 }, "collapsed": false },
+
+      {
+        "id": 90, "title": "Capital & P&L trajectory", "type": "timeseries",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 121 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "trading_current_capital", "legendFormat": "Capital $",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_total_pnl",       "legendFormat": "Total PnL $", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": {
+          "defaults": { "custom": { "fillOpacity": 12, "lineWidth": 2 } },
           "overrides": [
-            {
-              "matcher": { "id": "byName", "options": "Capital $" },
-              "properties": [{ "id": "unit", "value": "currencyUSD" }]
-            },
-            {
-              "matcher": { "id": "byName", "options": "Total PnL $" },
-              "properties": [{ "id": "unit", "value": "currencyUSD" }]
-            },
-            {
-              "matcher": { "id": "byName", "options": "ROI %" },
-              "properties": [{ "id": "unit", "value": "percent" }]
-            }
+            { "matcher": { "id": "byName", "options": "Capital $" },   "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+            { "matcher": { "id": "byName", "options": "Total PnL $" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] }
           ]
         },
-        "options": {
-          "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-          "tooltip": { "mode": "multi", "sort": "desc" }
-        }
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
       },
       {
-        "id": 29,
-        "title": "Sharpe / drawdown / win rate vs time",
-        "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+        "id": 91, "title": "Sharpe / Sortino / Calmar vs time", "type": "timeseries",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 121 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "trading_sharpe_ratio",
-            "legendFormat": "Sharpe",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "B",
-            "expr": "trading_max_drawdown",
-            "legendFormat": "Max DD %",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "C",
-            "expr": "trading_win_rate",
-            "legendFormat": "Win rate %",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "trading_sharpe_ratio",  "legendFormat": "Sharpe",  "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_sortino_ratio", "legendFormat": "Sortino", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "trading_calmar_ratio",  "legendFormat": "Calmar",  "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
-        "fieldConfig": {
-          "defaults": { "decimals": 2, "custom": { "fillOpacity": 10, "lineWidth": 2 } }
-        },
-        "options": {
-          "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-          "tooltip": { "mode": "multi", "sort": "desc" }
-        }
+        "fieldConfig": { "defaults": { "decimals": 2, "custom": { "fillOpacity": 8, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
       },
       {
-        "id": 30,
-        "title": "p50 / p95 hold time (histogram)",
-        "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
-        "description": "Stable when buckets have observations; widen range if noisy.",
+        "id": 92, "title": "ROI breakdown (daily / weekly / monthly)", "type": "timeseries",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 130 },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
         "targets": [
-          {
-            "refId": "A",
-            "expr": "histogram_quantile(0.50, sum(rate(trading_trade_duration_seconds_bucket[15m])) by (le))",
-            "legendFormat": "p50",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          },
-          {
-            "refId": "B",
-            "expr": "histogram_quantile(0.95, sum(rate(trading_trade_duration_seconds_bucket[15m])) by (le))",
-            "legendFormat": "p95",
-            "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
-          }
+          { "refId": "A", "expr": "trading_daily_roi",   "legendFormat": "Daily ROI %",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_weekly_roi",  "legendFormat": "7-day ROI %",   "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "trading_monthly_roi", "legendFormat": "30-day ROI %",  "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
         ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "s",
-            "decimals": 1,
-            "custom": { "fillOpacity": 8, "lineWidth": 2 }
-          }
-        },
-        "options": {
-          "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-          "tooltip": { "mode": "multi", "sort": "desc" }
-        }
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+      },
+      {
+        "id": 93, "title": "Win rate & max drawdown vs time", "type": "timeseries",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 130 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "trading_win_rate",    "legendFormat": "Win rate %",  "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "trading_max_drawdown","legendFormat": "Max DD %",    "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+      },
+      {
+        "id": 94, "title": "Trade exit rate", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 139 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "rate(trading_trades_closed_total[5m]) * 60",   "legendFormat": "Exits/min", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "rate(trading_winning_trades_total[5m]) * 60",  "legendFormat": "Wins/min",  "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "C", "expr": "rate(trading_losing_trades_total[5m]) * 60",   "legendFormat": "Losses/min","datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "unit": "cpm", "decimals": 3, "custom": { "fillOpacity": 12, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+      },
+      {
+        "id": 95, "title": "p50 / p95 hold time (histogram)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 139 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "refId": "A", "expr": "histogram_quantile(0.50, sum(rate(trading_trade_duration_seconds_bucket[15m])) by (le))", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } },
+          { "refId": "B", "expr": "histogram_quantile(0.95, sum(rate(trading_trade_duration_seconds_bucket[15m])) by (le))", "legendFormat": "p95", "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" } }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s", "decimals": 1, "custom": { "fillOpacity": 8, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
       }
     ]
   }

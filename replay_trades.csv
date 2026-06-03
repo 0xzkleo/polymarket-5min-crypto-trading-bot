@@ -1,0 +1,3 @@
+timestamp,market_slug,direction,fused_score,num_signals,poly_price,btc_entry,btc_exit,btc_up,correct,ml_p_up,pnl
+2026-05-30T12:07:11.116438+00:00,btc-updown-15m-1780142400,short,53.75,4,0.485,73492.015,73502.03,True,False,,-1.0
+2026-05-30T12:08:36.962746+00:00,btc-updown-15m-1780142400,short,73.28,5,0.495,73498.355,73502.03,True,False,,-1.0

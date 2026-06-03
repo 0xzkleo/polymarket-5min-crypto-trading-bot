@@ -26,11 +26,11 @@ class PaperTrade:
     timestamp: datetime
     direction: str          # "LONG" | "SHORT"
     size_usd: float
-    entry_price: float      # Polymarket probability at entry
-    exit_price: float       # Polymarket probability at exit
+    entry_price: float      # held-token price at entry (0-1)
+    exit_price: float       # held-token settlement price (0 or 1; entry while PENDING)
     pnl_usd: float
     pnl_pct: float
-    outcome: str            # "WIN" | "LOSS" | "PENDING"
+    outcome: str            # "PENDING" | "WIN" | "LOSS" | "BREAKEVEN" | "UNRESOLVED"
 
     # Signal context
     signal_score: float
@@ -44,6 +44,11 @@ class PaperTrade:
     btc_spot_price: float = 0.0
     vol_regime: str = ""
     funding_rate: float = 0.0
+
+    # Settlement context (mirrors LiveTrade so analytics treat paper/live alike)
+    filled_qty: float = 0.0         # tokens held = size_usd / entry_price
+    close_reason: str = ""          # "" while open; EXIT_TP | EXIT_STOP | TIME-EXIT | SETTLEMENT | ...
+    ml_trade_id: Optional[int] = None
 
     # Session tracking
     session_trade_num: int = 0
@@ -68,6 +73,9 @@ class PaperTrade:
             "btc_spot_price": self.btc_spot_price,
             "vol_regime": self.vol_regime,
             "funding_rate": round(self.funding_rate, 6),
+            "filled_qty": round(self.filled_qty, 6),
+            "close_reason": self.close_reason,
+            "ml_trade_id": self.ml_trade_id,
             "session_trade_num": self.session_trade_num,
         }
 

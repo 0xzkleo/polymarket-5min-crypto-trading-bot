@@ -72,16 +72,16 @@ class SentimentProcessor(BaseSignalProcessor):
                 strength, confidence = SignalStrength.MODERATE, 0.65
             logger.info(f"Extreme greed {score:.0f} → contrarian BEARISH")
 
-        elif score < 45:
+        elif score < 40:
             direction = SignalDirection.BULLISH
             strength, confidence = SignalStrength.WEAK, 0.55
 
-        elif score > 55:
+        elif score > 65:
             direction = SignalDirection.BEARISH
             strength, confidence = SignalStrength.WEAK, 0.55
 
         else:
-            return None
+            return None  # 40-65 is neutral — no signal
 
         if confidence < self.min_confidence:
             return None

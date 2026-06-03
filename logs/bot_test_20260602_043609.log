@@ -1,0 +1,1492 @@
+2026-06-02 04:36:09 | INFO    | __main__ | Logging to: logs/bot_test_20260602_043609.log
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | Applying Polymarket Gamma-API patches (loguru-instrumented)
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets |   platform: win32  using_httpx_fallback: True
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | [gamma] patched build_markets_query (array params)
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | [gamma] patched PolymarketInstrumentProvider.load_all_async
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | [gamma] patched PolymarketDataLoader._fetch_event_by_slug (Windows-safe httpx)
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | [gamma] all patches applied successfully
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | ================================================================================
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | [gamma] verify: build_markets_query slug is list: True
+2026-06-02 04:36:11 | INFO    | patches.gamma_markets | [gamma] verify: load_all_async is patched: True
+2026-06-02 04:36:11 | INFO    | __main__ | Starting bot: simulation=True test_mode=True grafana=True
+2026-06-02 04:36:26 | WARNING | bot.runner | Redis connection failed: Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.
+2026-06-02 04:36:26 | WARNING | bot.runner | Simulation mode will be static (from .env)
+2026-06-02 04:36:26 | INFO    | bot.runner | ================================================================================
+2026-06-02 04:36:26 | INFO    | bot.runner | LOADING BTC 15-MIN MARKETS BY SLUG
+2026-06-02 04:36:26 | INFO    | bot.runner |   Interval start: 1780389000 | Count: 98
+2026-06-02 04:36:26 | INFO    | bot.runner |   First: btc-updown-15m-1780388100  Last: btc-updown-15m-1780475400
+2026-06-02 04:36:26 | INFO    | bot.runner | ================================================================================
+2026-06-02 04:36:26 | INFO    | bot.runner | Polymarket wallet config: signature_type=2 (POLY_GNOSIS_SAFE)
+2026-06-02 04:36:26 | INFO    | bot.runner |   Funder (USDC holder): 0x23342a623A760cf11cFdc1736f8B05cf7A70A3F4
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.spike | Initialized Spike Detector: deviation=12.0%, velocity=3.0%, lookback=20
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.sentiment | Initialized Sentiment Processor: fear<25, greed>75
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.divergence | Initialized Price Divergence Processor: momentum=0.3%, extreme_fade=68%/32%
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.orderbook | Initialized OrderBook Processor: imbalance=30%, wall=20%, min_vol=$50
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.tick_velocity | Initialized Tick Velocity Processor: 60s=1.5%, 30s=1.0%
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.deribit_pcr | Initialized Deribit PCR Processor: bullish>1.2, bearish<0.7, max_dte=2d
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.liquidation | Initialized Liquidation Processor: window=60s, min=$0.5M, imbalance=65%
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.funding_oi | Initialized Funding+OI Processor: bullish<-0.0300%, bearish>0.0500%
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.cvd_orderbook | Initialized CVD+OrderBook Processor: window=900s, cvd_threshold=$5M
+2026-06-02 04:36:26 | INFO    | core.strategy.processors.ohlcv_momentum | Initialized OHLCV Momentum Processor: RSI(32.0/68.0), BB(0.15/0.85)
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Initialized Signal Fusion Engine
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Default weights: {'OHLCVMomentum': 0.25, 'CVDOrderBook': 0.2, 'TickVelocity': 0.15, 'SpikeDetection': 0.15, 'PriceDivergence': 0.1, 'SentimentAnalysis': 0.08, 'FundingRateOI': 0.07, 'default': 0.05}
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for OHLCVMomentum: 0.35
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for TickVelocity: 0.30
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for CVDOrderBook: 0.25
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for OrderBookImbalance: 0.25
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for Liquidations: 0.20
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for SpikeDetection: 0.15
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for PriceDivergence: 0.12
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for FundingRateOI: 0.06
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for DeribitPCR: 0.05
+2026-06-02 04:36:26 | INFO    | core.strategy.fusion | Set weight for SentimentAnalysis: 0.03
+2026-06-02 04:36:26 | INFO    | execution.risk_engine | Initialized Risk Engine: balance=$100.00, max_position=$1.00, max_exposure=$10.00, max_daily_loss=$25.00, max_drawdown=15%
+2026-06-02 04:36:26 | INFO    | monitoring.performance_tracker | Initialized Performance Tracker (capital=$1000.0)
+2026-06-02 04:36:26 | INFO    | feedback.learning_engine | Initialized Learning Engine (learning_rate=0.1, min_trades=10)
+2026-06-02 04:36:26 | INFO    | core.strategy.ml_engine | Initialized ML Prediction Engine: samples=9, active=False, min_edge=7%
+2026-06-02 04:36:28 | INFO    | core.settlement.tracker | SettlementTracker: connected to Chainlink feed (decimals=8)
+2026-06-02 04:36:28 | INFO    | core.recording.signal_recorder | SignalRecorder initialised (db=signal_recordings.db)
+2026-06-02 04:36:28 | INFO    | bot.strategy | ML edge gate: bet only when |p_up - poly_price| >= 7% (active once ML has 200 samples; currently 9)
+2026-06-02 04:36:28 | INFO    | execution.execution_engine | Initialized Execution Engine [DRY RUN]
+2026-06-02 04:36:28 | INFO    | monitoring.metrics_exporter | Prometheus metrics initialised — %d metric families registered
+2026-06-02 04:36:28 | INFO    | monitoring.metrics_exporter | Initialized Grafana Metrics Exporter (port 8000)
+2026-06-02 04:36:28 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:28 | INFO    | bot.strategy |   TEST MODE ACTIVE - Trading every minute!
+2026-06-02 04:36:28 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:28 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:28 | INFO    | bot.strategy | INTEGRATED BTC STRATEGY INITIALIZED
+2026-06-02 04:36:28 | INFO    | bot.strategy |   All signal processors ready
+2026-06-02 04:36:28 | INFO    | bot.strategy |   Risk engine ready
+2026-06-02 04:36:28 | INFO    | bot.strategy |   ML engine ready
+2026-06-02 04:36:28 | INFO    | bot.strategy |   $1 per trade maximum
+2026-06-02 04:36:28 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:29 | INFO    | bot.runner | Nautilus node built successfully
+2026-06-02 04:36:30 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:30 | INFO    | bot.strategy | INTEGRATED BTC STRATEGY STARTED
+2026-06-02 04:36:30 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:31 | INFO    | bot.strategy | Direct Gamma load: 96 markets parsed, 192 instruments added to cache, 0 errors.
+2026-06-02 04:36:31 | INFO    | bot.strategy | Cache empty but providers hold 192 instruments; added 192 to strategy cache.
+2026-06-02 04:36:31 | INFO    | bot.strategy | Loading BTC instruments from 192 total...
+2026-06-02 04:36:31 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:31 | INFO    | bot.strategy | FOUND 96 BTC 15-MIN MARKETS:
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [0] btc-updown-15m-1780389000: ACTIVE [YN] (starts 08:30:00, ends 08:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [1] btc-updown-15m-1780389900: FUTURE [YN] (starts 08:45:00, ends 09:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [2] btc-updown-15m-1780390800: FUTURE [YN] (starts 09:00:00, ends 09:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [3] btc-updown-15m-1780391700: FUTURE [YN] (starts 09:15:00, ends 09:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [4] btc-updown-15m-1780392600: FUTURE [YN] (starts 09:30:00, ends 09:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [5] btc-updown-15m-1780393500: FUTURE [YN] (starts 09:45:00, ends 10:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [6] btc-updown-15m-1780394400: FUTURE [YN] (starts 10:00:00, ends 10:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [7] btc-updown-15m-1780395300: FUTURE [YN] (starts 10:15:00, ends 10:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [8] btc-updown-15m-1780396200: FUTURE [YN] (starts 10:30:00, ends 10:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [9] btc-updown-15m-1780397100: FUTURE [YN] (starts 10:45:00, ends 11:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [10] btc-updown-15m-1780398000: FUTURE [YN] (starts 11:00:00, ends 11:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [11] btc-updown-15m-1780398900: FUTURE [YN] (starts 11:15:00, ends 11:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [12] btc-updown-15m-1780399800: FUTURE [YN] (starts 11:30:00, ends 11:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [13] btc-updown-15m-1780400700: FUTURE [YN] (starts 11:45:00, ends 12:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [14] btc-updown-15m-1780401600: FUTURE [YN] (starts 12:00:00, ends 12:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [15] btc-updown-15m-1780402500: FUTURE [YN] (starts 12:15:00, ends 12:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [16] btc-updown-15m-1780403400: FUTURE [YN] (starts 12:30:00, ends 12:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [17] btc-updown-15m-1780404300: FUTURE [YN] (starts 12:45:00, ends 13:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [18] btc-updown-15m-1780405200: FUTURE [YN] (starts 13:00:00, ends 13:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [19] btc-updown-15m-1780406100: FUTURE [YN] (starts 13:15:00, ends 13:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [20] btc-updown-15m-1780407000: FUTURE [YN] (starts 13:30:00, ends 13:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [21] btc-updown-15m-1780407900: FUTURE [YN] (starts 13:45:00, ends 14:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [22] btc-updown-15m-1780408800: FUTURE [YN] (starts 14:00:00, ends 14:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [23] btc-updown-15m-1780409700: FUTURE [YN] (starts 14:15:00, ends 14:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [24] btc-updown-15m-1780410600: FUTURE [YN] (starts 14:30:00, ends 14:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [25] btc-updown-15m-1780411500: FUTURE [YN] (starts 14:45:00, ends 15:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [26] btc-updown-15m-1780412400: FUTURE [YN] (starts 15:00:00, ends 15:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [27] btc-updown-15m-1780413300: FUTURE [YN] (starts 15:15:00, ends 15:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [28] btc-updown-15m-1780414200: FUTURE [YN] (starts 15:30:00, ends 15:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [29] btc-updown-15m-1780415100: FUTURE [YN] (starts 15:45:00, ends 16:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [30] btc-updown-15m-1780416000: FUTURE [YN] (starts 16:00:00, ends 16:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [31] btc-updown-15m-1780416900: FUTURE [YN] (starts 16:15:00, ends 16:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [32] btc-updown-15m-1780417800: FUTURE [YN] (starts 16:30:00, ends 16:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [33] btc-updown-15m-1780418700: FUTURE [YN] (starts 16:45:00, ends 17:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [34] btc-updown-15m-1780419600: FUTURE [YN] (starts 17:00:00, ends 17:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [35] btc-updown-15m-1780420500: FUTURE [YN] (starts 17:15:00, ends 17:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [36] btc-updown-15m-1780421400: FUTURE [YN] (starts 17:30:00, ends 17:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [37] btc-updown-15m-1780422300: FUTURE [YN] (starts 17:45:00, ends 18:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [38] btc-updown-15m-1780423200: FUTURE [YN] (starts 18:00:00, ends 18:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [39] btc-updown-15m-1780424100: FUTURE [YN] (starts 18:15:00, ends 18:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [40] btc-updown-15m-1780425000: FUTURE [YN] (starts 18:30:00, ends 18:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [41] btc-updown-15m-1780425900: FUTURE [YN] (starts 18:45:00, ends 19:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [42] btc-updown-15m-1780426800: FUTURE [YN] (starts 19:00:00, ends 19:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [43] btc-updown-15m-1780427700: FUTURE [YN] (starts 19:15:00, ends 19:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [44] btc-updown-15m-1780428600: FUTURE [YN] (starts 19:30:00, ends 19:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [45] btc-updown-15m-1780429500: FUTURE [YN] (starts 19:45:00, ends 20:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [46] btc-updown-15m-1780430400: FUTURE [YN] (starts 20:00:00, ends 20:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [47] btc-updown-15m-1780431300: FUTURE [YN] (starts 20:15:00, ends 20:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [48] btc-updown-15m-1780432200: FUTURE [YN] (starts 20:30:00, ends 20:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [49] btc-updown-15m-1780433100: FUTURE [YN] (starts 20:45:00, ends 21:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [50] btc-updown-15m-1780434000: FUTURE [YN] (starts 21:00:00, ends 21:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [51] btc-updown-15m-1780434900: FUTURE [YN] (starts 21:15:00, ends 21:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [52] btc-updown-15m-1780435800: FUTURE [YN] (starts 21:30:00, ends 21:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [53] btc-updown-15m-1780436700: FUTURE [YN] (starts 21:45:00, ends 22:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [54] btc-updown-15m-1780437600: FUTURE [YN] (starts 22:00:00, ends 22:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [55] btc-updown-15m-1780438500: FUTURE [YN] (starts 22:15:00, ends 22:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [56] btc-updown-15m-1780439400: FUTURE [YN] (starts 22:30:00, ends 22:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [57] btc-updown-15m-1780440300: FUTURE [YN] (starts 22:45:00, ends 23:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [58] btc-updown-15m-1780441200: FUTURE [YN] (starts 23:00:00, ends 23:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [59] btc-updown-15m-1780442100: FUTURE [YN] (starts 23:15:00, ends 23:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [60] btc-updown-15m-1780443000: FUTURE [YN] (starts 23:30:00, ends 23:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [61] btc-updown-15m-1780443900: FUTURE [YN] (starts 23:45:00, ends 00:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [62] btc-updown-15m-1780444800: FUTURE [YN] (starts 00:00:00, ends 00:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [63] btc-updown-15m-1780445700: FUTURE [YN] (starts 00:15:00, ends 00:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [64] btc-updown-15m-1780446600: FUTURE [YN] (starts 00:30:00, ends 00:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [65] btc-updown-15m-1780447500: FUTURE [YN] (starts 00:45:00, ends 01:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [66] btc-updown-15m-1780448400: FUTURE [YN] (starts 01:00:00, ends 01:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [67] btc-updown-15m-1780449300: FUTURE [YN] (starts 01:15:00, ends 01:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [68] btc-updown-15m-1780450200: FUTURE [YN] (starts 01:30:00, ends 01:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [69] btc-updown-15m-1780451100: FUTURE [YN] (starts 01:45:00, ends 02:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [70] btc-updown-15m-1780452000: FUTURE [YN] (starts 02:00:00, ends 02:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [71] btc-updown-15m-1780452900: FUTURE [YN] (starts 02:15:00, ends 02:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [72] btc-updown-15m-1780453800: FUTURE [YN] (starts 02:30:00, ends 02:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [73] btc-updown-15m-1780454700: FUTURE [YN] (starts 02:45:00, ends 03:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [74] btc-updown-15m-1780455600: FUTURE [YN] (starts 03:00:00, ends 03:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [75] btc-updown-15m-1780456500: FUTURE [YN] (starts 03:15:00, ends 03:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [76] btc-updown-15m-1780457400: FUTURE [YN] (starts 03:30:00, ends 03:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [77] btc-updown-15m-1780458300: FUTURE [YN] (starts 03:45:00, ends 04:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [78] btc-updown-15m-1780459200: FUTURE [YN] (starts 04:00:00, ends 04:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [79] btc-updown-15m-1780460100: FUTURE [YN] (starts 04:15:00, ends 04:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [80] btc-updown-15m-1780461000: FUTURE [YN] (starts 04:30:00, ends 04:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [81] btc-updown-15m-1780461900: FUTURE [YN] (starts 04:45:00, ends 05:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [82] btc-updown-15m-1780462800: FUTURE [YN] (starts 05:00:00, ends 05:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [83] btc-updown-15m-1780463700: FUTURE [YN] (starts 05:15:00, ends 05:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [84] btc-updown-15m-1780464600: FUTURE [YN] (starts 05:30:00, ends 05:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [85] btc-updown-15m-1780465500: FUTURE [YN] (starts 05:45:00, ends 06:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [86] btc-updown-15m-1780466400: FUTURE [YN] (starts 06:00:00, ends 06:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [87] btc-updown-15m-1780467300: FUTURE [YN] (starts 06:15:00, ends 06:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [88] btc-updown-15m-1780468200: FUTURE [YN] (starts 06:30:00, ends 06:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [89] btc-updown-15m-1780469100: FUTURE [YN] (starts 06:45:00, ends 07:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [90] btc-updown-15m-1780470000: FUTURE [YN] (starts 07:00:00, ends 07:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [91] btc-updown-15m-1780470900: FUTURE [YN] (starts 07:15:00, ends 07:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [92] btc-updown-15m-1780471800: FUTURE [YN] (starts 07:30:00, ends 07:45:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [93] btc-updown-15m-1780472700: FUTURE [YN] (starts 07:45:00, ends 08:00:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [94] btc-updown-15m-1780473600: FUTURE [YN] (starts 08:00:00, ends 08:15:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   [95] btc-updown-15m-1780474500: FUTURE [YN] (starts 08:15:00, ends 08:30:00)
+2026-06-02 04:36:31 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:31 | INFO    | bot.strategy | CURRENT MARKET: btc-updown-15m-1780389000 (index 0)
+2026-06-02 04:36:31 | INFO    | bot.strategy |   Next switch at: 08:45:00
+2026-06-02 04:36:31 | INFO    | bot.strategy |   Subscribed to: 0x1c062c598ad26cbbfea1b81b7118dd2f2009e1672c01294d1a9979c8c3c2f0e1-90933876791514267232467118022846752441333319406831221180902132663579811682280.POLYMARKET
+2026-06-02 04:36:31 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 6.5/15 | TRADE WINDOW OPEN (508s left) | no quotes yet | 0 ticks | open=0 pending=0
+2026-06-02 04:36:31 | INFO    | core.strategy.processors.liquidation | Liquidation stream thread started
+2026-06-02 04:36:31 | INFO    | core.strategy.processors.cvd_orderbook | CVD aggTrade stream thread started
+2026-06-02 04:36:31 | INFO    | core.settlement.tracker | Settlement tracker thread started
+2026-06-02 04:36:31 | INFO    | core.recording.signal_recorder | SignalRecorder outcome-resolution thread started
+2026-06-02 04:36:31 | INFO    | bot.strategy | Liquidation stream started
+2026-06-02 04:36:31 | INFO    | bot.strategy | CVD aggTrade stream started
+2026-06-02 04:36:31 | INFO    | bot.strategy | Settlement tracker started
+2026-06-02 04:36:31 | INFO    | bot.strategy | Signal recorder started
+2026-06-02 04:36:31 | INFO    | bot.strategy | ML engine active: False (samples=9/200)
+2026-06-02 04:36:31 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:31 | INFO    | bot.strategy | Strategy active — TEST MODE: full 15-min market is tradeable
+2026-06-02 04:36:31 | INFO    | bot.strategy | Price history: 20 points
+2026-06-02 04:36:31 | INFO    | bot.strategy | READY TO TRADE
+2026-06-02 04:36:31 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:33 | INFO    | monitoring.metrics_exporter | Metrics server started on port 8000
+2026-06-02 04:36:33 | INFO    | bot.strategy | Grafana metrics started on port 8000
+2026-06-02 04:36:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:33 | INFO    | core.strategy.processors.liquidation | Connected to Binance forceOrders stream
+2026-06-02 04:36:33 | INFO    | core.strategy.processors.cvd_orderbook | Connected to Binance aggTrade stream
+2026-06-02 04:36:33 | DEBUG   | core.recording.signal_recorder | SignalRecorder: resolved 1 cycle outcome(s)
+2026-06-02 04:36:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:38 | INFO    | bot.strategy | Market STABLE after 3 tick(s)
+2026-06-02 04:36:38 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:38 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-02 08:36:38 UTC
+2026-06-02 04:36:38 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780389000
+2026-06-02 04:36:38 | INFO    | bot.strategy |   Sub-interval #0 (398.0s in = 6.6 min)
+2026-06-02 04:36:38 | INFO    | bot.strategy |   Price: $0.4650 | Bid: $0.4600 | Ask: $0.4700
+2026-06-02 04:36:38 | INFO    | bot.strategy |   Trend: WEAK
+2026-06-02 04:36:38 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:36:38 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-02 04:36:38 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-02 04:36:38 | INFO    | bot.strategy | │  Poly price             0.4650
+2026-06-02 04:36:38 | INFO    | bot.strategy | │  Price history          25 ticks
+2026-06-02 04:36:38 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:36:38 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-02 04:36:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:39 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-02 04:36:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:39 | DEBUG   | data_sources.news_social | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:36:39 | INFO    | bot.strategy | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:36:39 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-02 04:36:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:40 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-02 04:36:40 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $69,902.40
+2026-06-02 04:36:40 | INFO    | bot.strategy | Coinbase spot: $69,902.40
+2026-06-02 04:36:40 | INFO    | bot.strategy | Market context — deviation=-1.14%, momentum=0.00%, volatility=0.0120, sentiment=23, spot=$69902.40
+2026-06-02 04:36:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:45 | INFO    | core.strategy.processors.ohlcv_momentum | OHLCV: RSI=62.2, MACD=-2.9/-6.5, %B=0.56, ATR=0.1157% [LOW]
+2026-06-02 04:36:45 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$+0.0M, funding=0.00599%, vol_regime=LOW
+2026-06-02 04:36:45 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.4650, MA=0.4350, deviation=+6.897%, velocity=+6.897%
+2026-06-02 04:36:45 | INFO    | core.strategy.processors.spike | SPIKE velocity BULLISH: velocity=+6.897%, conf=60.00%
+2026-06-02 04:36:45 | INFO    | core.strategy.processors.sentiment | Extreme fear 23 → contrarian BULLISH
+2026-06-02 04:36:45 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.465, spot_mom=+0.0000, spot=$69,902.40
+2026-06-02 04:36:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:45 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$300.2, asks=$15324.2, imbalance=-0.962
+2026-06-02 04:36:45 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.962, conf=90.00%
+2026-06-02 04:36:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:46 | INFO    | core.strategy.processors.deribit_pcr | Deribit: overall_PCR=0.614, short_PCR=0.708
+2026-06-02 04:36:46 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-02 04:36:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:48 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$+0.04M | OB imbalance=+0.170
+2026-06-02 04:36:48 | INFO    | core.strategy.fusion | Fused 3 signals → bearish (score=87.5, conf=71.7%)
+2026-06-02 04:36:48 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-02 04:36:48 | INFO    | bot.strategy | │  Signals fired          3  (2 bullish / 1 bearish)
+2026-06-02 04:36:48 | INFO    | bot.strategy | │    SpikeDetection       BULLISH   conf=60.00%  score=42.5
+2026-06-02 04:36:48 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=65.00%  score=57.5
+2026-06-02 04:36:48 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-02 04:36:48 | INFO    | bot.strategy | │  
+2026-06-02 04:36:48 | INFO    | bot.strategy | │  Fused result           ▼ BEARISH  score=87.5  conf=71.67%
+2026-06-02 04:36:48 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:36:48 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-02 04:36:48 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-02 04:36:48 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-02 04:36:48 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:36:48 | INFO    | core.strategy.fusion | Fused 3 signals → bearish (score=87.5, conf=71.7%)
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Fusion                 ▼ BEARISH  score=87.5  conf=71.67%
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Poly price             0.4650
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT (NO)
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:36:48 | INFO    | bot.strategy | │  STEP 5 setup — feature vector saved, trade_id=31
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | ┌─[SIM  STEP 6 | [SIM] TRADE #1 OPENED — ▼ SHORT]───────────────────────
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Market                 btc-updown-15m-1780389000
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Settles at             08:45:00 UTC
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Entry token            $0.5350  (poly=0.4650)
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Qty / notional         1.8692 tokens  =  $1.00
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  BTC spot               $69,902
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  ML p(UP)               0.0000  edge=0.0000
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Signal                 score=87.5  conf=71.67%  n=3
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Sources                BEARISH
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | │  Status                 PENDING settlement
+2026-06-02 04:36:48 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:36:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:50 | INFO    | core.settlement.tracker | SettlementTracker: registered trade 31 (btc-updown-15m-1780389000) — entry BTC=$70026.33
+2026-06-02 04:36:50 | INFO    | bot.strategy | │  STEP 5 — Settlement tracker registered  trade_id=31  closes 08:45:00 UTC
+2026-06-02 04:36:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:36:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:01 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 7.0/15 | TRADE WINDOW OPEN (478s left) | bid=$0.4100 ask=$0.4200 mid=$0.4150 | 574 ticks (19.1/s) | open=0 pending=0
+2026-06-02 04:37:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:31 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 7.5/15 | TRADE WINDOW OPEN (448s left) | bid=$0.4800 ask=$0.4900 mid=$0.4850 | 1139 ticks (37.9/s) | open=0 pending=0
+2026-06-02 04:37:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:37:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:01 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 8.0/15 | TRADE WINDOW OPEN (418s left) | bid=$0.4700 ask=$0.4800 mid=$0.4750 | 463 ticks (15.4/s) | open=0 pending=0
+2026-06-02 04:38:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:08 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:38:08 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-02 08:38:08 UTC
+2026-06-02 04:38:08 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780389000
+2026-06-02 04:38:08 | INFO    | bot.strategy |   Sub-interval #0 (488.0s in = 8.1 min)
+2026-06-02 04:38:08 | INFO    | bot.strategy |   Price: $0.4050 | Bid: $0.4000 | Ask: $0.4100
+2026-06-02 04:38:08 | INFO    | bot.strategy |   Trend: WEAK
+2026-06-02 04:38:08 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:38:08 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-02 04:38:08 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-02 04:38:08 | INFO    | bot.strategy | │  Poly price             0.4050
+2026-06-02 04:38:08 | INFO    | bot.strategy | │  Price history          100 ticks
+2026-06-02 04:38:08 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:38:08 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-02 04:38:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:09 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-02 04:38:09 | DEBUG   | data_sources.news_social | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:38:09 | INFO    | bot.strategy | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:38:09 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-02 04:38:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:10 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-02 04:38:10 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $69,904.00
+2026-06-02 04:38:10 | INFO    | bot.strategy | Coinbase spot: $69,904.01
+2026-06-02 04:38:10 | INFO    | bot.strategy | Market context — deviation=-0.00%, momentum=0.00%, volatility=0.0000, sentiment=23, spot=$69904.01
+2026-06-02 04:38:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:13 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$+0.2M, funding=0.00599%, vol_regime=LOW
+2026-06-02 04:38:13 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.4050, MA=0.3550, deviation=+14.085%, velocity=+14.085%
+2026-06-02 04:38:13 | INFO    | core.strategy.processors.spike | SPIKE MA deviation BEARISH: deviation=+14.085%, conf=56.25%
+2026-06-02 04:38:13 | INFO    | core.strategy.processors.sentiment | Extreme fear 23 → contrarian BULLISH
+2026-06-02 04:38:13 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.405, spot_mom=+0.0000, spot=$69,904.00
+2026-06-02 04:38:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:14 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$378.2, asks=$13945.2, imbalance=-0.947
+2026-06-02 04:38:14 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.947, conf=90.00%
+2026-06-02 04:38:14 | INFO    | core.strategy.processors.tick_velocity | TickVelocity BEARISH: vel=-14.737%, accel=+0.0000%, conf=82.00%
+2026-06-02 04:38:14 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-02 04:38:14 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$+0.12M | OB imbalance=-0.799
+2026-06-02 04:38:14 | INFO    | core.strategy.processors.cvd_orderbook | CVDOrderBook BEARISH: cvd=$+0.12M, ob=-0.799, conf=78.00%, source=ob_only
+2026-06-02 04:38:14 | DEBUG   | monitoring.metrics_exporter | _apply_processor_metadata(TickVelocity) error: float() argument must be a string or a real number, not 'NoneType'
+2026-06-02 04:38:14 | INFO    | core.strategy.fusion | Fused 5 signals → bearish (score=98.5, conf=74.3%)
+2026-06-02 04:38:14 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-02 04:38:14 | INFO    | bot.strategy | │  Signals fired          5  (1 bullish / 4 bearish)
+2026-06-02 04:38:14 | INFO    | bot.strategy | │    SpikeDetection       BEARISH   conf=56.25%  score=78.1
+2026-06-02 04:38:14 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=65.00%  score=57.5
+2026-06-02 04:38:14 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-02 04:38:14 | INFO    | bot.strategy | │    TickVelocity         BEARISH   conf=82.00%  score=91.0
+2026-06-02 04:38:14 | INFO    | bot.strategy | │    CVDOrderBook         BEARISH   conf=78.00%  score=64.0
+2026-06-02 04:38:14 | INFO    | bot.strategy | │  
+2026-06-02 04:38:14 | INFO    | bot.strategy | │  Fused result           ▼ BEARISH  score=98.5  conf=74.25%
+2026-06-02 04:38:14 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:38:14 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-02 04:38:14 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-02 04:38:14 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-02 04:38:14 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:38:14 | INFO    | core.strategy.fusion | Fused 5 signals → bearish (score=98.5, conf=74.3%)
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Fusion                 ▼ BEARISH  score=98.5  conf=74.25%
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Poly price             0.4050
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT (NO)
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:38:14 | INFO    | bot.strategy | │  STEP 5 setup — feature vector saved, trade_id=32
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | ┌─[SIM  STEP 6 | [SIM] TRADE #2 OPENED — ▼ SHORT]───────────────────────
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Market                 btc-updown-15m-1780389000
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Settles at             08:45:00 UTC
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Entry token            $0.5950  (poly=0.4050)
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Qty / notional         1.6807 tokens  =  $1.00
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  BTC spot               $69,904
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  ML p(UP)               0.0000  edge=0.0000
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Signal                 score=98.5  conf=74.25%  n=5
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Sources                BEARISH
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | │  Status                 PENDING settlement
+2026-06-02 04:38:14 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:38:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:16 | INFO    | core.settlement.tracker | SettlementTracker: registered trade 32 (btc-updown-15m-1780389000) — entry BTC=$70026.33
+2026-06-02 04:38:16 | INFO    | bot.strategy | │  STEP 5 — Settlement tracker registered  trade_id=32  closes 08:45:00 UTC
+2026-06-02 04:38:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:31 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 8.5/15 | TRADE WINDOW OPEN (388s left) | bid=$0.2200 ask=$0.2300 mid=$0.2250 | 1366 ticks (45.5/s) | open=0 pending=0
+2026-06-02 04:38:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:38:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:02 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 9.0/15 | TRADE WINDOW OPEN (358s left) | bid=$0.0900 ask=$0.1000 mid=$0.0950 | 1191 ticks (39.7/s) | open=0 pending=0
+2026-06-02 04:39:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:32 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 9.5/15 | TRADE WINDOW OPEN (328s left) | bid=$0.1600 ask=$0.1700 mid=$0.1650 | 1524 ticks (50.8/s) | open=0 pending=0
+2026-06-02 04:39:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:39:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:02 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 10.0/15 | TRADE WINDOW OPEN (298s left) | bid=$0.1600 ask=$0.1700 mid=$0.1650 | 717 ticks (23.9/s) | open=0 pending=0
+2026-06-02 04:40:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:32 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 10.5/15 | TRADE WINDOW OPEN (268s left) | bid=$0.1700 ask=$0.1800 mid=$0.1750 | 961 ticks (32.0/s) | open=0 pending=0
+2026-06-02 04:40:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:40:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:02 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 11.0/15 | TRADE WINDOW OPEN (238s left) | bid=$0.1100 ask=$0.1200 mid=$0.1150 | 903 ticks (30.1/s) | open=0 pending=0
+2026-06-02 04:41:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:32 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 11.5/15 | TRADE WINDOW OPEN (208s left) | bid=$0.0300 ask=$0.0400 mid=$0.0350 | 671 ticks (22.3/s) | open=0 pending=0
+2026-06-02 04:41:32 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:41:32 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:41:32 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:41:32 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:41:32 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:41:32 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:41:32 | INFO    | feedback.learning_engine | Analyzed performance for 0 signal sources
+2026-06-02 04:41:32 | WARNING | feedback.learning_engine | No performance data available for optimization
+2026-06-02 04:41:32 | INFO    | bot.strategy | Learning engine complete: 11 weights updated. Next run in 0.1h
+2026-06-02 04:41:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:41:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:02 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 12.0/15 | TRADE WINDOW OPEN (178s left) | bid=$0.0200 ask=$0.0300 mid=$0.0250 | 554 ticks (18.5/s) | open=0 pending=0
+2026-06-02 04:42:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:32 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 12.5/15 | TRADE WINDOW OPEN (148s left) | bid=$0.0200 ask=$0.0300 mid=$0.0250 | 620 ticks (20.6/s) | open=0 pending=0
+2026-06-02 04:42:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:42:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:02 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 13.0/15 | TRADE WINDOW OPEN (118s left) | bid=$0.0200 ask=$0.0300 mid=$0.0250 | 433 ticks (14.4/s) | open=0 pending=0
+2026-06-02 04:43:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:32 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 13.5/15 | TRADE WINDOW OPEN (88s left) | bid=$0.0100 ask=$0.0100 mid=$0.0100 | 151 ticks (5.0/s) | open=0 pending=0
+2026-06-02 04:43:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:38 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:43:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:02 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 14.0/15 | TRADE WINDOW OPEN (58s left) | bid=$0.0100 ask=$0.0100 mid=$0.0100 | 0 ticks (0.0/s) | open=0 pending=0
+2026-06-02 04:44:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:32 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 14.5/15 | TRADE WINDOW OPEN (28s left) | bid=$0.0100 ask=$0.0100 mid=$0.0100 | 0 ticks (0.0/s) | open=0 pending=0
+2026-06-02 04:44:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:33 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:34 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:35 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:36 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:37 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:39 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:40 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:41 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:42 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:43 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:44 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:45 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:46 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:47 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:48 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:49 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:50 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:51 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:52 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:53 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:54 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:55 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:56 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:57 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:58 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:44:59 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:00 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:01 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:02 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:02 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389000 | min 15.0/15 | market EXPIRED — switching soon | bid=$0.0100 ask=$0.0100 mid=$0.0100 | 0 ticks (0.0/s) | open=0 pending=0
+2026-06-02 04:45:02 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:45:02 | INFO    | bot.strategy | SWITCHING TO NEXT MARKET: btc-updown-15m-1780389900
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Current time: 08:45:02
+2026-06-02 04:45:02 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:45:02 | INFO    | bot.strategy | CURRENT MARKET: btc-updown-15m-1780389900 (index 1)
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Next switch at: 09:00:00
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Subscribed to: 0xce85d5632957fb04b65f87e6a280f8d1d02755644356ce6fcfb1cf3cdb518c41-6969974494699294059026255599215359982671909290621588633398070313623868753854.POLYMARKET
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Trade timer reset — will trade on next tick
+2026-06-02 04:45:02 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:45:02 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-02 08:45:02 UTC
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780389900
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Sub-interval #0 (2.5s in = 0.0 min)
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Price: $0.5550 | Bid: $0.5500 | Ask: $0.5600
+2026-06-02 04:45:02 | INFO    | bot.strategy |   Trend: WEAK
+2026-06-02 04:45:02 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:45:02 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-02 04:45:02 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-02 04:45:02 | INFO    | bot.strategy | │  Poly price             0.5550
+2026-06-02 04:45:02 | INFO    | bot.strategy | │  Price history          100 ticks
+2026-06-02 04:45:02 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:45:02 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-02 04:45:03 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:03 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-02 04:45:03 | DEBUG   | data_sources.news_social | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:45:03 | INFO    | bot.strategy | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:45:03 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-02 04:45:04 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:04 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-02 04:45:05 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $69,768.40
+2026-06-02 04:45:05 | INFO    | bot.strategy | Coinbase spot: $69,768.40
+2026-06-02 04:45:05 | INFO    | bot.strategy | Market context — deviation=1221.43%, momentum=3600.00%, volatility=0.1177, sentiment=23, spot=$69768.40
+2026-06-02 04:45:05 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:06 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:07 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:08 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:09 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:09 | INFO    | core.strategy.processors.ohlcv_momentum | OHLCV: RSI=22.6, MACD=-37.0/-23.9, %B=0.09, ATR=0.0766% [LOW]
+2026-06-02 04:45:09 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$+0.0M, funding=0.00599%, vol_regime=LOW
+2026-06-02 04:45:09 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.5550, MA=0.5375, deviation=+3.256%, velocity=+1.835%
+2026-06-02 04:45:09 | INFO    | core.strategy.processors.sentiment | Extreme fear 23 → contrarian BULLISH
+2026-06-02 04:45:09 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.555, spot_mom=-0.0019, spot=$69,768.40
+2026-06-02 04:45:10 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$5873.9, asks=$213186.4, imbalance=-0.946
+2026-06-02 04:45:10 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.946, conf=90.00%
+2026-06-02 04:45:10 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:11 | INFO    | core.strategy.processors.deribit_pcr | Deribit: overall_PCR=0.614, short_PCR=0.720
+2026-06-02 04:45:11 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-02 04:45:11 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:12 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:12 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$+0.13M | OB imbalance=+0.557
+2026-06-02 04:45:12 | INFO    | core.strategy.processors.cvd_orderbook | CVDOrderBook BULLISH: cvd=$+0.13M, ob=+0.557, conf=74.48%, source=ob_only
+2026-06-02 04:45:12 | INFO    | core.strategy.fusion | Fused 3 signals → bearish (score=68.6, conf=76.5%)
+2026-06-02 04:45:12 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-02 04:45:12 | INFO    | bot.strategy | │  Signals fired          3  (2 bullish / 1 bearish)
+2026-06-02 04:45:12 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=65.00%  score=57.5
+2026-06-02 04:45:12 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-02 04:45:12 | INFO    | bot.strategy | │    CVDOrderBook         BULLISH   conf=74.48%  score=62.2
+2026-06-02 04:45:12 | INFO    | bot.strategy | │  
+2026-06-02 04:45:12 | INFO    | bot.strategy | │  Fused result           ▼ BEARISH  score=68.6  conf=76.49%
+2026-06-02 04:45:12 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:45:12 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-02 04:45:12 | INFO    | bot.strategy | │  Status                 WARMING UP  (9/200 samples needed)
+2026-06-02 04:45:12 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-02 04:45:12 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:45:12 | INFO    | core.strategy.fusion | Fused 3 signals → bearish (score=68.6, conf=76.5%)
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Fusion                 ▼ BEARISH  score=68.6  conf=76.49%
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Poly price             0.5550
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT (NO)
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:45:12 | INFO    | bot.strategy | │  STEP 5 setup — feature vector saved, trade_id=33
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | ┌─[SIM  STEP 6 | [SIM] TRADE #3 OPENED — ▼ SHORT]───────────────────────
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Market                 btc-updown-15m-1780389900
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Settles at             09:00:00 UTC
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Entry token            $0.4450  (poly=0.5550)
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Qty / notional         2.2472 tokens  =  $1.00
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  BTC spot               $69,768
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  ML p(UP)               0.0000  edge=0.0000
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Signal                 score=68.6  conf=76.49%  n=3
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Sources                BEARISH
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | │  Status                 PENDING settlement
+2026-06-02 04:45:12 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:45:13 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:14 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:14 | INFO    | core.settlement.tracker | SettlementTracker: registered trade 33 (btc-updown-15m-1780389900) — entry BTC=$70026.33
+2026-06-02 04:45:14 | INFO    | bot.strategy | │  STEP 5 — Settlement tracker registered  trade_id=33  closes 09:00:00 UTC
+2026-06-02 04:45:15 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:16 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:17 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:18 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:19 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:20 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:21 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:22 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:23 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:24 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:25 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:26 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:27 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:28 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:29 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:30 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:31 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:32 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 0.5/15 | TRADE WINDOW OPEN (868s left) | bid=$0.6100 ask=$0.6200 mid=$0.6150 | 1361 ticks (45.3/s) | open=0 pending=0
+2026-06-02 04:45:32 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-02 04:45:32 | DEBUG   | monitoring.metrics_exporter | Portfolio metrics updated
+2026-06-02 04:45:33 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-02 04:45:33 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $69,793.94
+2026-06-02 04:45:33 | INFO    | monitoring.performance_tracker | Recorded trade: paper_1780389408351 SHORT P&L=$-0.87 (-86.92%)
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | ┌─[SIM  SETTLE | [SIM] TRADE #1 — ✔ WIN]────────────────────────────────
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Market                 btc-updown-15m-1780389000
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Close reason           SETTLEMENT_SPOT
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Token price            $0.5350  →  $1.00
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Qty                    1.8692
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  P&L                    $+0.8692  (+86.92%)
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Session                1/1 wins  (100.0%)
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Cumul P&L              $+0.8692
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | │  Open trades            2
+2026-06-02 04:45:33 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:45:33 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-02 04:45:33 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:33 | INFO    | core.settlement.tracker | Settlement: trade 31 (btc-updown-15m-1780389000) | entry=$70026.33, exit=$70026.33 | outcome=DOWN | our_bet=short
+2026-06-02 04:45:33 | INFO    | core.strategy.ml_engine | Recorded outcome for trade 31: DOWN (entry=$70026.33, exit=$70026.33)
+2026-06-02 04:45:33 | WARNING | core.strategy.ml_engine | Not enough samples: 10 < 200
+2026-06-02 04:45:34 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-02 04:45:34 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $69,793.94
+2026-06-02 04:45:34 | INFO    | monitoring.performance_tracker | Recorded trade: paper_1780389494761 SHORT P&L=$-0.68 (-68.07%)
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | ┌─[SIM  SETTLE | [SIM] TRADE #2 — ✔ WIN]────────────────────────────────
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Market                 btc-updown-15m-1780389000
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Close reason           SETTLEMENT_SPOT
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Token price            $0.5950  →  $1.00
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Qty                    1.6807
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  P&L                    $+0.6807  (+68.07%)
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Session                2/2 wins  (100.0%)
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Cumul P&L              $+1.5498
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | │  Open trades            1
+2026-06-02 04:45:34 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:45:34 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:34 | INFO    | core.settlement.tracker | Settlement: trade 32 (btc-updown-15m-1780389000) | entry=$70026.33, exit=$70026.33 | outcome=DOWN | our_bet=short
+2026-06-02 04:45:34 | INFO    | core.strategy.ml_engine | Recorded outcome for trade 32: DOWN (entry=$70026.33, exit=$70026.33)
+2026-06-02 04:45:34 | WARNING | core.strategy.ml_engine | Not enough samples: 11 < 200
+2026-06-02 04:45:35 | DEBUG   | core.recording.signal_recorder | SignalRecorder: resolved 2 cycle outcome(s)
+2026-06-02 04:45:35 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:36 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:37 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:38 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:39 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:40 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:41 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:42 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:43 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:44 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:45 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:46 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:47 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:48 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:49 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:50 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:51 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:52 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:53 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:54 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:55 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:56 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:57 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:58 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:45:59 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:00 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:01 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:02 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:03 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:04 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 1.1/15 | TRADE WINDOW OPEN (836s left) | bid=$0.6900 ask=$0.7000 mid=$0.6950 | 1143 ticks (35.7/s) | open=0 pending=0
+2026-06-02 04:46:04 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:05 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:06 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:07 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:08 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:09 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:10 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:11 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:12 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:13 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:14 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:15 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:16 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:17 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:18 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:19 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:20 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:21 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:22 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:23 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:24 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:26 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:27 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:28 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:29 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:30 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:31 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:32 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:32 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:46:32 | INFO    | bot.strategy | TRADE WINDOW: 2026-06-02 08:46:32 UTC
+2026-06-02 04:46:32 | INFO    | bot.strategy |   Market:   btc-updown-15m-1780389900
+2026-06-02 04:46:32 | INFO    | bot.strategy |   Sub-interval #0 (92.5s in = 1.5 min)
+2026-06-02 04:46:32 | INFO    | bot.strategy |   Price: $0.6950 | Bid: $0.6900 | Ask: $0.7000
+2026-06-02 04:46:32 | INFO    | bot.strategy |   Trend: STRONG
+2026-06-02 04:46:32 | INFO    | bot.strategy | ================================================================================
+2026-06-02 04:46:32 | INFO    | bot.strategy | ┌─[SIM  DECISION START | MODE]──────────────────────────────────────────
+2026-06-02 04:46:32 | INFO    | bot.strategy | │  Mode                   SIMULATION (paper)
+2026-06-02 04:46:32 | INFO    | bot.strategy | │  Poly price             0.6950
+2026-06-02 04:46:32 | INFO    | bot.strategy | │  Price history          100 ticks
+2026-06-02 04:46:32 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:46:32 | INFO    | data_sources.news_social | Initialized News/Social data source
+2026-06-02 04:46:33 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:33 | INFO    | data_sources.news_social | Connected to News/Social APIs
+2026-06-02 04:46:33 | DEBUG   | data_sources.news_social | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:46:33 | INFO    | bot.strategy | Fear & Greed: 23 (Extreme Fear)
+2026-06-02 04:46:33 | INFO    | data_sources.coinbase | Initialized Coinbase data source for BTC-USD
+2026-06-02 04:46:34 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:34 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 1.6/15 | TRADE WINDOW OPEN (806s left) | bid=$0.6600 ask=$0.6700 mid=$0.6650 | 1153 ticks (38.4/s) | open=0 pending=0
+2026-06-02 04:46:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:46:34 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:46:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:46:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:46:34 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:46:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:46:34 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:34 | INFO    | data_sources.coinbase | Connected to Coinbase API
+2026-06-02 04:46:35 | DEBUG   | data_sources.coinbase | Coinbase BTC price: $69,804.00
+2026-06-02 04:46:35 | INFO    | bot.strategy | Coinbase spot: $69,803.99
+2026-06-02 04:46:35 | INFO    | bot.strategy | Market context — deviation=0.00%, momentum=0.00%, volatility=0.0000, sentiment=23, spot=$69803.99
+2026-06-02 04:46:35 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:36 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:37 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:38 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:38 | INFO    | bot.strategy | Extended context — liq_imb=+0.000, cvd=$+0.4M, funding=0.00599%, vol_regime=LOW
+2026-06-02 04:46:38 | DEBUG   | core.strategy.processors.spike | SpikeDetector: price=0.6950, MA=0.6950, deviation=+0.000%, velocity=+0.000%
+2026-06-02 04:46:38 | INFO    | core.strategy.processors.sentiment | Extreme fear 23 → contrarian BULLISH
+2026-06-02 04:46:38 | INFO    | core.strategy.processors.divergence | PriceDivergence: poly=0.695, spot_mom=-0.0014, spot=$69,804.00
+2026-06-02 04:46:38 | INFO    | core.strategy.processors.divergence | BEARISH fade: poly Up too high (70%), conf=56.17%
+2026-06-02 04:46:39 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:39 | INFO    | core.strategy.processors.orderbook | OrderBook: bids=$1205.2, asks=$103269.5, imbalance=-0.977
+2026-06-02 04:46:39 | INFO    | core.strategy.processors.orderbook | OrderBook BEARISH: imbalance=-0.977, conf=90.00%
+2026-06-02 04:46:39 | INFO    | core.strategy.processors.tick_velocity | TickVelocity BULLISH: vel=+2.963%, accel=+0.0000%, conf=78.56%
+2026-06-02 04:46:39 | INFO    | core.strategy.processors.liquidation | Liquidations (last 60s): long=$0.00M, short=$0.00M
+2026-06-02 04:46:39 | INFO    | core.strategy.processors.cvd_orderbook | CVD: delta=$+0.54M | OB imbalance=+0.192
+2026-06-02 04:46:39 | DEBUG   | monitoring.metrics_exporter | _apply_processor_metadata(TickVelocity) error: float() argument must be a string or a real number, not 'NoneType'
+2026-06-02 04:46:39 | INFO    | core.strategy.fusion | Fused 4 signals → bearish (score=58.1, conf=72.4%)
+2026-06-02 04:46:39 | INFO    | bot.strategy | ┌─[SIM  STEP 1 | SIGNALS + FUSION]──────────────────────────────────────
+2026-06-02 04:46:39 | INFO    | bot.strategy | │  Signals fired          4  (2 bullish / 2 bearish)
+2026-06-02 04:46:39 | INFO    | bot.strategy | │    SentimentAnalysis    BULLISH   conf=65.00%  score=57.5
+2026-06-02 04:46:39 | INFO    | bot.strategy | │    PriceDivergence      BEARISH   conf=56.17%  score=53.1
+2026-06-02 04:46:39 | INFO    | bot.strategy | │    OrderBookImbalance   BEARISH   conf=90.00%  score=95.0
+2026-06-02 04:46:39 | INFO    | bot.strategy | │    TickVelocity         BULLISH   conf=78.56%  score=76.8
+2026-06-02 04:46:39 | INFO    | bot.strategy | │  
+2026-06-02 04:46:39 | INFO    | bot.strategy | │  Fused result           ▼ BEARISH  score=58.1  conf=72.43%
+2026-06-02 04:46:39 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:46:39 | INFO    | bot.strategy | ┌─[SIM  STEP 2 | ML MODEL]──────────────────────────────────────────────
+2026-06-02 04:46:39 | INFO    | bot.strategy | │  Status                 WARMING UP  (11/200 samples needed)
+2026-06-02 04:46:39 | INFO    | bot.strategy | │  p(UP)                  N/A — falling back to fusion direction
+2026-06-02 04:46:39 | INFO    | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:46:39 | INFO    | core.strategy.fusion | Fused 4 signals → bearish (score=58.1, conf=72.4%)
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | ┌─[SIM  STEP 4 | FALLBACK — FUSION BET]─────────────────────────────────
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Fusion                 ▼ BEARISH  score=58.1  conf=72.43%
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Poly price             0.6950
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Direction              ▼ SHORT (NO)
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:46:39 | INFO    | bot.strategy | │  STEP 5 setup — feature vector saved, trade_id=34
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | ┌─[SIM  STEP 6 | [SIM] TRADE #4 OPENED — ▼ SHORT]───────────────────────
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Market                 btc-updown-15m-1780389900
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Settles at             09:00:00 UTC
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Entry token            $0.3050  (poly=0.6950)
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Qty / notional         3.2787 tokens  =  $1.00
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  BTC spot               $69,804
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  ML p(UP)               0.0000  edge=0.0000
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Signal                 score=58.1  conf=72.43%  n=4
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Sources                BEARISH
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | │  Status                 PENDING settlement
+2026-06-02 04:46:39 | SUCCESS | bot.strategy | └────────────────────────────────────────────────────────────────────────
+2026-06-02 04:46:40 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:41 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:41 | INFO    | core.settlement.tracker | SettlementTracker: registered trade 34 (btc-updown-15m-1780389900) — entry BTC=$70026.33
+2026-06-02 04:46:41 | INFO    | bot.strategy | │  STEP 5 — Settlement tracker registered  trade_id=34  closes 09:00:00 UTC
+2026-06-02 04:46:42 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:43 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:44 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:46:44 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:46:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:46:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:46:44 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:46:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:46:44 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:45 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:46 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:47 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:48 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:49 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:50 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:51 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:52 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:53 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:54 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:46:54 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:46:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:46:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:46:54 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:46:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:46:54 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:55 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:56 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:57 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:58 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:46:59 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:00 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:01 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:02 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:03 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:04 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:04 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 2.1/15 | TRADE WINDOW OPEN (776s left) | bid=$0.5800 ask=$0.5900 mid=$0.5850 | 924 ticks (30.8/s) | open=0 pending=0
+2026-06-02 04:47:04 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:04 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:47:04 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:04 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:04 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:47:04 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:04 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:05 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:06 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:07 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:08 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:09 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:10 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:11 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:12 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:13 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:14 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:14 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:47:14 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:14 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:14 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:47:14 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:14 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:14 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:15 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:16 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:17 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:18 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:19 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:20 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:21 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:22 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:23 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:24 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:24 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:47:24 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:24 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:24 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:47:24 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:24 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:24 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:25 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:26 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:27 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:28 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:29 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:30 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:31 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:32 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:33 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:34 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 2.6/15 | TRADE WINDOW OPEN (746s left) | bid=$0.7100 ask=$0.7200 mid=$0.7150 | 1386 ticks (46.2/s) | open=0 pending=0
+2026-06-02 04:47:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:34 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:47:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:34 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:47:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:34 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:34 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:35 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:36 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:37 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:38 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:39 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:40 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:41 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:42 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:43 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:44 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:47:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:44 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:47:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:44 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:44 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:45 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:46 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:47 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:48 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:49 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:50 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:51 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:52 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:53 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:54 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:47:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:47:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:54 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:47:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:47:54 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:54 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:55 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:56 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:57 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:58 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:47:59 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:00 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:01 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:02 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:03 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:04 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 3.1/15 | TRADE WINDOW OPEN (716s left) | bid=$0.5400 ask=$0.5500 mid=$0.5450 | 1324 ticks (44.1/s) | open=0 pending=0
+2026-06-02 04:48:04 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:04 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:48:04 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:04 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:04 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:48:04 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:04 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:04 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:05 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:06 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:07 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:08 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:09 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:10 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:11 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:12 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:13 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:14 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:14 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:48:14 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:14 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:14 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:48:14 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:14 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:14 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:15 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:16 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:17 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:19 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:20 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:21 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:22 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:23 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:24 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:24 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:24 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:48:24 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:24 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:24 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:48:24 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:24 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:25 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:26 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:27 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:28 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:29 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:30 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:31 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:32 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:33 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:34 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:34 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 3.6/15 | TRADE WINDOW OPEN (686s left) | bid=$0.3400 ask=$0.3500 mid=$0.3450 | 2115 ticks (70.5/s) | open=0 pending=0
+2026-06-02 04:48:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:34 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:48:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:34 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:48:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:34 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:35 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:36 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:37 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:38 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:39 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:40 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:41 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:42 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:43 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:44 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:44 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:48:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:44 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:48:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:44 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:45 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:46 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:47 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:48 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:49 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:50 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:51 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:52 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:53 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:54 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:54 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:48:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:48:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:54 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:48:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:48:54 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:55 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:56 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:57 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:58 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:48:59 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:00 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:01 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:02 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:03 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:04 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:04 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 4.1/15 | TRADE WINDOW OPEN (656s left) | bid=$0.3900 ask=$0.4000 mid=$0.3950 | 1349 ticks (44.9/s) | open=0 pending=0
+2026-06-02 04:49:04 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:04 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:49:04 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:04 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:04 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:49:04 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:04 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:05 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:06 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:07 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:08 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:09 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:10 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:11 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:12 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:13 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:14 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:14 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:49:14 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:14 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:14 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:49:14 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:14 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:14 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:15 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:16 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:17 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:18 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:19 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:20 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:21 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:22 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:23 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:24 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:24 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:49:24 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:24 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:24 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:49:24 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:24 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:24 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:25 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:26 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:27 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:28 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:29 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:30 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:31 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:32 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:33 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:34 | INFO    | bot.strategy | [heartbeat] btc-updown-15m-1780389900 | min 4.6/15 | TRADE WINDOW OPEN (626s left) | bid=$0.3200 ask=$0.3300 mid=$0.3250 | 1640 ticks (54.6/s) | open=0 pending=0
+2026-06-02 04:49:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:34 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:49:34 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:34 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:49:34 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:34 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:34 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:35 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:36 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:37 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:38 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:39 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:40 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:41 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:42 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:43 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:44 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:49:44 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:44 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:49:44 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:44 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:44 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:45 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:46 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:47 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:48 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:49 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:50 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:51 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:52 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:53 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:54 | INFO    | bot.strategy | SCHEDULED: Running learning engine weight optimisation
+2026-06-02 04:49:54 | INFO    | bot.strategy | ============================================================
+2026-06-02 04:49:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:54 | INFO    | feedback.learning_engine | OPTIMIZING SIGNAL WEIGHTS
+2026-06-02 04:49:54 | INFO    | feedback.learning_engine | ============================================================
+2026-06-02 04:49:54 | WARNING | bot.strategy | Learning engine scheduled run failed: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:54 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:55 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:56 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:57 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:58 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:49:59 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:50:00 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:50:01 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
+2026-06-02 04:50:02 | ERROR   | monitoring.metrics_exporter | Error updating portfolio metrics: can't compare offset-naive and offset-aware datetimes
