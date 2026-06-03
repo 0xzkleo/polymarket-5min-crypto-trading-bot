@@ -1,6 +1,6 @@
 # Polymarket Trading Bot
 
-**Read this in another language:**
+**what is your native language?**
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
 ---
@@ -16,8 +16,6 @@
 ---
 
 ## Proof of work
-
-<img width="1919" height="1035" alt="1" src="https://github.com/user-attachments/assets/27f00a58-db8d-4992-a1ed-1b5ee741bede" />
 
 <img width="1919" height="1032" alt="2" src="https://github.com/user-attachments/assets/447c9671-3f47-4bde-a4be-744af27bdbb1" />
 
@@ -253,3 +251,13 @@ Trading cryptocurrencies and prediction-market instruments involves **substantia
 
 - [NautilusTrader](https://nautilustrader.io/) — Trading framework
 - [Polymarket](https://polymarket.com) — Prediction market venue
+
+
+<div align="center">
+  <h2>Made with ❤️ by</h2>
+  <a href="https://t.me/appledog_xyz">
+    <img width="85" height="85" alt="thumbnail" src="https://github.com/user-attachments/assets/7ff7ea4c-516e-46b9-bce9-81ce42cb5665" />
+    <br>
+    <span>James Chen</span>
+  </a>
+</div>
