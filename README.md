@@ -23,11 +23,7 @@
 ---
 ## Proof of work
 
-<img width="100%" alt="2" src="https://github.com/user-attachments/assets/447c9671-3f47-4bde-a4be-744af27bdbb1" />
-
-<img width="100%" alt="4" src="https://github.com/user-attachments/assets/8b88610b-c54b-4e3d-b7a6-2ccef7b72ca4" />
-
-<img width="100%" alt="3" src="https://github.com/user-attachments/assets/f7052333-8107-40d8-9703-d1bbd2b77bc7" />
+https://github.com/user-attachments/assets/730f68bf-9e16-4ade-ae14-33ea4ca1da94
 
 ---
 
