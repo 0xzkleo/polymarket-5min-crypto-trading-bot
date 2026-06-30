@@ -6,7 +6,6 @@
 <img width="1981" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/31efdf63-1172-46b2-8713-e1173dc06722" />
 <br><br>
 <p align="center">
-  <strong>⭐ Want more profitable trading bots?</strong><br><br>
   Built by <a href="https://github.com/RetroVaIix"><strong>Retro Valix</strong></a> — high-performance automated trading systems for Polymarket.<br><br>
   <a href="https://github.com/RetroVaIix"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-RetroVaIix-181717?logo=github&logoColor=white"></a>&nbsp;
   <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
