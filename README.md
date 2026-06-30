@@ -12,15 +12,8 @@
   <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
   <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>
 </p>
-
 ---
-## How does the bot work
 
-<video width="100%" controls src="https://github.com/user-attachments/assets/d89a6bc1-0cf6-4a1f-a29e-5e0549945e6f">
-  <a href="https://github.com/user-attachments/assets/d89a6bc1-0cf6-4a1f-a29e-5e0549945e6f">Watch demo video</a>
-</video>
-
----
 ## Proof of work
 
 https://github.com/user-attachments/assets/730f68bf-9e16-4ade-ae14-33ea4ca1da94
