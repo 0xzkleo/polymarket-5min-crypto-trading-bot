@@ -14,6 +14,8 @@
 </p>
 ---
 
+---
+
 ## Proof of work
 
 https://github.com/user-attachments/assets/730f68bf-9e16-4ade-ae14-33ea4ca1da94
