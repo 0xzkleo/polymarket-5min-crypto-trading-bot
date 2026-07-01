@@ -20,6 +20,60 @@ https://github.com/user-attachments/assets/8f9a2b66-e291-44e6-8e6f-edecf65a7f4d
 
 ---
 
+## Why this bot is public
+
+This repository is the **public edition** of our Polymarket BTC 15-minute trading stack. We open-sourced it on purpose — not as a teaser with hidden basics, but as a **working, inspectable system** you can run, test, and judge for yourself.
+
+### What you get here (already built in)
+
+The public version is a **real bot**, not a slideshow. It ships with the same architectural discipline we use in production:
+
+- **Risk management** — position caps, spread filters, entry bands, cooldowns, direction lock, anti-chase, optional stop-loss, and take-profit logic
+- **PnL tracking** — paper and live trade logs, session stats, Grafana-friendly metrics, and post-run analytics via `scripts/view_trades.py`
+- **Full pipeline** — data ingestion, multi-signal fusion, ML edge gate, Nautilus execution, settlement tracking, and a live terminal dashboard
+
+You can verify every layer: read the code, run simulation, watch the dashboard, and export trades. **Transparency is the point.**
+
+### What to expect (be honest with yourself)
+
+This public build is primarily **educational and evaluative**. It demonstrates *how* we trade systematically on Polymarket — not the ceiling of what is possible.
+
+| | **Public version (this repo)** | **Premium version** |
+|---|---|---|
+| **Purpose** | Learn the stack, test logic, build trust | Production-grade performance for serious capital |
+| **ML / training** | General model; warming sample counts in test runs | Model trained on **20,000+** historical trading outcomes |
+| **Typical win rate** | Varies; simulation ≠ live; no peak-performance claim | **97%+** win rate in our premium deployment |
+| **Code access** | Full source, open repository | Private build, tuned weights, and ongoing support |
+| **Polymarket proof** | You run your own account in sim/live | Verified account performance shared **in a private meeting** |
+
+**Do not expect peak results from the public version alone.** Short-horizon markets are hard; fees, spread, and adverse selection still apply. Use this repo to answer: *“Is this team’s approach serious, auditable, and worth a deeper conversation?”*
+
+### The path we recommend for serious traders
+
+1. **Clone and run** — Start with `--test-mode` or `--simulation`. Inspect trades, logs, and the terminal UI.
+2. **Validate the system** — Confirm risk rules, PnL accounting, and execution behavior match your standards.
+3. **Decide if you want more** — Traders who need **95%+ win-rate-class** automation and a model battle-tested on tens of thousands of trades move to the **premium version**.
+4. **Book a call** — We share Polymarket account proof, live performance context, and premium scope **in a meeting**, not in public chat or this repo. That data is part of our commercial edge.
+
+We publish the public bot so you can **test first, trust second, and upgrade third** — without buying a black box.
+
+### Premium version — for traders who want the best
+
+The premium stack is what we deploy when capital and expectations are serious:
+
+- **97%+ win rate** in our current premium configuration
+- Trained and refined across **20,000+** trading outcomes — not a weekend backtest
+- Ongoing tuning, private support, and verified performance review
+
+If you are evaluating whether to go premium, reach out directly:
+
+- **Telegram:** [@RetroValix](https://t.me/RetroValix)
+- **GitHub:** [RetroVaIix](https://github.com/RetroVaIix)
+
+We will walk through proof, scope, and onboarding on a call — not via public Polymarket profile links in this repository.
+
+---
+
 ## Core Idea
 
 Prediction markets for short-horizon BTC moves are noisy and fast. This project treats them like a **systematic trading problem**: pull in market and context data, normalize it through a single ingestion path, fuse multiple detectors into a decision, then execute through a broker adapter with **hard risk limits** (small size per trade, take profit parameters). The goal is not "one magic signal" but a **testable stack** you can run in simulation, observe in Grafana, and only then point at live capital.
@@ -206,13 +260,17 @@ The reference configuration uses **~$1 per fill**. You still need enough balance
 
 There is **no guarantee** of profit. Short-horizon markets have fees, spread, adverse selection, and outages. Simulation results **do not** reliably predict live performance. Use paper mode and small size first; treat every run as an experiment.
 
+**This public repository is not the premium product.** See [Why this bot is public](#why-this-bot-is-public) for the difference between the open educational build and our **97%+ win-rate premium deployment**. Expect the public version to prove transparency and engineering quality — not to match premium performance out of the box.
+
 ---
 
 ## Best For
 
+- **Traders evaluating our approach** — Run the public bot, review risk/PnL logic, then decide if premium fits your goals.
 - **Traders who want speed and automation** for 15-minute crypto prediction markets.
 - **Developers** comfortable editing `.env`, reading logs, and running phase tests.
 - **People who treat risk as primary** and want explicit caps and observability before scaling.
+- **Serious operators targeting 95%+ win-rate-class systems** — Start here for proof; upgrade to premium after validation.
 
 ---
 
