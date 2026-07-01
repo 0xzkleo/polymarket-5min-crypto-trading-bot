@@ -36,21 +36,27 @@ console = Console()
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
-def setup_logging(test_mode: bool, verbose: bool) -> None:
+def setup_logging(test_mode: bool, verbose: bool, enable_tui: bool = True) -> None:
     logger.remove()
-    fmt = (
-        "<green>{time:HH:mm:ss}</green> | "
-        "<level>{level:<7}</level> | "
-        "<cyan>{name}</cyan> | "
-        "{message}"
-    )
     level = "DEBUG" if verbose else "INFO"
-    logger.add(sys.stderr, format=fmt, level=level, colorize=True)
 
     log_dir = ROOT / "logs"
     log_dir.mkdir(exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     mode_label = "test" if test_mode else "sim"
+
+    if enable_tui:
+        from monitoring.terminal_ui import install_log_sink
+        install_log_sink(level=level)
+    else:
+        fmt = (
+            "<green>{time:HH:mm:ss}</green> | "
+            "<level>{level:<7}</level> | "
+            "<cyan>{name}</cyan> | "
+            "{message}"
+        )
+        logger.add(sys.stderr, format=fmt, level=level, colorize=True)
+
     logger.add(
         log_dir / f"bot_{mode_label}_{ts}.log",
         format="{time:YYYY-MM-DD HH:mm:ss} | {level:<7} | {name} | {message}",
@@ -58,7 +64,8 @@ def setup_logging(test_mode: bool, verbose: bool) -> None:
         rotation="50 MB",
         retention="14 days",
     )
-    logger.info(f"Logging to: logs/bot_{mode_label}_{ts}.log")
+    if not enable_tui:
+        logger.info(f"Logging to: logs/bot_{mode_label}_{ts}.log")
 
 
 # ── Startup banner ────────────────────────────────────────────────────────────
@@ -128,9 +135,10 @@ def print_banner(simulation: bool, test_mode: bool) -> None:
 
 # ── Pre-flight checks ─────────────────────────────────────────────────────────
 
-def preflight(simulation: bool) -> bool:
-    console.print()
-    console.print(Rule("[bold white]PRE-FLIGHT CHECKS[/bold white]", style="white"))
+def preflight(simulation: bool, silent: bool = False) -> bool:
+    if not silent:
+        console.print()
+        console.print(Rule("[bold white]PRE-FLIGHT CHECKS[/bold white]", style="white"))
 
     ok = True
 
@@ -184,8 +192,9 @@ def preflight(simulation: bool) -> bool:
             table.add_row("[dim]–[/dim]", f"{pkg}",
                           Text(f"not installed  ({purpose} disabled)", style="dim"))
 
-    console.print(table)
-    console.print(Rule(style="white"))
+    if not silent:
+        console.print(table)
+        console.print(Rule(style="white"))
     return ok
 
 
@@ -276,6 +285,7 @@ Examples:
     )
 
     parser.add_argument("--no-grafana",  action="store_true", help="Disable Grafana metrics export")
+    parser.add_argument("--no-tui",      action="store_true", help="Disable live terminal dashboard (use stderr logs)")
     parser.add_argument("--verbose",     action="store_true", help="Enable DEBUG level logging")
     parser.add_argument("--skip-checks", action="store_true", help="Skip pre-flight env checks")
 
@@ -291,14 +301,17 @@ Examples:
         simulation = True
         test_mode  = False
 
-    setup_logging(test_mode, args.verbose)
+    enable_tui = not args.no_tui
+
+    if not enable_tui:
+        print_promo()
+        print_banner(simulation, test_mode)
+
+    setup_logging(test_mode, args.verbose, enable_tui=enable_tui)
     enable_grafana = not args.no_grafana
 
-    print_promo()
-    print_banner(simulation, test_mode)
-
     if not args.skip_checks:
-        ok = preflight(simulation)
+        ok = preflight(simulation, silent=enable_tui)
         if not ok and not simulation:
             console.print()
             console.print(Panel(
@@ -309,7 +322,7 @@ Examples:
             ))
             sys.exit(1)
 
-    if not simulation:
+    if not simulation and not enable_tui:
         console.print()
         console.print(Panel(
             "[bold red]LIVE TRADING MODE[/bold red]\n\n"
@@ -327,30 +340,34 @@ Examples:
     try:
         from bot.runner import run_integrated_bot
     except ImportError as e:
-        logger.error(f"Could not import bot.runner: {e}")
-        logger.error("Make sure you are running from the project root directory.")
+        if enable_tui:
+            console.print(f"[red]Could not import bot.runner: {e}[/red]")
+        else:
+            logger.error(f"Could not import bot.runner: {e}")
+            logger.error("Make sure you are running from the project root directory.")
         sys.exit(1)
-
-    logger.info(
-        f"Starting bot: simulation={simulation} test_mode={test_mode} grafana={enable_grafana}"
-    )
 
     try:
         run_integrated_bot(
             simulation=simulation,
             enable_grafana=enable_grafana,
             test_mode=test_mode,
+            enable_tui=enable_tui,
         )
     except KeyboardInterrupt:
-        console.print()
-        console.print(Rule("[yellow]Shutting down[/yellow]", style="yellow"))
-        console.print("  Trades saved to [cyan]paper_trades.json[/cyan]")
-        console.print("  View results:  [cyan]python scripts/view_trades.py[/cyan]")
-        console.print()
+        if not enable_tui:
+            console.print()
+            console.print(Rule("[yellow]Shutting down[/yellow]", style="yellow"))
+            console.print("  Trades saved to [cyan]paper_trades.json[/cyan]")
+            console.print("  View results:  [cyan]python scripts/view_trades.py[/cyan]")
+            console.print()
     except Exception as e:
-        logger.error(f"Bot crashed: {e}")
-        import traceback
-        traceback.print_exc()
+        if enable_tui:
+            console.print(f"[red]Bot crashed: {e}[/red]")
+        else:
+            logger.error(f"Bot crashed: {e}")
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
 
 

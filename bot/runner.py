@@ -55,6 +55,27 @@ from patches.market_orders import apply_market_order_patch
 apply_market_order_patch()  # no-op shim, kept for legacy compatibility
 
 
+def _nautilus_logging_config(*, quiet_console: bool) -> LoggingConfig:
+    """Configure Nautilus logging.
+
+    Nautilus writes directly to stdout/stderr (bypassing loguru). When the TUI
+    is active, suppress console output and keep logs in ``logs/nautilus/`` only.
+    """
+    if quiet_console:
+        return LoggingConfig(
+            log_level="INFO",
+            log_level_file="INFO",
+            log_directory="./logs/nautilus",
+            log_components_only=True,
+            print_config=False,
+            log_colors=False,
+        )
+    return LoggingConfig(
+        log_level="INFO",
+        log_directory="./logs/nautilus",
+    )
+
+
 def init_redis():
     """Initialise Redis connection for live simulation-mode control."""
     try:
@@ -75,10 +96,121 @@ def init_redis():
         return None
 
 
+def _boot_bot_node(
+    simulation: bool,
+    enable_grafana: bool,
+    test_mode: bool,
+):
+    """Build the Nautilus node and strategy. Logs go to the TUI event feed."""
+    redis_client = init_redis()
+
+    if redis_client:
+        try:
+            mode_value = "1" if simulation else "0"
+            redis_client.set("btc_trading:simulation_mode", mode_value)
+            mode_label = "SIMULATION" if simulation else "LIVE"
+            logger.info(f"Redis simulation_mode forced to: {mode_label} ({mode_value})")
+        except Exception as e:
+            logger.warning(f"Could not set Redis simulation mode: {e}")
+
+    now = datetime.now(timezone.utc)
+    unix_interval_start = (int(now.timestamp()) // 900) * 900
+
+    btc_slugs = []
+    for i in range(-1, 97):
+        timestamp = unix_interval_start + (i * 900)
+        btc_slugs.append(f"btc-updown-15m-{timestamp}")
+
+    filters = {
+        "active": True,
+        "closed": False,
+        "archived": False,
+        "slug": tuple(btc_slugs),
+        "limit": 100,
+    }
+
+    logger.info("Loading BTC 15-min markets by slug")
+    logger.info(f"  Interval start: {unix_interval_start} | Count: {len(btc_slugs)}")
+
+    instrument_cfg = InstrumentProviderConfig(
+        load_all=True,
+        filters=filters,
+        use_gamma_markets=True,
+    )
+
+    sig_type = int(os.getenv("POLYMARKET_SIG_TYPE", "2"))
+    funder = (os.getenv("POLYMARKET_FUNDER") or "").strip() or None
+
+    if sig_type == 0 and funder:
+        logger.warning(
+            "POLYMARKET_SIG_TYPE=0 (EOA) but POLYMARKET_FUNDER is set — "
+            "funder will be ignored. Use sig_type=1 or 2 to trade from the proxy."
+        )
+    if sig_type in (1, 2) and not funder:
+        logger.error(
+            "POLYMARKET_SIG_TYPE=%d (proxy) requires POLYMARKET_FUNDER to be set "
+            "to your Polymarket proxy address (visible at polymarket.com → Deposit).",
+            sig_type,
+        )
+
+    sig_label = {0: "EOA", 1: "POLY_PROXY", 2: "POLY_GNOSIS_SAFE"}.get(sig_type, "UNKNOWN")
+    logger.info(f"Polymarket wallet config: signature_type={sig_type} ({sig_label})")
+
+    poly_data_cfg = PolymarketDataClientConfig(
+        private_key=os.getenv("POLYMARKET_PK"),
+        api_key=os.getenv("POLYMARKET_API_KEY"),
+        api_secret=os.getenv("POLYMARKET_API_SECRET"),
+        passphrase=os.getenv("POLYMARKET_PASSPHRASE"),
+        signature_type=sig_type,
+        funder=funder,
+        instrument_provider=instrument_cfg,
+    )
+
+    poly_exec_cfg = PolymarketExecClientConfig(
+        private_key=os.getenv("POLYMARKET_PK"),
+        api_key=os.getenv("POLYMARKET_API_KEY"),
+        api_secret=os.getenv("POLYMARKET_API_SECRET"),
+        passphrase=os.getenv("POLYMARKET_PASSPHRASE"),
+        signature_type=sig_type,
+        funder=funder,
+        instrument_provider=instrument_cfg,
+    )
+
+    config = TradingNodeConfig(
+        environment="live",
+        trader_id="BTC-15MIN-INTEGRATED-001",
+        logging=_nautilus_logging_config(quiet_console=True),
+        data_engine=LiveDataEngineConfig(qsize=6000),
+        exec_engine=LiveExecEngineConfig(qsize=6000),
+        risk_engine=LiveRiskEngineConfig(bypass=simulation),
+        data_clients={POLYMARKET: poly_data_cfg},
+        exec_clients={POLYMARKET: poly_exec_cfg},
+    )
+
+    from bot.strategy import IntegratedBTCStrategy
+
+    strategy = IntegratedBTCStrategy(
+        redis_client=redis_client,
+        enable_grafana=enable_grafana,
+        test_mode=test_mode,
+        simulation=simulation,
+    )
+
+    node = TradingNode(config=config)
+    node.add_data_client_factory(POLYMARKET, PolymarketLiveDataClientFactory)
+    node.add_exec_client_factory(POLYMARKET, PolymarketLiveExecClientFactory)
+    node.trader.add_strategy(strategy)
+    node.build()
+    logger.info("Nautilus node built successfully")
+
+    return node, strategy, redis_client is not None
+
+
 def run_integrated_bot(
     simulation: bool = False,
     enable_grafana: bool = True,
     test_mode: bool = False,
+    enable_tui: bool = True,
 ) -> None:
     """
     Build and run the integrated BTC 15-min Polymarket trading bot.
@@ -91,11 +223,29 @@ def run_integrated_bot(
         Start the Prometheus metrics exporter thread on port 8000.
     test_mode:
         Accelerated simulation (trade every minute, 5-min learning cycle).
+    enable_tui:
+        Show the live Rich terminal dashboard instead of scrolling stderr logs.
     """
-    print("=" * 80)
-    print("INTEGRATED POLYMARKET BTC 15-MIN TRADING BOT")
-    print("Nautilus + 7-Phase System + Redis Control")
-    print("=" * 80)
+    if not enable_tui:
+        print("=" * 80)
+        print("INTEGRATED POLYMARKET BTC 15-MIN TRADING BOT")
+        print("Nautilus + 7-Phase System + Redis Control")
+        print("=" * 80)
+
+    if enable_tui:
+        from monitoring.terminal_ui import run_bot_session
+
+        try:
+            run_bot_session(
+                lambda: _boot_bot_node(simulation, enable_grafana, test_mode),
+                simulation=simulation,
+                test_mode=test_mode,
+            )
+        except KeyboardInterrupt:
+            pass
+        finally:
+            logger.info("Bot stopped")
+        return
 
     redis_client = init_redis()
 
@@ -108,12 +258,13 @@ def run_integrated_bot(
         except Exception as e:
             logger.warning(f"Could not set Redis simulation mode: {e}")
 
-    print(f"\nConfiguration:")
-    print(f"  Initial Mode: {'SIMULATION' if simulation else 'LIVE TRADING'}")
-    print(f"  Redis Control: {'Enabled' if redis_client else 'Disabled'}")
-    print(f"  Grafana: {'Enabled' if enable_grafana else 'Disabled'}")
-    print(f"  Max Trade Size: ${os.getenv('MARKET_BUY_USD', '1.00')}")
-    print()
+    if not enable_tui:
+        print(f"\nConfiguration:")
+        print(f"  Initial Mode: {'SIMULATION' if simulation else 'LIVE TRADING'}")
+        print(f"  Redis Control: {'Enabled' if redis_client else 'Disabled'}")
+        print(f"  Grafana: {'Enabled' if enable_grafana else 'Disabled'}")
+        print(f"  Max Trade Size: ${os.getenv('MARKET_BUY_USD', '1.00')}")
+        print()
 
     now = datetime.now(timezone.utc)
     unix_interval_start = (int(now.timestamp()) // 900) * 900
@@ -196,10 +347,7 @@ def run_integrated_bot(
     config = TradingNodeConfig(
         environment="live",
         trader_id="BTC-15MIN-INTEGRATED-001",
-        logging=LoggingConfig(
-            log_level="INFO",
-            log_directory="./logs/nautilus",
-        ),
+        logging=_nautilus_logging_config(quiet_console=False),
         data_engine=LiveDataEngineConfig(qsize=6000),
         exec_engine=LiveExecEngineConfig(qsize=6000),
         risk_engine=LiveRiskEngineConfig(bypass=simulation),
@@ -223,6 +371,24 @@ def run_integrated_bot(
     node.trader.add_strategy(strategy)
     node.build()
     logger.info("Nautilus node built successfully")
+
+    if enable_tui:
+        from monitoring.terminal_ui import run_node_with_dashboard
+
+        logger.info("Bot ready — starting terminal dashboard")
+        try:
+            run_node_with_dashboard(
+                node,
+                strategy,
+                simulation=simulation,
+                test_mode=test_mode,
+                redis_ok=redis_client is not None,
+            )
+        except KeyboardInterrupt:
+            pass
+        finally:
+            logger.info("Bot stopped")
+        return
 
     print()
     print("=" * 80)

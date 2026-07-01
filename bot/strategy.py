@@ -53,6 +53,12 @@ from feedback.learning_engine import get_learning_engine
 from monitoring.metrics_exporter import get_grafana_exporter
 from monitoring.performance_tracker import get_performance_tracker
 
+try:
+    from monitoring.terminal_ui import tui_event
+except ImportError:
+    def tui_event(*args, **kwargs):  # noqa: E303
+        pass
+
 
 class IntegratedBTCStrategy(Strategy):
     """
@@ -1009,10 +1015,7 @@ class IntegratedBTCStrategy(Strategy):
             logger.info(f"Waiting for next market at {next_market['start_time'].strftime('%H:%M:%S')}")
             return False
 
-        logger.info("=" * 80)
-        logger.info(f"SWITCHING TO NEXT MARKET: {next_market['slug']}")
-        logger.info(f"  Current time: {now.strftime('%H:%M:%S')}")
-        logger.info("=" * 80)
+        logger.info("[MARKET] Switched to next 15-min window")
 
         self._bind_market(next_index, waiting=False)
 
@@ -1117,6 +1120,121 @@ class IntegratedBTCStrategy(Strategy):
         if seconds < 3600:
             return f"{seconds/60:.1f}m"
         return f"{seconds/3600:.2f}h"
+
+    @staticmethod
+    def _fmt_mmss(seconds: float) -> str:
+        """Format a duration as MM:SS for the dashboard countdown."""
+        secs = max(0, int(round(seconds)))
+        return f"{secs // 60:02d}:{secs % 60:02d}"
+
+    def get_dashboard_snapshot(self) -> dict:
+        """Return live state for the terminal UI dashboard."""
+        now = datetime.now(timezone.utc)
+        now_ts = now.timestamp()
+
+        market_slug = "—"
+        next_window = "—"
+        trade_window_open = False
+        waiting_for_market = self._waiting_for_market_open
+        price_to_beat: Optional[float] = None
+
+        if 0 <= self.current_instrument_index < len(self.all_btc_instruments):
+            market = self.all_btc_instruments[self.current_instrument_index]
+            market_slug = market.get("slug", "—")
+            market_start_ts = int(market["market_timestamp"])
+            market_end_ts = int(market["end_timestamp"])
+            elapsed = now_ts - market_start_ts
+
+            if self.test_mode:
+                win_start, win_end = 0, 900
+            else:
+                win_start, win_end = self._trade_window_start, self._trade_window_end
+
+            if elapsed < 0:
+                next_window = f"opens in {self._fmt_mmss(abs(elapsed))}"
+            elif elapsed < win_start:
+                next_window = f"opens in {self._fmt_mmss(win_start - elapsed)}"
+            elif elapsed < win_end:
+                trade_window_open = True
+                next_window = f"OPEN ({self._fmt_mmss(win_end - elapsed)} left)"
+            elif elapsed < (market_end_ts - market_start_ts):
+                next_window = f"settle in {self._fmt_mmss(market_end_ts - now_ts)}"
+            else:
+                next_window = "switching soon"
+
+            # Reference BTC at market open (first recorded spot in this window).
+            for trade in reversed(self.paper_trades + self.live_trades):
+                if trade.market_slug == market_slug and trade.btc_spot_price:
+                    price_to_beat = float(trade.btc_spot_price)
+                    break
+            if price_to_beat is None:
+                price_to_beat = self.settlement_tracker.get_current_btc_price()
+
+        btc_price = self.settlement_tracker.get_current_btc_price()
+        up_price = down_price = None
+        if self._last_bid_ask:
+            bid, ask = self._last_bid_ask
+            mid = (float(bid) + float(ask)) / 2
+            up_price = mid
+            down_price = max(0.0, min(1.0, 1.0 - mid))
+
+        open_count = len(self._open_positions)
+        pending_count = len(self._pending_orders)
+        if open_count:
+            pos = self._open_positions[next(iter(self._open_positions))]
+            direction = pos.get("direction", "?").upper()
+            position_summary = f"{direction} ×{open_count} (pending={pending_count})"
+            signal = direction
+            conf = pos.get("signal_confidence", 0.0)
+            confidence = f"{float(conf):.1%}" if conf else "—"
+        else:
+            position_summary = "None" if pending_count == 0 else f"pending={pending_count}"
+            signal = "—"
+            confidence = "—"
+
+        # Performance from in-memory trades (paper + live).
+        all_trades = list(self.paper_trades) + list(self.live_trades)
+        settled = [t for t in all_trades if t.outcome in ("WIN", "LOSS")]
+        wins = sum(1 for t in settled if t.outcome == "WIN")
+        win_rate = (wins / len(settled) * 100) if settled else 0.0
+        total_pnl = sum(float(t.pnl_usd) for t in all_trades)
+
+        risk = self.risk_engine.get_risk_summary()
+        ml_stats = self.ml_engine.get_stats()
+        settle_stats = self.settlement_tracker.get_stats()
+
+        bot_start = self.bot_start_time.astimezone().strftime("%Y-%m-%d %H:%M")
+
+        return {
+            "market_slug": market_slug,
+            "btc_price": btc_price,
+            "price_to_beat": price_to_beat,
+            "up_price": up_price,
+            "down_price": down_price,
+            "position_summary": position_summary,
+            "signal": signal,
+            "confidence": confidence,
+            "next_window": next_window,
+            "trade_window_open": trade_window_open,
+            "waiting_for_market": waiting_for_market,
+            "instruments_loaded": self._instruments_loaded,
+            "open_positions": open_count,
+            "rpc_ok": settle_stats.get("rpc_configured", False) or settle_stats.get("chainlink_connected", False),
+            "rpc_label": "Chainlink RTDS" if settle_stats.get("chainlink_connected") else "REST fallback",
+            "websocket_ok": self._instruments_loaded and not self._waiting_for_market_open,
+            "ml_active": ml_stats.get("is_active", False),
+            "ml_samples": ml_stats.get("sample_count", 0),
+            "ml_min_samples": ml_stats.get("min_samples", 0),
+            "settlement_running": self.signal_recorder.get_stats().get("running", False),
+            "streams_ok": True,
+            "completed_trades": len(settled),
+            "wins": wins,
+            "win_rate": win_rate,
+            "total_pnl": total_pnl,
+            "drawdown_pct": risk.get("balance", {}).get("drawdown_pct", 0.0),
+            "wallet_balance": risk.get("balance", {}).get("current"),
+            "bot_start": bot_start,
+        }
 
     # ── Highlighted order/trade banners ─────────────────────────────────────
     #
@@ -1923,6 +2041,15 @@ class IntegratedBTCStrategy(Strategy):
             sig_lines,
             is_simulation=is_simulation,
         )
+        if fused:
+            fused_dir = str(fused.direction.value).upper()
+            if "NEUTRAL" not in fused_dir:
+                tui_event(
+                    "FUSION",
+                    f"{fused.num_signals} signals → {fused_dir} "
+                    f"score={fused.score:.1f} conf={fused.confidence:.1%}",
+                    slug="S1",
+                )
 
         # STEP 2 — ML model
         flat_metadata = {
@@ -1957,6 +2084,11 @@ class IntegratedBTCStrategy(Strategy):
                     ("Implied edge", f"{implied_edge:.4f}  (min={self.ml_engine.min_edge:.4f})"),
                 ],
                 is_simulation=is_simulation,
+            )
+            tui_event(
+                "ML",
+                f"p(UP)={ml_p_up:.2%} edge={implied_edge:.2%}",
+                slug="S2",
             )
             gap = ml_p_up - poly_price
             self._log_step(
@@ -2070,6 +2202,13 @@ class IntegratedBTCStrategy(Strategy):
                 is_simulation=is_simulation,
                 level="success" if is_simulation else "warning",
             )
+            trend = "UP" if direction == "long" else "DOWN"
+            tui_event(
+                "DECISION",
+                f"Trend {trend} {ml_p_up * 100:.2f}% → "
+                f"{'LONG' if direction == 'long' else 'SHORT'}",
+                slug="S4",
+            )
         else:
             # ML is warming up — fall back to the fused signal direction.
             # CRITICAL: the bet direction comes from the FUSION DIRECTION,
@@ -2121,6 +2260,11 @@ class IntegratedBTCStrategy(Strategy):
                     is_simulation=is_simulation,
                     level="success" if is_simulation else "warning",
                 )
+                tui_event(
+                    "DECISION",
+                    f"Trend UP {poly_price * 100:.2f}% → LONG",
+                    slug="S4",
+                )
             elif "BEARISH" in fused_dir:
                 direction = "short"
                 self._log_step(
@@ -2132,6 +2276,11 @@ class IntegratedBTCStrategy(Strategy):
                     ],
                     is_simulation=is_simulation,
                     level="success" if is_simulation else "warning",
+                )
+                tui_event(
+                    "DECISION",
+                    f"Trend DOWN {(1 - poly_price) * 100:.2f}% → SHORT",
+                    slug="S4",
                 )
             else:
                 self._log_step(
@@ -2543,6 +2692,12 @@ class IntegratedBTCStrategy(Strategy):
             is_simulation=True,
             level="success",
         )
+        tui_event(
+            "ORDER",
+            f"{dir_arrow} {direction.upper()} ${size_usd:.2f}",
+            slug="S5",
+            activity=True,
+        )
 
         self._save_paper_trades()
 
@@ -2862,6 +3017,12 @@ class IntegratedBTCStrategy(Strategy):
                 ],
                 is_simulation=False,
                 level="warning",
+            )
+            tui_event(
+                "ORDER",
+                f"{dir_arrow_live} {direction.upper()} ${max_usd_amount:.2f}",
+                slug="S5",
+                activity=True,
             )
 
             market_end_ts = 0
@@ -3466,6 +3627,8 @@ class IntegratedBTCStrategy(Strategy):
 
     def on_order_denied(self, event) -> None:
         client_id = str(getattr(event, "client_order_id", "?"))
+        reason = str(getattr(event, "reason", "(unknown)"))
+        tui_event("REJECT", reason[:72], slug="S5", level="ERROR", activity=True)
         self._log_event_banner(
             level="error",
             tag="ORDER DENIED",
@@ -3482,6 +3645,7 @@ class IntegratedBTCStrategy(Strategy):
     def on_order_rejected(self, event) -> None:
         client_id = str(getattr(event, "client_order_id", "?"))
         reason = str(getattr(event, "reason", ""))
+        tui_event("REJECT", (reason or "Order rejected")[:72], slug="S5", level="ERROR", activity=True)
         is_fak = any(
             kw in reason.lower() for kw in ("no orders found", "fak", "no match")
         )
