@@ -14,13 +14,7 @@
 
 ---
 
-## Proof of work
-
-https://github.com/user-attachments/assets/8f9a2b66-e291-44e6-8e6f-edecf65a7f4d
-
----
-
-## Why this bot is public
+## Overview
 
 This repository is the **public edition** of our Polymarket BTC 15-minute trading stack. We open-sourced it on purpose — not as a teaser with hidden basics, but as a **working, inspectable system** you can run, test, and judge for yourself.
 
