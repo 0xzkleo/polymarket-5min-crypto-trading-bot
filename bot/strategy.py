@@ -1,7 +1,7 @@
 """
 bot.strategy — IntegratedBTCStrategy: the main Nautilus trading strategy.
 
-Subscribes to Polymarket BTC 15-min UP/DOWN markets, runs a full 6-step ML
+Subscribes to Polymarket BTC 5-min UP/DOWN markets, runs a full 6-step ML
 decision loop, and routes orders through paper-trading or live Nautilus
 execution depending on the current simulation mode.
 """
@@ -27,12 +27,15 @@ from nautilus_trader.model.objects import Quantity
 from nautilus_trader.trading.strategy import Strategy
 
 from bot.models import (
+    MARKET_INTERVAL_MINUTES,
     MARKET_INTERVAL_SECONDS,
+    MARKET_SLUG_MARKER,
     QUOTE_MIN_SPREAD,
     QUOTE_STABILITY_REQUIRED,
     LiveTrade,
     PaperTrade,
     _make_stub_signal,
+    generate_btc_market_slugs,
 )
 from core.recording import get_signal_recorder
 from core.settlement import get_settlement_tracker
@@ -62,11 +65,11 @@ except ImportError:
 
 class IntegratedBTCStrategy(Strategy):
     """
-    Integrated BTC 15-min trading strategy.
+    Integrated BTC 5-min trading strategy.
 
     Lifecycle
     ---------
-    1. ``on_start`` — loads all BTC 15-min instruments, subscribes, starts
+    1. ``on_start`` — loads all BTC 5-min instruments, subscribes, starts
        background threads (WebSocket streams, settlement tracker, Grafana).
     2. ``on_quote_tick`` — buffers ticks; when inside the trade window fires
        ``_make_trading_decision_sync``. Open positions (live and paper) exit
@@ -176,24 +179,29 @@ class IntegratedBTCStrategy(Strategy):
             self._max_spread_pct = 0.05
 
         # ── Trade-window / cooldown ──────────────────────────────────────
-        # Entry window: seconds 780-870 of each 15-min market (13:00 – 14:30).
-        # The 90-second window lets the strategy enter once the market trend is
-        # fully established, then exit via the forced time-based sell at 14:30.
+        # Entry window: seconds 180-270 of each 5-min market (3:00 – 4:30).
+        # Late-window strategy: enter once the short-horizon trend is
+        # established, then exit via TIME-EXIT / settlement near the boundary.
         try:
-            self._trade_window_start = max(0, int(float(os.getenv("TRADE_WINDOW_SEC_START", "780"))))
+            self._trade_window_start = max(0, int(float(os.getenv("TRADE_WINDOW_SEC_START", "180"))))
         except (TypeError, ValueError):
-            self._trade_window_start = 780
+            self._trade_window_start = 180
         try:
             self._trade_window_end = max(
-                self._trade_window_start + 30,
-                int(float(os.getenv("TRADE_WINDOW_SEC_END", "870"))),
+                self._trade_window_start + 15,
+                int(float(os.getenv("TRADE_WINDOW_SEC_END", "270"))),
             )
         except (TypeError, ValueError):
-            self._trade_window_end = 870
+            self._trade_window_end = 270
+        # Keep the window inside the 5-min market interval.
+        self._trade_window_start = min(
+            self._trade_window_start, max(0, MARKET_INTERVAL_SECONDS - 30)
+        )
+        self._trade_window_end = min(self._trade_window_end, MARKET_INTERVAL_SECONDS)
         try:
-            self._entry_cooldown_sec = max(0, int(float(os.getenv("ENTRY_COOLDOWN_SEC", "90"))))
+            self._entry_cooldown_sec = max(0, int(float(os.getenv("ENTRY_COOLDOWN_SEC", "30"))))
         except (TypeError, ValueError):
-            self._entry_cooldown_sec = 90
+            self._entry_cooldown_sec = 30
 
         # Unix-ts of the most recent entry attempt; used by on_quote_tick
         # to gate re-entries inside the wider trade window.
@@ -212,8 +220,7 @@ class IntegratedBTCStrategy(Strategy):
             self._filter_reject_cooldown_sec = 15
 
         # Late-entry cutoff — refuse new entries this close to settlement.
-        # Set to 30s: entries are valid up to second 870 (14:30), which is
-        # the same moment the forced time-based exit fires.
+        # Default 30s: with window end at 270s, entries stop as TIME-EXIT begins.
         try:
             self._late_entry_cutoff_sec = max(
                 0, int(float(os.getenv("LATE_ENTRY_CUTOFF_SEC", "30")))
@@ -225,7 +232,7 @@ class IntegratedBTCStrategy(Strategy):
         # LOCK_MARKET_DIRECTION blocks the "win then fade" anti-pattern:
         # after a winning LONG the fusion frequently flips BEARISH (mean-
         # reversion / divergence signals) and the bot opens an opposite
-        # SHORT on the same market. In 15-min binary markets that
+        # SHORT on the same market. In 5-min binary markets that
         # contrarian trade usually loses because the trend continues to
         # settlement, so the net P&L for the market becomes negative.
         self._lock_market_direction = os.getenv(
@@ -233,10 +240,10 @@ class IntegratedBTCStrategy(Strategy):
         ).strip().lower() in ("1", "true", "yes", "on")
         try:
             self._max_trades_per_market = max(
-                1, int(float(os.getenv("MAX_TRADES_PER_MARKET", "3")))
+                1, int(float(os.getenv("MAX_TRADES_PER_MARKET", "1")))
             )
         except (TypeError, ValueError):
-            self._max_trades_per_market = 3
+            self._max_trades_per_market = 1
         try:
             self._max_chase_delta = max(
                 0.0, float(os.getenv("MAX_CHASE_DELTA", "0.12"))
@@ -314,7 +321,7 @@ class IntegratedBTCStrategy(Strategy):
             cache_seconds=300,
         )
         self.cvd_ob_processor = CVDOrderBookProcessor(
-            cvd_window_seconds=900,
+            cvd_window_seconds=MARKET_INTERVAL_SECONDS,
             cvd_threshold_usd=5_000_000,
             ob_imbalance_threshold=0.30,
         )
@@ -397,7 +404,7 @@ class IntegratedBTCStrategy(Strategy):
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
-    def _seconds_to_next_15min_boundary(self) -> float:
+    def _seconds_to_next_market_boundary(self) -> float:
         now_ts = datetime.now(timezone.utc).timestamp()
         next_boundary = (math.floor(now_ts / MARKET_INTERVAL_SECONDS) + 1) * MARKET_INTERVAL_SECONDS
         return next_boundary - now_ts
@@ -503,7 +510,7 @@ class IntegratedBTCStrategy(Strategy):
         if not self._load_all_btc_instruments():
             logger.warning(
                 "Instrument cache empty at startup — timer loop will retry "
-                "until BTC 15-min markets become available."
+                "until BTC 5-min markets become available."
             )
 
         if self.instrument_id:
@@ -540,11 +547,11 @@ class IntegratedBTCStrategy(Strategy):
 
         logger.info("=" * 80)
         if self.test_mode:
-            logger.info("Strategy active — TEST MODE: full 15-min market is tradeable")
+            logger.info("Strategy active — TEST MODE: full 5-min market is tradeable")
         else:
             logger.info(
                 f"Strategy active — trade window {self._trade_window_start}-"
-                f"{self._trade_window_end}s into each 15-min market "
+                f"{self._trade_window_end}s into each 5-min market "
                 f"(minutes {self._trade_window_start/60:.1f}-{self._trade_window_end/60:.1f})"
             )
         logger.info(f"Price history: {len(self.price_history)} points")
@@ -569,7 +576,7 @@ class IntegratedBTCStrategy(Strategy):
 
     def _load_all_btc_instruments(self, *, quiet: bool = False) -> bool:
         """
-        Scan the Nautilus instrument cache for BTC 15-min markets and bind the
+        Scan the Nautilus instrument cache for BTC 5-min markets and bind the
         active one. Returns True if any markets were found, False otherwise.
 
         Nautilus populates the instrument cache asynchronously, so this must be
@@ -611,7 +618,10 @@ class IntegratedBTCStrategy(Strategy):
                 question = (info.get("question") or "").lower()
                 slug = (info.get("market_slug") or "").lower()
 
-                if not (("btc" in question or "btc" in slug) and "15m" in slug):
+                if not (
+                    ("btc" in question or "btc" in slug)
+                    and MARKET_SLUG_MARKER in slug
+                ):
                     continue
 
                 try:
@@ -619,7 +629,7 @@ class IntegratedBTCStrategy(Strategy):
                 except (ValueError, IndexError):
                     continue
 
-                end_timestamp = market_timestamp + 900
+                end_timestamp = market_timestamp + MARKET_INTERVAL_SECONDS
                 if end_timestamp <= current_timestamp:
                     continue
 
@@ -652,7 +662,7 @@ class IntegratedBTCStrategy(Strategy):
 
         if not btc_instruments:
             if not quiet:
-                logger.warning("No BTC 15-min instruments in cache yet")
+                logger.warning("No BTC 5-min instruments in cache yet")
             return False
 
         # Group both tokens (YES/NO) under their shared slug.
@@ -709,7 +719,7 @@ class IntegratedBTCStrategy(Strategy):
 
         # Pick the market to bind. Critically, DON'T bind a market that is
         # already too far into its cycle to trade — that just burns a full
-        # 15-min wait with "no quotes yet" before the bot can do anything
+        # 5-min wait with "no quotes yet" before the bot can do anything
         # useful. If the live market has no usable trade window left, bind the
         # next FUTURE market in waiting mode so we're subscribed and ready the
         # moment it opens (and actually catch its trade window).
@@ -861,7 +871,7 @@ class IntegratedBTCStrategy(Strategy):
 
     def _load_instruments_via_gamma_direct(self) -> int:
         """
-        Fetch BTC 15-min markets straight from Gamma API and parse them into
+        Fetch BTC 5-min markets straight from Gamma API and parse them into
         Nautilus ``BinaryOption`` instruments, registering each with the
         strategy cache.
 
@@ -884,12 +894,7 @@ class IntegratedBTCStrategy(Strategy):
                 "GAMMA_API_URL", "https://gamma-api.polymarket.com"
             ).rstrip("/")
 
-            now = datetime.now(timezone.utc)
-            unix_interval_start = (int(now.timestamp()) // 900) * 900
-            slugs = [
-                f"btc-updown-15m-{unix_interval_start + (i * 900)}"
-                for i in range(-1, 97)
-            ]
+            slugs = generate_btc_market_slugs()
 
             chunk_size = 50
             markets: List[dict] = []
@@ -1015,7 +1020,7 @@ class IntegratedBTCStrategy(Strategy):
             logger.info(f"Waiting for next market at {next_market['start_time'].strftime('%H:%M:%S')}")
             return False
 
-        logger.info("[MARKET] Switched to next 15-min window")
+        logger.info("[MARKET] Switched to next 5-min window")
 
         self._bind_market(next_index, waiting=False)
 
@@ -1034,7 +1039,7 @@ class IntegratedBTCStrategy(Strategy):
         Tells the user at a glance:
           - bot is alive (timer loop is running)
           - which market is bound
-          - elapsed time within the current 15-min market
+          - elapsed time within the current 5-min market
           - seconds until the next trade-window opens (or "OPEN NOW")
           - last observed mid-price and tick rate since previous heartbeat
         """
@@ -1061,7 +1066,7 @@ class IntegratedBTCStrategy(Strategy):
 
         # Trade window — keep in sync with on_quote_tick.
         if self.test_mode:
-            win_start, win_end = 0, 900
+            win_start, win_end = 0, MARKET_INTERVAL_SECONDS
         else:
             win_start, win_end = self._trade_window_start, self._trade_window_end
 
@@ -1109,7 +1114,7 @@ class IntegratedBTCStrategy(Strategy):
 
         logger.info(
             f"[heartbeat] {market['slug']} | "
-            f"min {elapsed_in_market/60:.1f}/15 | "
+            f"min {elapsed_in_market/60:.1f}/{MARKET_INTERVAL_MINUTES} | "
             f"{window_status} | {quote_str} | {tick_str} | {positions_str}"
         )
 
@@ -1146,7 +1151,7 @@ class IntegratedBTCStrategy(Strategy):
             elapsed = now_ts - market_start_ts
 
             if self.test_mode:
-                win_start, win_end = 0, 900
+                win_start, win_end = 0, MARKET_INTERVAL_SECONDS
             else:
                 win_start, win_end = self._trade_window_start, self._trade_window_end
 
@@ -1498,7 +1503,7 @@ class IntegratedBTCStrategy(Strategy):
             )
             if uptime_minutes >= self.restart_after_minutes:
                 logger.warning("=" * 80)
-                logger.warning("MARKET REFRESH — fetching new BTC 15-min instruments in-place")
+                logger.warning("MARKET REFRESH — fetching new BTC 5-min instruments in-place")
                 logger.warning("=" * 80)
                 try:
                     added = self._load_instruments_via_gamma_direct()
@@ -1529,7 +1534,7 @@ class IntegratedBTCStrategy(Strategy):
                     )
                 elif self._instrument_load_attempts == self._max_instrument_load_attempts:
                     logger.error(
-                        f"Failed to load BTC 15-min instruments after "
+                        f"Failed to load BTC 5-min instruments after "
                         f"{self._max_instrument_load_attempts} attempts. "
                         f"Check Polymarket connectivity and Gamma API patches."
                     )
@@ -1663,11 +1668,11 @@ class IntegratedBTCStrategy(Strategy):
             seconds_into_sub = elapsed_secs % MARKET_INTERVAL_SECONDS
 
             # Trade window: configurable via TRADE_WINDOW_SEC_{START,END}.
-            # Default 780-870s (13:00–14:30) — enter once the market trend is
-            # fully established; forced time-exit fires at second 870.
+            # Default 180-270s (3:00–4:30) — enter once the short-horizon trend
+            # is established; TIME-EXIT / settlement near the 5-min boundary.
             if self.test_mode:
-                # In test mode the whole 15-min market is the trade window.
-                window_start, window_end = 0, 900
+                # In test mode the whole 5-min market is the trade window.
+                window_start, window_end = 0, MARKET_INTERVAL_SECONDS
             else:
                 window_start = self._trade_window_start
                 window_end = self._trade_window_end
@@ -2915,7 +2920,7 @@ class IntegratedBTCStrategy(Strategy):
             timestamp_ms = int(time.time() * 1000)
             # Plain alphanumeric/dash id only — some venues reject special chars.
             usd_label = str(int(round(max_usd_amount * 100))).zfill(4)
-            unique_id = f"BTC-15M-{usd_label}-{timestamp_ms}"
+            unique_id = f"BTC-5M-{usd_label}-{timestamp_ms}"
 
             order = self.order_factory.market(
                 instrument_id=trade_instrument_id,

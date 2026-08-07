@@ -38,7 +38,7 @@ def run_supervisor() -> None:
     bot_args = sys.argv[1:] if len(sys.argv) > 1 else []
 
     print("=" * 80)
-    print("BTC 15-MIN TRADING BOT — AUTO-RESTART SUPERVISOR")
+    print("BTC 5-MIN TRADING BOT — AUTO-RESTART SUPERVISOR")
     print("=" * 80)
     print(f"Platform:    {sys.platform}")
     print(f"Python:      {python_cmd}")

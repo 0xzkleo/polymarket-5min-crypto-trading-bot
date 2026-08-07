@@ -61,7 +61,7 @@ class FundingRateOIProcessor(BaseSignalProcessor):
 
                 oi_resp = client.get(
                     f"{BINANCE_FUTURES_BASE}/futures/data/openInterestHist",
-                    params={"symbol": "BTCUSDT", "period": "15m", "limit": 5},
+                    params={"symbol": "BTCUSDT", "period": "5m", "limit": 5},
                 )
                 oi_resp.raise_for_status()
                 oi_data = oi_resp.json()

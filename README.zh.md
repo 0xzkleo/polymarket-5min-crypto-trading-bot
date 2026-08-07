@@ -1,4 +1,4 @@
-# Polymarket 交易机器人
+# Polymarket BTC 5 分钟交易机器人
 
 **阅读其他语言版本：** [🇬🇧 English](README.md) · [🇷🇺 Русский](README.ru.md)
 
@@ -42,7 +42,7 @@
 - **风控优先默认值** — 可配置上限（如每笔约 $1）、止盈、入场价格区间、价差过滤、方向锁定、反追涨保护。
 - **止损开关** — `ENABLE_STOP_LOSS=false` 时持仓可持有至止盈或结算；设为 `true` 可重新启用提前止损。
 - **ML 边缘门槛** — 仅当 XGBoost 概率与 Polymarket 价格相差至少 `MIN_ML_EDGE`（默认 10 个百分点）时才下单。
-- **每市场限制** — `MAX_TRADES_PER_MARKET=1` 在每个 15 分钟槽内只开一次仓。
+- **每市场限制** — `MAX_TRADES_PER_MARKET=1` 在每个 5 分钟槽内只开一次仓。
 - **模拟与实盘** — 纸面/测试模式无需生产密钥；准备好后再切换实盘。
 - **运维工具** — Redis 模式切换、Grafana 指标、纸面交易查看、长时间运行自动重启。
 - **自学习钩子** — 可根据绩效反馈调整权重（见 `feedback/` 与策略配置）。
@@ -64,8 +64,8 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yourusername/polymarket-btc-15m-bot.git
-cd polymarket-btc-15m-bot
+git clone https://github.com/yourusername/polymarket-btc-5m-bot.git
+cd polymarket-btc-5m-bot
 ```
 
 ### 2. 创建虚拟环境
@@ -127,7 +127,7 @@ Debian/Ubuntu：`sudo apt install redis-server && redis-server`
 # 快速测试（模拟交易，约每分钟一次）
 python main.py --test-mode
 
-# 常规模拟（15 分钟时钟）
+# 常规模拟（5 分钟时钟）
 python main.py --simulation
 
 # 实盘（真实资金 — 需有效凭证）
@@ -146,12 +146,13 @@ python supervisor.py --live
 | `MIN_ENTRY_PRICE` | 最低入场价格 | `0.25` |
 | `MAX_ENTRY_PRICE` | 最高入场价格 | `0.75` |
 | `MAX_SPREAD_PCT` | 买卖价差相对中间价上限 | `0.05` |
-| `ENTRY_COOLDOWN_SEC` | 两次入场尝试间隔（秒） | `90` |
-| `MAX_TRADES_PER_MARKET` | 每个 15 分钟市场最大入场次数 | `1` |
+| `ENTRY_COOLDOWN_SEC` | 两次入场尝试间隔（秒） | `30` |
+| `MAX_TRADES_PER_MARKET` | 每个 5 分钟市场最大入场次数 | `1` |
+| `TRADE_WINDOW_SEC_START` / `END` | 5 分钟市场内可入场秒数窗口 | `180` / `270` |
 | `LOCK_MARKET_DIRECTION` | 首笔交易后锁定方向 | `true` |
 | `MAX_CHASE_DELTA` | 再入场允许的最大价格变动 | `0.12` |
 | `MIN_ML_EDGE` | 下单所需最小 ML 概率差 | `0.10` |
-| `LATE_ENTRY_CUTOFF_SEC` | 结算前拒绝新入场的秒数 | `120` |
+| `LATE_ENTRY_CUTOFF_SEC` | 结算前拒绝新入场的秒数 | `30` |
 | `MARKET_BUY_USD` | 每笔订单美元金额 | `1.00` |
 
 完整列表见 `.env.example` 内联注释。
@@ -219,7 +220,7 @@ python scripts/debug_gamma_api.py
 
 ## 适合人群
 
-- 希望在 15 分钟加密预测市场上**自动化交易**的交易者。
+- 希望在 5 分钟加密预测市场上**自动化交易**的交易者。
 - 习惯编辑 `.env`、阅读日志、运行分阶段测试的**开发者**。
 - 将**风险放在首位**、希望在放大仓位前具备明确上限与可观测性的用户。
 

@@ -6,15 +6,46 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional
 
 
 # ── Trading-window constants ──────────────────────────────────────────────────
 QUOTE_STABILITY_REQUIRED: int = 3       # valid ticks before market is considered stable
 QUOTE_MIN_SPREAD: float = 0.001         # bid AND ask must be at least this
-MARKET_INTERVAL_SECONDS: int = 900      # 15-minute markets
+
+# Polymarket BTC Up/Down market identity
+MARKET_INTERVAL_SECONDS: int = 300      # 5-minute markets
+MARKET_INTERVAL_MINUTES: int = 5
+MARKET_SLUG_PREFIX: str = "btc-updown-5m"
+MARKET_SLUG_MARKER: str = "5m"          # substring filter on slug / question
+
+
+def market_interval_start(ts: Optional[float] = None) -> int:
+    """Floor a unix timestamp to the current BTC 5-min market open."""
+    if ts is None:
+        ts = datetime.now(timezone.utc).timestamp()
+    return (int(ts) // MARKET_INTERVAL_SECONDS) * MARKET_INTERVAL_SECONDS
+
+
+def btc_market_slug(interval_start: int) -> str:
+    """Build a Polymarket BTC 5-min Up/Down slug from its open unix time."""
+    return f"{MARKET_SLUG_PREFIX}-{interval_start}"
+
+
+def generate_btc_market_slugs(lookback: int = 1, ahead: int = 96) -> List[str]:
+    """
+    Deterministic slug list for Gamma / Nautilus instrument loading.
+
+    Default ``range(-1, 97)`` ≈ 98 windows (~8.2 hours of 5-min markets),
+    matching the prior 15-min preload count while staying under HTTP slug limits.
+    """
+    start = market_interval_start()
+    return [
+        btc_market_slug(start + i * MARKET_INTERVAL_SECONDS)
+        for i in range(-lookback, ahead + 1)
+    ]
 
 
 @dataclass
@@ -87,7 +118,7 @@ class LiveTrade:
     A live trade is closed in one of three ways:
       * ``EXIT_STOP``    — manual SELL fired by stop-loss
       * ``EXIT_TP``      — manual SELL fired by take-profit
-      * ``SETTLEMENT``   — Polymarket auto-resolved at the 15-min boundary
+      * ``SETTLEMENT``   — Polymarket auto-resolved at the 5-min boundary
                           (token paid 1.0 to the winner / 0.0 to the loser)
     """
 

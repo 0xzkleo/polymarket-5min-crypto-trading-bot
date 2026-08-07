@@ -1,5 +1,5 @@
 """
-bot — Polymarket BTC 15-min trading bot package.
+bot — Polymarket BTC 5-min trading bot package.
 
 Entry points
 ------------

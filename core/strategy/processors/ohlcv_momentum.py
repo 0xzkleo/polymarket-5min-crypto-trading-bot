@@ -202,11 +202,13 @@ class OHLCVMomentumProcessor(BaseSignalProcessor):
         macd_signal = data["macd_signal"]
         pct_b      = data["pct_b"]
         vol_regime = data["vol_regime"]
+        ret5       = data["ret5"]
         ret15      = data["ret15"]
 
         if metadata is not None:
             metadata["vol_regime"] = vol_regime
             metadata["rsi"]  = rsi
+            metadata["ret5"] = ret5
             metadata["ret15"] = ret15
 
         session_mult, session_name = self._session_multiplier()
@@ -228,9 +230,10 @@ class OHLCVMomentumProcessor(BaseSignalProcessor):
         elif pct_b > self.bb_upper:
             bearish_votes += 1
 
-        if ret15 > 0.003:
+        # Align momentum vote with the 5-min market horizon (5×1m bars).
+        if ret5 > 0.002:
             bullish_votes += 1
-        elif ret15 < -0.003:
+        elif ret5 < -0.002:
             bearish_votes += 1
 
         total_votes = bullish_votes + bearish_votes
@@ -281,6 +284,7 @@ class OHLCVMomentumProcessor(BaseSignalProcessor):
                 "session": session_name,
                 "bullish_votes": bullish_votes,
                 "bearish_votes": bearish_votes,
+                "ret5m": round(ret5, 5),
                 "ret15m": round(ret15, 5),
             },
         )

@@ -1,10 +1,10 @@
 """
-main.py — Unified CLI entry point for the Polymarket BTC 15-min trading bot.
+main.py — Unified CLI entry point for the Polymarket BTC 5-min trading bot.
 
 Usage
 -----
     python main.py --test-mode        # simulation, 1-min trade clock, full tracking
-    python main.py --simulation       # simulation, normal 15-min clock
+    python main.py --simulation       # simulation, normal 5-min clock
     python main.py --live             # REAL MONEY — requires .env keys
 """
 from __future__ import annotations
@@ -106,7 +106,7 @@ def print_banner(simulation: bool, test_mode: bool) -> None:
         mode_style = "yellow"
     elif simulation:
         mode_text  = Text("SIMULATION", style="bold cyan")
-        mode_desc  = "15-min clock  ·  paper trades only  ·  no real orders"
+        mode_desc  = "5-min clock  ·  paper trades only  ·  no real orders"
         mode_style = "cyan"
     else:
         mode_text  = Text("⚡ LIVE TRADING  —  REAL MONEY AT RISK", style="bold red blink")
@@ -116,7 +116,7 @@ def print_banner(simulation: bool, test_mode: bool) -> None:
     title = Text()
     title.append("POLYMARKET ", style="bold white")
     title.append("BTC", style="bold yellow")
-    title.append(" 15-MIN BOT", style="bold white")
+    title.append(" 5-MIN BOT", style="bold white")
 
     body = Text(justify="center")
     body.append("Mode:  ", style="dim")
@@ -258,12 +258,12 @@ def print_live_dashboard(paper_trades_path: str = "paper_trades.json") -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Polymarket BTC 15-min trading bot",
+        description="Polymarket BTC 5-min trading bot",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python main.py --test-mode            # fast simulation (1-min intervals)
-  python main.py --simulation           # normal simulation (15-min intervals)
+  python main.py --simulation           # normal simulation (5-min intervals)
   python main.py --live                 # REAL MONEY
   python main.py --test-mode --verbose  # with DEBUG logs
   python main.py --test-mode --no-grafana
@@ -277,7 +277,7 @@ Examples:
     )
     mode_group.add_argument(
         "--simulation", action="store_true",
-        help="Simulation with normal 15-min clock",
+        help="Simulation with normal 5-min clock",
     )
     mode_group.add_argument(
         "--live", action="store_true",

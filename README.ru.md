@@ -1,4 +1,4 @@
-# Polymarket Торговый Бот
+# Polymarket BTC 5-мин Торговый Бот
 
 **Читать на другом языке:** [🇬🇧 English](README.md) · [🇨🇳 中文](README.zh.md)
 
@@ -42,7 +42,7 @@
 - **Риск в приоритете** — настраиваемые лимиты (~$1 на сделку), take-profit, диапазон цены входа, фильтр спреда, блокировка направления, защита от погони за ценой.
 - **Переключатель stop-loss** — `ENABLE_STOP_LOSS=false`: позиция до TP или settlement; `true` — ранний SL снова включён.
 - **Порог ML edge** — ставка только если вероятность XGBoost отличается от цены Polymarket минимум на `MIN_ML_EDGE` (по умолчанию 10 п.п.).
-- **Одна сделка на рынок** — `MAX_TRADES_PER_MARKET=1`: один вход на 15-минутный слот.
+- **Одна сделка на рынок** — `MAX_TRADES_PER_MARKET=1`: один вход на 5-минутный слот.
 - **Симуляция и live** — paper/test без продакшен-ключей; live — когда готовы.
 - **Операционные инструменты** — переключение режима через Redis, метрики для Grafana, просмотр paper-сделок, автоперезапуск.
 - **Самообучение** — корректировка весов по результатам (см. `feedback/` и конфиг стратегии).
@@ -64,8 +64,8 @@
 ### 1. Клонировать репозиторий
 
 ```bash
-git clone https://github.com/yourusername/polymarket-btc-15m-bot.git
-cd polymarket-btc-15m-bot
+git clone https://github.com/yourusername/polymarket-btc-5m-bot.git
+cd polymarket-btc-5m-bot
 ```
 
 ### 2. Виртуальное окружение
@@ -127,7 +127,7 @@ Debian/Ubuntu: `sudo apt install redis-server && redis-server`
 # Быстрый тест (симуляция ~раз в минуту)
 python main.py --test-mode
 
-# Обычная симуляция (15-минутные рынки)
+# Обычная симуляция (5-минутные рынки)
 python main.py --simulation
 
 # Live (реальные деньги — нужны валидные ключи)
@@ -146,12 +146,13 @@ python supervisor.py --live
 | `MIN_ENTRY_PRICE` | Мин. цена входа | `0.25` |
 | `MAX_ENTRY_PRICE` | Макс. цена входа | `0.75` |
 | `MAX_SPREAD_PCT` | Макс. спред к mid | `0.05` |
-| `ENTRY_COOLDOWN_SEC` | Пауза между попытками входа (с) | `90` |
-| `MAX_TRADES_PER_MARKET` | Макс. входов на 15-мин рынок | `1` |
+| `ENTRY_COOLDOWN_SEC` | Пауза между попытками входа (с) | `30` |
+| `MAX_TRADES_PER_MARKET` | Макс. входов на 5-мин рынок | `1` |
+| `TRADE_WINDOW_SEC_START` / `END` | Окно входа внутри 5-мин рынка (сек) | `180` / `270` |
 | `LOCK_MARKET_DIRECTION` | Блокировка направления после первой сделки | `true` |
 | `MAX_CHASE_DELTA` | Макс. ухудшение цены для повторного входа | `0.12` |
 | `MIN_ML_EDGE` | Мин. разрыв ML vs Polymarket | `0.10` |
-| `LATE_ENTRY_CUTOFF_SEC` | Запрет входа перед settlement (с) | `120` |
+| `LATE_ENTRY_CUTOFF_SEC` | Запрет входа перед settlement (с) | `30` |
 | `MARKET_BUY_USD` | USD на ордер | `1.00` |
 
 Полный список — в `.env.example`.
@@ -219,7 +220,7 @@ python scripts/debug_gamma_api.py
 
 ## Кому подходит
 
-- Трейдерам **15-минутных** крипто-рынков предсказаний, нужна автоматизация.
+- Трейдерам **5-минутных** крипто-рынков предсказаний, нужна автоматизация.
 - **Разработчикам**, готовым править `.env`, читать логи и гонять фазовые тесты.
 - Тем, кто ставит **риск на первое место** и хочет лимиты и observability до масштабирования.
 

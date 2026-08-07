@@ -1,7 +1,7 @@
 """
 monitoring.terminal_ui
 ======================
-Live terminal dashboard for the Polymarket BTC 15-min trading bot.
+Live terminal dashboard for the Polymarket BTC 5-min trading bot.
 
 Captures loguru output into an event feed and polls strategy state for
 status, health, performance, tasks, and order activity panels.
@@ -356,7 +356,7 @@ def _header_panel(simulation: bool, test_mode: bool) -> Panel:
 
     title = Text()
     title.append("⬡ ", style="cyan")
-    title.append("POLYMARKET BTC 15-MIN TRADING BOT", style="bold cyan")
+    title.append("POLYMARKET BTC 5-MIN TRADING BOT", style="bold cyan")
 
     if test_mode:
         title.append("  [TEST]", style="bold yellow")
@@ -486,7 +486,7 @@ def _active_tasks_panel(snapshot: Dict[str, Any]) -> Panel:
         Text("   Monitoring open trades", style="dim"),
         Text(""),
         Text("⏱  Market Timer", style="cyan"),
-        Text("   Watching 15-min boundaries", style="dim"),
+        Text("   Watching 5-min boundaries", style="dim"),
         Text(""),
         Text("🧠 ML Engine", style="cyan"),
         Text(f"   Model active — {ml} samples", style="dim"),

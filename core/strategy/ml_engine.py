@@ -95,7 +95,7 @@ def _time_features(dt: datetime) -> Dict[str, float]:
 
 class MLPredictionEngine:
     """
-    XGBoost-based probability model for Polymarket BTC 15-min markets.
+    XGBoost-based probability model for Polymarket BTC 5-min markets.
     Thread-safe — model reads can happen concurrently with background retraining.
     """
 

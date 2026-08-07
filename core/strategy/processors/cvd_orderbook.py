@@ -43,7 +43,7 @@ class CVDOrderBookProcessor(BaseSignalProcessor):
 
     def __init__(
         self,
-        cvd_window_seconds: int = 900,
+        cvd_window_seconds: int = 300,
         cvd_threshold_usd: float = 5_000_000,
         ob_imbalance_threshold: float = 0.30,
         ob_top_levels: int = 20,
