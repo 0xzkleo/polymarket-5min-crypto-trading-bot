@@ -1,4 +1,4 @@
-﻿# Polymarket BTC 15-Min Trading Bot -- Python Dependencies
+﻿# Polymarket BTC 5-Min Trading Bot -- Python Dependencies
 # Install: pip install -r requirements.txt
 
 nautilus_trader>=1.200.0

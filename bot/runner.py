@@ -6,7 +6,6 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timezone
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
@@ -16,6 +15,8 @@ load_dotenv()
 
 from loguru import logger
 import redis
+
+from bot.models import generate_btc_market_slugs
 
 # Apply patches BEFORE importing Nautilus
 from patches.gamma_markets import apply_gamma_markets_patch, verify_patch
@@ -113,13 +114,7 @@ def _boot_bot_node(
         except Exception as e:
             logger.warning(f"Could not set Redis simulation mode: {e}")
 
-    now = datetime.now(timezone.utc)
-    unix_interval_start = (int(now.timestamp()) // 900) * 900
-
-    btc_slugs = []
-    for i in range(-1, 97):
-        timestamp = unix_interval_start + (i * 900)
-        btc_slugs.append(f"btc-updown-15m-{timestamp}")
+    btc_slugs = generate_btc_market_slugs()
 
     filters = {
         "active": True,
@@ -129,8 +124,8 @@ def _boot_bot_node(
         "limit": 100,
     }
 
-    logger.info("Loading BTC 15-min markets by slug")
-    logger.info(f"  Interval start: {unix_interval_start} | Count: {len(btc_slugs)}")
+    logger.info("Loading BTC 5-min markets by slug")
+    logger.info(f"  First: {btc_slugs[0]} | Count: {len(btc_slugs)}")
 
     instrument_cfg = InstrumentProviderConfig(
         load_all=True,
@@ -178,7 +173,7 @@ def _boot_bot_node(
 
     config = TradingNodeConfig(
         environment="live",
-        trader_id="BTC-15MIN-INTEGRATED-001",
+        trader_id="BTC-5MIN-INTEGRATED-001",
         logging=_nautilus_logging_config(quiet_console=True),
         data_engine=LiveDataEngineConfig(qsize=6000),
         exec_engine=LiveExecEngineConfig(qsize=6000),
@@ -213,7 +208,7 @@ def run_integrated_bot(
     enable_tui: bool = True,
 ) -> None:
     """
-    Build and run the integrated BTC 15-min Polymarket trading bot.
+    Build and run the integrated BTC 5-min Polymarket trading bot.
 
     Parameters
     ----------
@@ -228,7 +223,7 @@ def run_integrated_bot(
     """
     if not enable_tui:
         print("=" * 80)
-        print("INTEGRATED POLYMARKET BTC 15-MIN TRADING BOT")
+        print("INTEGRATED POLYMARKET BTC 5-MIN TRADING BOT")
         print("Nautilus + 7-Phase System + Redis Control")
         print("=" * 80)
 
@@ -266,13 +261,7 @@ def run_integrated_bot(
         print(f"  Max Trade Size: ${os.getenv('MARKET_BUY_USD', '1.00')}")
         print()
 
-    now = datetime.now(timezone.utc)
-    unix_interval_start = (int(now.timestamp()) // 900) * 900
-
-    btc_slugs = []
-    for i in range(-1, 97):
-        timestamp = unix_interval_start + (i * 900)
-        btc_slugs.append(f"btc-updown-15m-{timestamp}")
+    btc_slugs = generate_btc_market_slugs()
 
     filters = {
         "active": True,
@@ -283,8 +272,8 @@ def run_integrated_bot(
     }
 
     logger.info("=" * 80)
-    logger.info("LOADING BTC 15-MIN MARKETS BY SLUG")
-    logger.info(f"  Interval start: {unix_interval_start} | Count: {len(btc_slugs)}")
+    logger.info("LOADING BTC 5-MIN MARKETS BY SLUG")
+    logger.info(f"  Count: {len(btc_slugs)}")
     logger.info(f"  First: {btc_slugs[0]}  Last: {btc_slugs[-1]}")
     logger.info("=" * 80)
 
@@ -346,7 +335,7 @@ def run_integrated_bot(
 
     config = TradingNodeConfig(
         environment="live",
-        trader_id="BTC-15MIN-INTEGRATED-001",
+        trader_id="BTC-5MIN-INTEGRATED-001",
         logging=_nautilus_logging_config(quiet_console=False),
         data_engine=LiveDataEngineConfig(qsize=6000),
         exec_engine=LiveExecEngineConfig(qsize=6000),
@@ -407,7 +396,7 @@ def run_integrated_bot(
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Integrated BTC 15-Min Trading Bot")
+    parser = argparse.ArgumentParser(description="Integrated BTC 5-Min Trading Bot")
     parser.add_argument(
         "--live", action="store_true",
         help="Run in LIVE mode (real money at risk!). Default is simulation.",

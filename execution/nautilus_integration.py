@@ -33,51 +33,51 @@ from nautilus_trader.trading.strategy import Strategy
 load_dotenv()
 
 
-def current_btc_15m_slug() -> str:
+def current_btc_5m_slug() -> str:
     """
-    Get the current BTC 15-minute market slug.
-    
-    Polymarket BTC 15-min markets follow the pattern:
-    btc-updown-15m-{unix_timestamp}
-    
-    Where unix_timestamp is the start of the 15-minute interval.
-    
+    Get the current BTC 5-minute market slug.
+
+    Polymarket BTC 5-min markets follow the pattern:
+    btc-updown-5m-{unix_timestamp}
+
+    Where unix_timestamp is the start of the 5-minute interval.
+
     Returns:
-        Current market slug (e.g., "btc-updown-15m-1739461800")
+        Current market slug (e.g., "btc-updown-5m-1739461800")
     """
-    now = datetime.now(timezone.utc)
-    unix_s = int(now.timestamp())
-    interval_start = math.floor(unix_s / 900) * 900  # 900 = 15×60
-    slug = f"btc-updown-15m-{interval_start}"
-    
-    logger.info(f"Current BTC 15-min market slug: {slug}")
+    from bot.models import btc_market_slug, market_interval_start
+
+    slug = btc_market_slug(market_interval_start())
+    logger.info(f"Current BTC 5-min market slug: {slug}")
     return slug
 
 
-def get_next_btc_15m_markets(count: int = 3) -> list[str]:
+def get_next_btc_5m_markets(count: int = 3) -> list[str]:
     """
-    Get the next N BTC 15-minute market slugs.
-    
+    Get the next N BTC 5-minute market slugs.
+
     Useful for pre-loading markets that will be active soon.
-    
+
     Args:
         count: Number of future markets to include
-        
+
     Returns:
         List of market slugs including current and future markets
     """
-    now = datetime.now(timezone.utc)
-    unix_s = int(now.timestamp())
-    interval_start = math.floor(unix_s / 900) * 900
-    
-    slugs = []
-    for i in range(count):
-        timestamp = interval_start + (i * 900)
-        slug = f"btc-updown-15m-{timestamp}"
-        slugs.append(slug)
-    
-    logger.info(f"BTC 15-min market slugs (next {count}): {slugs}")
+    from bot.models import MARKET_INTERVAL_SECONDS, btc_market_slug, market_interval_start
+
+    interval_start = market_interval_start()
+    slugs = [
+        btc_market_slug(interval_start + (i * MARKET_INTERVAL_SECONDS))
+        for i in range(count)
+    ]
+    logger.info(f"BTC 5-min market slugs (next {count}): {slugs}")
     return slugs
+
+
+# Backward-compatible aliases
+current_btc_15m_slug = current_btc_5m_slug
+get_next_btc_15m_markets = get_next_btc_5m_markets
 
 
 class PolymarketBTCIntegration:
@@ -172,8 +172,8 @@ class PolymarketBTCIntegration:
     def _create_nautilus_config(self) -> TradingNodeConfig:
         """Create Nautilus trading node configuration."""
         
-        # Get current and next BTC 15-min market slugs
-        btc_markets = get_next_btc_15m_markets(count=2)  # Current + next market
+        # Get current and next BTC 5-min market slugs
+        btc_markets = get_next_btc_5m_markets(count=2)  # Current + next market
         
         # Instrument provider config - use Gamma Markets API for faster filtering
         instrument_cfg = InstrumentProviderConfig(
@@ -183,11 +183,11 @@ class PolymarketBTCIntegration:
                 "active": True,
                 "closed": False,
                 "archived": False,
-                "slug": btc_markets,  # Load current 15-min BTC market(s)
+                "slug": btc_markets,  # Load current 5-min BTC market(s)
             }
         )
         
-        logger.info(f"Loading BTC 15-min markets: {btc_markets}")
+        logger.info(f"Loading BTC 5-min markets: {btc_markets}")
         
         # Wallet config (see .env.example for the three signature_type modes).
         sig_type = int(os.getenv("POLYMARKET_SIG_TYPE", "2"))
@@ -218,7 +218,7 @@ class PolymarketBTCIntegration:
         # Trading node config
         node_config = TradingNodeConfig(
             environment="live",
-            trader_id="BTC-15MIN-BOT-001",
+            trader_id="BTC-5MIN-BOT-001",
             logging=LoggingConfig(
                 log_level="INFO",
                 log_directory="./logs/nautilus",
@@ -236,7 +236,7 @@ class PolymarketBTCIntegration:
     
     async def _find_btc_instrument(self) -> bool:
         """
-        Find the BTC 15-minute prediction market instrument.
+        Find the BTC 5-minute prediction market instrument.
         
         Returns:
             True if found
@@ -244,14 +244,14 @@ class PolymarketBTCIntegration:
         if not self.node:
             return False
         
-        logger.info("Searching for BTC 15-min prediction market instruments...")
+        logger.info("Searching for BTC 5-min prediction market instruments...")
         
         # Get all instruments from cache
         instruments = self.node.cache.instruments()
         
         logger.info(f"Found {len(instruments)} total instruments")
         
-        # Search for BTC 15-min instruments
+        # Search for BTC 5-min instruments
         btc_instruments = []
         for instrument in instruments:
             instrument_str = str(instrument.id)
@@ -261,21 +261,21 @@ class PolymarketBTCIntegration:
                 
                 # Check if it's a BTC market
                 # Instruments follow pattern: {condition_id}-{token_id}.POLYMARKET
-                # We loaded by slug, so any instrument here should be our BTC 15-min market
+                # We loaded by slug, so any instrument here should be our BTC 5-min market
                 btc_instruments.append(instrument)
-                logger.info(f"  Found BTC 15-min instrument: {instrument.id}")
+                logger.info(f"  Found BTC 5-min instrument: {instrument.id}")
         
         if not btc_instruments:
-            logger.error("No BTC 15-min instruments found!")
+            logger.error("No BTC 5-min instruments found!")
             logger.error("This usually means:")
-            logger.error("  1. The current 15-min market hasn't been created yet")
+            logger.error("  1. The current 5-min market hasn't been created yet")
             logger.error("  2. Credentials are incorrect")
             logger.error("  3. Gamma Markets API is not enabled")
             return False
         
-        # Use the first BTC instrument (should be the current 15-min market)
+        # Use the first BTC instrument (should be the current 5-min market)
         self.btc_instrument_id = btc_instruments[0].id
-        logger.info(f"✓ Using BTC 15-min instrument: {self.btc_instrument_id}")
+        logger.info(f"✓ Using BTC 5-min instrument: {self.btc_instrument_id}")
         
         # Log market details
         instrument = btc_instruments[0]
@@ -349,7 +349,7 @@ class PolymarketBTCIntegration:
             
             # Generate unique order ID
             timestamp_ms = int(datetime.now().timestamp() * 1000)
-            order_id = f"BTC-15MIN-{side.upper()}-{timestamp_ms}"
+            order_id = f"BTC-5MIN-{side.upper()}-{timestamp_ms}"
             
             # Create market order
             # CRITICAL: Use quote_quantity=False to specify quantity in TOKENS
@@ -429,7 +429,7 @@ class PolymarketBTCIntegration:
             
             # Generate order ID
             timestamp_ms = int(datetime.now().timestamp() * 1000)
-            order_id = f"BTC-15MIN-LIMIT-{timestamp_ms}"
+            order_id = f"BTC-5MIN-LIMIT-{timestamp_ms}"
             
             # Create limit order
             order = self.node.trader.order_factory.limit(

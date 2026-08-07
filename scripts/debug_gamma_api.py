@@ -17,19 +17,22 @@ async def test_gamma_api() -> None:
 
     base_url = "https://gamma-api.polymarket.com"
     now = datetime.now(timezone.utc)
+    interval_start = (int(now.timestamp()) // 300) * 300
+    current_slug = f"btc-updown-5m-{interval_start}"
 
     print("=" * 80)
     print("TESTING GAMMA API FILTERING")
     print("=" * 80)
+    print(f"Current BTC 5-min slug: {current_slug}")
 
     async with httpx.AsyncClient() as client:
-        print("\n1. Testing: All active BTC markets (no time filter)")
+        print("\n1. Testing: Current BTC 5-min market by slug")
         params1 = {
             "active": "true",
             "closed": "false",
             "archived": "false",
             "limit": 50,
-            "slug": "btc-updown-15m-1771140600",
+            "slug": current_slug,
         }
 
         response1 = await client.get(f"{base_url}/markets", params=params1)

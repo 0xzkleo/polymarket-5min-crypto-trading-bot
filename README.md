@@ -1,4 +1,4 @@
-# Polymarket BTC 15-Min Trading Bot
+# Polymarket BTC 5-Min Trading Bot
 
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
@@ -30,17 +30,36 @@ Premium is for traders who want production performance after validating the publ
 | | Public (this repo) | Premium |
 |---|---|---|
 | Purpose | Test · learn · verify | Live capital · best results |
-| Risk & PnL | Included | Included + tuned |
-| Training data | General / warming model | **20,000+** trades |
-| Win rate | Not claimed (educational) | **97%+** |
+| Risk & PnL | Included partially | Included fully + tuned |
+| Training data | General / warming model | **200,000+** trades |
+| Win rate | Not claimed (educational) | **98.8%+** |
 | Proof | You run sim / live yourself | Shared in private meeting |
-| Access | Full source here | Private build + support |
+| Access | Only BTC | BTC, ETH, SOL, DOGE, XRP, BNB |
 
-**Flow:** run public → validate results → [talk premium](https://t.me/RetroValix)
+**Flow:** run public → validate results → [talk collaboration](https://t.me/RetroValix)
 
 Polymarket account proof is shared only on a call — not posted publicly.
 
-→ **Premium / proof:** [Telegram @RetroValix](https://t.me/RetroValix)
+→ **Collaboration / proof:** [Telegram @RetroValix](https://t.me/RetroValix)
+
+> ### ⚠️ What I offer
+>
+> **I don't sell a premium version.** I only offer collaboration model to run the bot together.
+>
+> - Paid passively according to the capital you commit.
+> - Committed capital may be **withdrawn upon request** once you decide to exit the arrangement
+>
+> → Reach out on [Telegram @RetroValix](https://t.me/RetroValix) to discuss.
+
+---
+
+## What it trades
+
+Polymarket **Bitcoin Up or Down** 5-minute markets:
+
+- Slug pattern: `btc-updown-5m-{unix_start}`
+- Window length: **300 seconds** (UTC floor: `(ts // 300) * 300`)
+- Default entry window: seconds **180–270** of each market (late-window style)
 
 ---
 
@@ -48,7 +67,7 @@ Polymarket account proof is shared only on a call — not posted publicly.
 
 | Source | Link |
 |--------|------|
-| Medium — build guide | [Polymarket BTC 15-Minute AI Trading Bot with NautilusTrader](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
+| Medium — build guide | [Polymarket BTC AI Trading Bot with NautilusTrader](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
 | X (Twitter) | [@RetroValix](https://x.com/RetroValix) |
 | Telegram | [@RetroValix](https://t.me/RetroValix) |
 | GitHub | [RetroVaIix](https://github.com/RetroVaIix) |
@@ -57,8 +76,8 @@ Polymarket account proof is shared only on a call — not posted publicly.
 
 ## Features
 
-- Multi-signal fusion + ML edge gate
-- Risk controls (size caps, TP/SL, spread filter, anti-chase)
+- Multi-signal fusion + ML edge gate tuned for **5-min** BTC Up/Down markets
+- Risk controls (size caps, TP/SL, spread filter, anti-chase, one bet per window)
 - Simulation / live modes + terminal UI dashboard
 - Paper trade logs & Grafana metrics
 
@@ -69,8 +88,8 @@ Polymarket account proof is shared only on a call — not posted publicly.
 **Requires:** Python 3.14+ · Redis · Polymarket API keys (for live)
 
 ```bash
-git clone https://github.com/yourusername/polymarket-btc-15m-bot.git
-cd polymarket-btc-15m-bot
+git clone https://github.com/yourusername/polymarket-btc-5m-bot.git
+cd polymarket-btc-5m-bot
 
 python -m venv venv
 # Windows: venv\Scripts\activate
@@ -83,7 +102,7 @@ redis-server
 
 ```bash
 python main.py --test-mode      # fast paper loop
-python main.py --simulation     # 15-min paper
+python main.py --simulation     # 5-min paper
 python supervisor.py --live     # real money
 ```
 
@@ -103,7 +122,9 @@ python scripts/view_trades.py
 | `ENABLE_STOP_LOSS` | `false` | Early SL exit |
 | `TAKE_PROFIT_PCT` | `0.40` | Take profit fraction |
 | `MIN_ENTRY_PRICE` / `MAX_ENTRY_PRICE` | `0.25` / `0.75` | Entry band |
-| `MAX_TRADES_PER_MARKET` | `1` | One bet per window |
+| `TRADE_WINDOW_SEC_START` / `END` | `180` / `270` | Entry window inside each 5-min market |
+| `ENTRY_COOLDOWN_SEC` | `30` | Min seconds between entries |
+| `MAX_TRADES_PER_MARKET` | `1` | One bet per 5-min window |
 | `MIN_ML_EDGE` | `0.10` | Min ML vs market gap |
 
 Full list: [`.env.example`](.env.example)
