@@ -4,7 +4,7 @@
 
 ---
 
-<img width="1981" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/31efdf63-1172-46b2-8713-e1173dc06722" />
+<img width="1994" height="789" alt="cover" src="https://github.com/user-attachments/assets/561369a4-96b2-4e83-9685-fee84f2aff00" />
 
 <p align="center">
   由 <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a> 打造<br><br>
@@ -17,7 +17,7 @@
 
 ## 演示
 
-https://github.com/user-attachments/assets/8f9a2b66-e291-44e6-8e6f-edecf65a7f4d
+https://github.com/user-attachments/assets/0025e75b-3a94-487f-88c6-0774f4df568a
 
 ---
 
@@ -45,7 +45,7 @@ Polymarket 账户证明仅在通话中分享 — 不公开张贴。
 >
 > **我不单独出售高级版。** 仅提供协作模式，共同运行机器人。
 >
-> - 按你投入的资金比例，被动获得收益分成。
+> - 利润以被动方式支付，基于投资资本（每周投资额的 15%）。
 > - 决定退出时，已投入资金可按约定**申请撤回**。
 >
 > → 通过 [Telegram @RetroValix](https://t.me/RetroValix) 联系洽谈。
