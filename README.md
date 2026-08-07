@@ -4,7 +4,7 @@
 
 ---
 
-<img width="1981" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/31efdf63-1172-46b2-8713-e1173dc06722" />
+<img width="1616" height="640" alt="thumbnail" src="https://github.com/user-attachments/assets/ec474a47-2eca-4d95-8d68-f6f315c930da" />
 
 <p align="center">
   Built by <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
@@ -17,7 +17,7 @@
 
 ## Demo
 
-https://github.com/user-attachments/assets/8f9a2b66-e291-44e6-8e6f-edecf65a7f4d
+https://github.com/user-attachments/assets/980526a1-68f6-4223-a2b3-bdec365d97bb
 
 ---
 
@@ -45,7 +45,7 @@ Polymarket account proof is shared only on a call — not posted publicly.
 >
 > **I don't sell a premium version.** I only offer collaboration model to run the bot together.
 >
-> - Paid passively according to the capital you commit.
+> - Profits are paid passively based on the invested capital (15% of investment/week).
 > - Committed capital may be **withdrawn upon request** once you decide to exit the arrangement
 >
 > → Reach out on [Telegram @RetroValix](https://t.me/RetroValix) to discuss.
