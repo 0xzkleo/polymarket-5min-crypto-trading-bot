@@ -7,8 +7,7 @@
 <img width="1981" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/31efdf63-1172-46b2-8713-e1173dc06722" />
 
 <p align="center">
-  由 <a href="https://github.com/RetroVaIix"><strong>Retro Valix</strong></a> 打造<br><br>
-  <a href="https://github.com/RetroVaIix"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-RetroVaIix-181717?logo=github&logoColor=white"></a>&nbsp;
+  由 <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a> 打造<br><br>
   <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
   <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
   <a href="https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154"><img alt="Medium" src="https://img.shields.io/badge/Medium-Guide-000000?logo=medium&logoColor=white"></a>
@@ -70,7 +69,6 @@ Polymarket **Bitcoin Up or Down** 5 分钟市场：
 | Medium — 构建指南 | [Polymarket BTC AI Trading Bot with NautilusTrader](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
 | X (Twitter) | [@RetroValix](https://x.com/RetroValix) |
 | Telegram | [@RetroValix](https://t.me/RetroValix) |
-| GitHub | [RetroVaIix](https://github.com/RetroVaIix) |
 
 ---
 
@@ -88,8 +86,8 @@ Polymarket **Bitcoin Up or Down** 5 分钟市场：
 **要求：** Python 3.14+ · Redis · Polymarket API 密钥（实盘）
 
 ```bash
-git clone https://github.com/yourusername/polymarket-btc-5m-bot.git
-cd polymarket-btc-5m-bot
+git clone https://github.com/retrovaliks/polymarket-btc-5m-trading-bot.git
+cd polymarket-btc-5m-trading-bot
 
 python -m venv venv
 # Windows: venv\Scripts\activate
@@ -97,7 +95,6 @@ python -m venv venv
 
 pip install -r requirements.txt
 cp .env.example .env   # 填入你的密钥
-redis-server
 ```
 
 ```bash
