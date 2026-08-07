@@ -4,7 +4,7 @@
 
 ---
 
-<img width="1616" height="640" alt="thumbnail" src="https://github.com/user-attachments/assets/ec474a47-2eca-4d95-8d68-f6f315c930da" />
+<img width="1994" height="789" alt="cover" src="https://github.com/user-attachments/assets/f5430eca-88b7-4037-a548-fcc70171159d" />
 
 <p align="center">
   Built by <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
