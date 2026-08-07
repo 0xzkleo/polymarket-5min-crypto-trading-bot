@@ -1,169 +1,112 @@
 # Polymarket BTC 5-мин Торговый Бот
 
-**Читать на другом языке:** [🇬🇧 English](README.md) · [🇨🇳 中文](README.zh.md)
+[🇬🇧 English](README.md) · [🇨🇳 中文](README.zh.md)
 
 ---
+
 <img width="1981" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/31efdf63-1172-46b2-8713-e1173dc06722" />
 
 <p align="center">
-  <strong>⭐ Хотите более прибыльных торговых ботов?</strong><br><br>
-  Создан <a href="https://github.com/RetroValixx"><strong>Retro Valix</strong></a> — высокопроизводительные автоматизированные торговые системы для Polymarket.<br><br>
-  <a href="https://github.com/RetroValixx"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-RetroValixx-181717?logo=github&logoColor=white"></a>&nbsp;
+  Создан <a href="https://github.com/RetroVaIix"><strong>Retro Valix</strong></a><br><br>
+  <a href="https://github.com/RetroVaIix"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-RetroVaIix-181717?logo=github&logoColor=white"></a>&nbsp;
   <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
-  <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>
+  <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
+  <a href="https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154"><img alt="Medium" src="https://img.shields.io/badge/Medium-Guide-000000?logo=medium&logoColor=white"></a>
 </p>
 
 ---
 
-## Демонстрация работы
+## Демо
 
-<video width="100%" controls src="https://github.com/user-attachments/assets/d89a6bc1-0cf6-4a1f-a29e-5e0549945e6f">
-  <a href="https://github.com/user-attachments/assets/d89a6bc1-0cf6-4a1f-a29e-5e0549945e6f">Смотреть демо-видео</a>
-</video>
-
-<img width="100%" alt="2" src="https://github.com/user-attachments/assets/447c9671-3f47-4bde-a4be-744af27bdbb1" />
-
-<img width="100%" alt="4" src="https://github.com/user-attachments/assets/8b88610b-c54b-4e3d-b7a6-2ccef7b72ca4" />
-
-<img width="100%" alt="3" src="https://github.com/user-attachments/assets/f7052333-8107-40d8-9703-d1bbd2b77bc7" />
+https://github.com/user-attachments/assets/8f9a2b66-e291-44e6-8e6f-edecf65a7f4d
 
 ---
 
-## Основная идея
+## Публичная vs Premium
 
-Рынки краткосрочных движений BTC шумные и быстрые. Проект рассматривает их как **систематическую торговую задачу**: сбор рыночных и контекстных данных, нормализация через единый путь ingestion, слияние нескольких детекторов в решение и исполнение через брокерский адаптер с **жёсткими лимитами риска** (малый размер сделки, параметры take-profit). Цель — не «один магический сигнал», а **тестируемый стек**: сначала симуляция, наблюдение в Grafana, затем (при готовности) реальный капитал.
+Этот репозиторий — **публичная версия**: открытый исходный код, чтобы вы сами могли проверить стек, риск-логику и учёт PnL.  
+Premium — для трейдеров, которым нужна production-производительность после проверки публичного бота.
+
+| | Публичная (этот репо) | Premium |
+|---|---|---|
+| Назначение | Тест · обучение · проверка | Живой капитал · лучшие результаты |
+| Риск и PnL | Частично включено | Полностью + тюнинг |
+| Обучающие данные | Общая / прогревающая модель | **200,000+** сделок |
+| Win rate | Не заявляется (образовательно) | **98.8%+** |
+| Доказательства | Симуляция / live у вас | На приватной встрече |
+| Доступ | Только BTC | BTC, ETH, SOL, DOGE, XRP, BNB |
+
+**Путь:** запустить публичную версию → проверить результаты → [обсудить сотрудничество](https://t.me/RetroValix)
+
+Доказательства по аккаунту Polymarket — только на звонке, не публикуются.
+
+→ **Сотрудничество / proof:** [Telegram @RetroValix](https://t.me/RetroValix)
+
+> ### ⚠️ Что я предлагаю
+>
+> **Я не продаю premium-версию отдельно.** Доступен только формат сотрудничества — запуск бота вместе.
+>
+> - Пассивная доля прибыли пропорционально внесённому капиталу.
+> - Зафиксированный капитал можно **вывести по запросу**, когда вы решите выйти из соглашения.
+>
+> → Свяжитесь через [Telegram @RetroValix](https://t.me/RetroValix).
+
+---
+
+## Чем торгует бот
+
+Рынки Polymarket **Bitcoin Up or Down** на 5 минут:
+
+- Формат slug: `btc-updown-5m-{unix_start}`
+- Длина окна: **300 секунд** (UTC floor: `(ts // 300) * 300`)
+- Окно входа по умолчанию: секунды **180–270** каждого рынка (поздний вход)
+
+---
+
+## Ссылки и материалы
+
+| Источник | Ссылка |
+|--------|------|
+| Medium — гайд | [Polymarket BTC AI Trading Bot with NautilusTrader](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
+| X (Twitter) | [@RetroValix](https://x.com/RetroValix) |
+| Telegram | [@RetroValix](https://t.me/RetroValix) |
+| GitHub | [RetroVaIix](https://github.com/RetroVaIix) |
 
 ---
 
 ## Возможности
 
-- **Семифазный конвейер** — внешние фиды → ingestion → ядро Nautilus → процессоры сигналов и fusion → исполнение и риск → мониторинг → feedback / обучение.
-- **Мультисигнальный стек** — детекция всплесков, sentiment-подобные входы, логика дивергенции, order book и momentum-процессоры, fusion для объединения голосов.
-- **Риск в приоритете** — настраиваемые лимиты (~$1 на сделку), take-profit, диапазон цены входа, фильтр спреда, блокировка направления, защита от погони за ценой.
-- **Переключатель stop-loss** — `ENABLE_STOP_LOSS=false`: позиция до TP или settlement; `true` — ранний SL снова включён.
-- **Порог ML edge** — ставка только если вероятность XGBoost отличается от цены Polymarket минимум на `MIN_ML_EDGE` (по умолчанию 10 п.п.).
-- **Одна сделка на рынок** — `MAX_TRADES_PER_MARKET=1`: один вход на 5-минутный слот.
-- **Симуляция и live** — paper/test без продакшен-ключей; live — когда готовы.
-- **Операционные инструменты** — переключение режима через Redis, метрики для Grafana, просмотр paper-сделок, автоперезапуск.
-- **Самообучение** — корректировка весов по результатам (см. `feedback/` и конфиг стратегии).
-- **Устойчивость** — WebSocket, rate limit, валидация, патчи для Polymarket + Nautilus (Gamma, размер market-order, защита `prometheus_client` на Windows).
-
----
-
-## Требования
-
-- **Python 3.14+**
-- **Redis** — переключение режимов и control-plane
-- **Аккаунт Polymarket** с API для live
-- **Git**
+- Мультисигнальный fusion + ML edge gate для **5-мин** рынков BTC Up/Down
+- Риск-контроль (лимит размера, TP/SL, фильтр спреда, anti-chase, одна ставка на окно)
+- Режимы simulation / live + терминальный UI
+- Логи paper-сделок и метрики Grafana
 
 ---
 
 ## Быстрый старт
 
-### 1. Клонировать репозиторий
+**Требуется:** Python 3.14+ · Redis · API-ключи Polymarket (для live)
 
 ```bash
 git clone https://github.com/yourusername/polymarket-btc-5m-bot.git
 cd polymarket-btc-5m-bot
-```
 
-### 2. Виртуальное окружение
-
-```bash
-# Windows
 python -m venv venv
-venv\Scripts\activate
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
 
-# macOS / Linux
-python -m venv venv
-source venv/bin/activate
-```
-
-### 3. Зависимости
-
-```bash
 pip install -r requirements.txt
-```
-
-### 4. Переменные окружения
-
-```bash
-cp .env.example .env
-```
-
-Отредактируйте `.env`:
-
-```env
-POLYMARKET_PK=your_private_key_here
-POLYMARKET_API_KEY=your_api_key_here
-POLYMARKET_API_SECRET=your_api_secret_here
-POLYMARKET_PASSPHRASE=your_passphrase_here
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=2
-
-ENABLE_STOP_LOSS=false
-TAKE_PROFIT_PCT=0.40
-MIN_ENTRY_PRICE=0.25
-MAX_ENTRY_PRICE=0.75
-MAX_TRADES_PER_MARKET=1
-MIN_ML_EDGE=0.10
-```
-
-### 5. Запуск Redis
-
-```bash
+cp .env.example .env   # добавьте ключи
 redis-server
 ```
 
-macOS (Homebrew): `brew install redis && redis-server`  
-Debian/Ubuntu: `sudo apt install redis-server && redis-server`
-
-### 6. Запуск бота
-
 ```bash
-# Быстрый тест (симуляция ~раз в минуту)
-python main.py --test-mode
-
-# Обычная симуляция (5-минутные рынки)
-python main.py --simulation
-
-# Live (реальные деньги — нужны валидные ключи)
-python supervisor.py --live
+python main.py --test-mode      # быстрый paper-цикл
+python main.py --simulation     # 5-мин paper
+python supervisor.py --live     # реальные деньги
 ```
 
----
-
-## Конфигурация
-
-| Параметр | Описание | По умолчанию |
-|----------|----------|--------------|
-| `ENABLE_STOP_LOSS` | Ранний stop-loss | `false` |
-| `STOP_LOSS_PCT` | Доля капитала при SL (если SL включён) | `0.50` |
-| `TAKE_PROFIT_PCT` | Доля оставшегося upside для TP | `0.40` |
-| `MIN_ENTRY_PRICE` | Мин. цена входа | `0.25` |
-| `MAX_ENTRY_PRICE` | Макс. цена входа | `0.75` |
-| `MAX_SPREAD_PCT` | Макс. спред к mid | `0.05` |
-| `ENTRY_COOLDOWN_SEC` | Пауза между попытками входа (с) | `30` |
-| `MAX_TRADES_PER_MARKET` | Макс. входов на 5-мин рынок | `1` |
-| `TRADE_WINDOW_SEC_START` / `END` | Окно входа внутри 5-мин рынка (сек) | `180` / `270` |
-| `LOCK_MARKET_DIRECTION` | Блокировка направления после первой сделки | `true` |
-| `MAX_CHASE_DELTA` | Макс. ухудшение цены для повторного входа | `0.12` |
-| `MIN_ML_EDGE` | Мин. разрыв ML vs Polymarket | `0.10` |
-| `LATE_ENTRY_CUTOFF_SEC` | Запрет входа перед settlement (с) | `30` |
-| `MARKET_BUY_USD` | USD на ордер | `1.00` |
-
-Полный список — в `.env.example`.
-
----
-
-## Запуск бота
-
-- **Точка входа**: `main.py` — `--test-mode`, `--simulation`, `--live`.
-- **Автоперезапуск**: `supervisor.py` в цикле для длительной работы.
-- **Paper-сделки**:
+Просмотр paper-сделок:
 
 ```bash
 python scripts/view_trades.py
@@ -171,96 +114,50 @@ python scripts/view_trades.py
 
 ---
 
-## Мониторинг
+## Конфиг (основное)
 
-- Экспорт метрик: `monitoring/`.
-- Дашборды Grafana: `infra/grafana/` (импорт: `infra/grafana/import_dashboard.py`).
+| Параметр | По умолчанию | Примечание |
+|-----------|---------|--------|
+| `MARKET_BUY_USD` | `1.00` | USD на ордер |
+| `ENABLE_STOP_LOSS` | `false` | Ранний выход по SL |
+| `TAKE_PROFIT_PCT` | `0.40` | Доля take-profit |
+| `MIN_ENTRY_PRICE` / `MAX_ENTRY_PRICE` | `0.25` / `0.75` | Диапазон входа |
+| `TRADE_WINDOW_SEC_START` / `END` | `180` / `270` | Окно входа внутри 5-мин рынка |
+| `ENTRY_COOLDOWN_SEC` | `30` | Мин. пауза между входами |
+| `MAX_TRADES_PER_MARKET` | `1` | Одна ставка на 5-мин окно |
+| `MIN_ML_EDGE` | `0.10` | Мин. разрыв ML vs рынок |
 
-Подключите свой Prometheus/Grafana.
-
----
-
-## Режимы торговли
-
-Переключение simulation/live через Redis без перезапуска — `scripts/redis_control.py`.
-
----
-
-## Поэтапное тестирование
-
-Запускайте **по порядку**; следующая фаза — после успеха предыдущей.
-
-| Фаза | Фокус | Команда |
-|------|-------|---------|
-| 1 | Источники данных | `python scripts/test_data_sources.py test` |
-| 2 | Ingestion | `python scripts/test_ingestion.py test` |
-| 3 | Ядро Nautilus | `python scripts/test_nautilus.py test` |
-| 4 | Стратегия (процессоры, fusion) | `python scripts/test_strategy.py test` |
-| 5 | Исполнение (риск, клиент) | `python scripts/test_execution.py test` |
-
-Отладка Gamma API:
-
-```bash
-python scripts/debug_gamma_api.py
-```
+Полный список: [`.env.example`](.env.example)
 
 ---
 
-## Сколько денег нужно для старта?
+## Ссылки
 
-В референсной конфигурации **~$1 на сделку**. Нужен запас на комиссии, спред и серию убытков. Многие начинают с **$10–$50**; масштабируйте только после совпадения симуляции с ожиданиями. **Не финансовый совет.**
-
----
-
-## Это прибыльно?
-
-**Прибыль не гарантируется.** Короткие рынки: комиссии, спред, adverse selection, простои. Симуляция **не** предсказывает live. Сначала paper и малый размер; каждый запуск — эксперимент.
-
----
-
-## Кому подходит
-
-- Трейдерам **5-минутных** крипто-рынков предсказаний, нужна автоматизация.
-- **Разработчикам**, готовым править `.env`, читать логи и гонять фазовые тесты.
-- Тем, кто ставит **риск на первое место** и хочет лимиты и observability до масштабирования.
-
----
-
-## Вклад и идеи
-
-Приветствуются fork → branch → pull request.
-
-**Идеи:**
-- Процессоры на деривативы (funding, OI).
-- Новые сигналы или правила fusion.
-- Алерты в Telegram/Discord.
-- Лёгкий Web UI для конфига и статуса.
-- ETH, SOL и другие короткие рынки Polymarket.
-- Усиление ML/калибровки с честной оценкой и paper-gates.
-
----
-
-## Лицензия
-
-MIT. См. файл `LICENSE` в репозитории.
+| | |
+|---|---|
+| Начать здесь | [Быстрый старт](#быстрый-старт) |
+| Публичная vs Premium | [Таблица](#публичная-vs-premium) |
+| Medium-гайд | [Статья](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
+| Контакт | [Telegram](https://t.me/RetroValix) · [X](https://x.com/RetroValix) |
+| Фазовые тесты | `python scripts/test_data_sources.py test` → … → `test_execution.py` |
 
 ---
 
 ## Отказ от ответственности
 
-Торговля криптовалютами и инструментами prediction markets сопряжена с **существенным риском потерь**. ПО предназначено для **обучения и исследований**. Прошлые результаты не гарантируют будущих. Авторы **не** несут ответственности за убытки. Начинайте с симуляции, малых размеров и только с капиталом, полную потерю которого вы можете принять.
+Торговля сопряжена с **существенным риском потерь**. ПО предназначено для **обучения и исследований**. Прибыль не гарантируется. Прошлые результаты ≠ будущие. Начинайте с симуляции; используйте только капитал, полную потерю которого можете принять.
 
 ---
 
-## Благодарности
+## Лицензия
 
-- [NautilusTrader](https://nautilustrader.io/) — торговый фреймворк
-- [Polymarket](https://polymarket.com) — площадка prediction markets
+MIT — см. [`LICENSE`](LICENSE)
+
+---
 
 <div align="center">
-  <h2>Made with ❤️ by</h2>
   <a href="https://t.me/RetroValix">
-    <img width="85" height="85" alt="XTLLbabR_400x400" src="https://github.com/user-attachments/assets/66c994bf-c618-40e7-a0f4-d295e09d1e91" />    <br>
+    <img width="85" height="85" alt="Retro Valix" src="https://github.com/user-attachments/assets/66c994bf-c618-40e7-a0f4-d295e09d1e91" /><br>
     <span>Retro Valix</span>
   </a>
 </div>
