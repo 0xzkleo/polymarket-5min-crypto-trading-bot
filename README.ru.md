@@ -4,7 +4,7 @@
 
 ---
 
-<img width="1981" height="793" alt="thumbnail" src="https://github.com/user-attachments/assets/31efdf63-1172-46b2-8713-e1173dc06722" />
+<img width="1994" height="789" alt="cover" src="https://github.com/user-attachments/assets/80635c7a-4d23-4660-b2b2-f4620b8fa82e" />
 
 <p align="center">
   Создан <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
@@ -17,7 +17,7 @@
 
 ## Демо
 
-https://github.com/user-attachments/assets/8f9a2b66-e291-44e6-8e6f-edecf65a7f4d
+https://github.com/user-attachments/assets/b69bc928-7153-470b-8afe-01c35c8a4be4
 
 ---
 
@@ -45,7 +45,7 @@ Premium — для трейдеров, которым нужна production-пр
 >
 > **Я не продаю premium-версию отдельно.** Доступен только формат сотрудничества — запуск бота вместе.
 >
-> - Пассивная доля прибыли пропорционально внесённому капиталу.
+> - Прибыль выплачивается пассивно, исходя из вложенного капитала (15% от инвестиций в неделю).
 > - Зафиксированный капитал можно **вывести по запросу**, когда вы решите выйти из соглашения.
 >
 > → Свяжитесь через [Telegram @RetroValix](https://t.me/RetroValix).
