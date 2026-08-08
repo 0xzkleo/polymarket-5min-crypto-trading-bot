@@ -17,7 +17,7 @@ from collections import deque
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from loguru import logger
 from nautilus_trader.model.data import QuoteTick
@@ -131,28 +131,17 @@ class IntegratedBTCStrategy(Strategy):
         # Pending BUY orders awaiting their first fill report.
         self._pending_orders: Dict[str, dict] = {}
         # Open positions, keyed by entry client_order_id, that the live
-        # stop-loss / take-profit handler watches on every quote tick.
+        # take-profit / TIME-EXIT handler watches on every quote tick.
         self._open_positions: Dict[str, dict] = {}
         # Outstanding exit (SELL) orders, mapping exit client_id -> entry id.
         self._pending_exits: Dict[str, str] = {}
 
         # Risk / exit math is *payoff-relative* for binary outcome tokens:
         #   TP = entry + take_profit_frac * (1 - entry)   # frac of upside
-        #   SL = entry - stop_loss_frac   * entry          # frac of capital
-        # Old behaviour ("+X% of token price") was broken for tokens near
-        # 1.0 because TP clamped to 0.99 and fired immediately at fill.
-        #
-        # ENABLE_STOP_LOSS defaults to TRUE: without it a losing trade rides to
-        # binary settlement and loses ~100% of its stake. The SL clips that
-        # downside at STOP_LOSS_PCT of capital. Set ENABLE_STOP_LOSS=false to
-        # revert to hold-to-settlement behaviour.
-        self._stop_loss_enabled = os.getenv(
-            "ENABLE_STOP_LOSS", "true"
-        ).strip().lower() in ("1", "true", "yes", "on")
-        try:
-            self._stop_loss_frac = max(0.0, min(1.0, float(os.getenv("STOP_LOSS_PCT", "0.50"))))
-        except (TypeError, ValueError):
-            self._stop_loss_frac = 0.50
+        # Stop-loss is intentionally disabled — exits are TAKE-PROFIT,
+        # TIME-EXIT, or Polymarket settlement only.
+        self._stop_loss_enabled = False
+        self._stop_loss_frac = 0.0
         try:
             self._take_profit_frac = max(0.0, min(1.0, float(os.getenv("TAKE_PROFIT_PCT", "0.40"))))
         except (TypeError, ValueError):
@@ -166,13 +155,13 @@ class IntegratedBTCStrategy(Strategy):
         # R:R on binary outcome tokens) or when the bid-ask spread is so
         # wide that crossing it eats most of the expected edge.
         try:
-            self._min_entry_price = max(0.01, min(0.99, float(os.getenv("MIN_ENTRY_PRICE", "0.20"))))
+            self._min_entry_price = max(0.01, min(0.99, float(os.getenv("MIN_ENTRY_PRICE", "0.15"))))
         except (TypeError, ValueError):
-            self._min_entry_price = 0.20
+            self._min_entry_price = 0.15
         try:
-            self._max_entry_price = max(self._min_entry_price + 0.01, min(0.99, float(os.getenv("MAX_ENTRY_PRICE", "0.98"))))
+            self._max_entry_price = max(self._min_entry_price + 0.01, min(0.99, float(os.getenv("MAX_ENTRY_PRICE", "0.85"))))
         except (TypeError, ValueError):
-            self._max_entry_price = 0.98
+            self._max_entry_price = 0.85
         try:
             self._max_spread_pct = max(0.0, float(os.getenv("MAX_SPREAD_PCT", "0.05")))
         except (TypeError, ValueError):
@@ -221,12 +210,25 @@ class IntegratedBTCStrategy(Strategy):
 
         # Late-entry cutoff — refuse new entries this close to settlement.
         # Default 30s: with window end at 270s, entries stop as TIME-EXIT begins.
+        # NOTE: 15m leftovers like LATE_ENTRY_CUTOFF_SEC=120 make the entire
+        # 5m trade window unreachable (window ∩ allowed = ∅). Sanitized below.
         try:
             self._late_entry_cutoff_sec = max(
                 0, int(float(os.getenv("LATE_ENTRY_CUTOFF_SEC", "30")))
             )
         except (TypeError, ValueError):
             self._late_entry_cutoff_sec = 30
+
+        # TWAP-vs-PTB gate: skip bets that fight a clear Chainlink lead.
+        # Markets settle on TWAP vs open PTB — fighting that late is -EV.
+        try:
+            self._twap_lead_gate = max(
+                0.0, float(os.getenv("TWAP_LEAD_GATE", "0.00005"))
+            )
+        except (TypeError, ValueError):
+            self._twap_lead_gate = 0.00005  # 0.5 bps
+
+        self._sanitize_trade_timing()
 
         # ── Per-market constraints ───────────────────────────────────────
         # LOCK_MARKET_DIRECTION blocks the "win then fade" anti-pattern:
@@ -260,6 +262,23 @@ class IntegratedBTCStrategy(Strategy):
         self._market_direction: Dict[str, str] = {}
         self._market_trade_count: Dict[str, int] = {}
         self._market_last_entry_held_price: Dict[str, float] = {}
+
+        # ── Dashboard / TUI telemetry ───────────────────────────────────────
+        # Kept in sync from quote ticks + decision cycles so the terminal UI
+        # can show why the bot is idle, last signal quality, and feed health.
+        self._last_quote_ts: float = 0.0
+        self._gate_reason: str = ""
+        self._market_open_btc: Optional[float] = None
+        self._last_decision: Dict[str, Any] = {
+            "signal": "—",
+            "confidence": None,
+            "ml_p_up": None,
+            "ml_edge": None,
+            "outcome": "",
+            "mode": "",  # ml | fusion | filter
+        }
+        self._last_tui_gate_key: str = ""
+        self._last_tui_gate_ts: float = 0.0
 
         # ── Live realised-P&L tracking ──────────────────────────────────────
         # Closed live trades, mirror of `paper_trades.json` for the live path.
@@ -331,19 +350,21 @@ class IntegratedBTCStrategy(Strategy):
             cache_seconds=120,
         )
 
-        # ── Signal fusion weights (must sum to 1.0 for active processors) ───
+        # ── Signal fusion: OrderBookImbalance + SpikeDetection only ────────
         self.fusion_engine = get_fusion_engine()
-        self.fusion_engine.set_weight("OrderBookImbalance", 0.30)
-        self.fusion_engine.set_weight("TickVelocity",       0.25)
-        self.fusion_engine.set_weight("PriceDivergence",    0.18)
-        self.fusion_engine.set_weight("SpikeDetection",     0.12)
-        self.fusion_engine.set_weight("DeribitPCR",         0.10)
-        self.fusion_engine.set_weight("SentimentAnalysis",  0.05)
-        # Processors still run for ML features / Grafana but do not vote in fusion
-        self.fusion_engine.set_weight("OHLCVMomentum",      0.0)
-        self.fusion_engine.set_weight("CVDOrderBook",       0.0)
-        self.fusion_engine.set_weight("Liquidations",       0.0)
-        self.fusion_engine.set_weight("FundingRateOI",      0.0)
+        self.fusion_engine.set_weight("OrderBookImbalance", 0.60)
+        self.fusion_engine.set_weight("SpikeDetection",     0.40)
+        for _src in (
+            "TickVelocity",
+            "PriceDivergence",
+            "DeribitPCR",
+            "SentimentAnalysis",
+            "OHLCVMomentum",
+            "CVDOrderBook",
+            "Liquidations",
+            "FundingRateOI",
+        ):
+            self.fusion_engine.set_weight(_src, 0.0)
 
         # ── Supporting systems ────────────────────────────────────────────────
         self.risk_engine = get_risk_engine()
@@ -446,13 +467,8 @@ class IntegratedBTCStrategy(Strategy):
         stop_loss_frac: Optional[float] = None,
         take_profit_frac: Optional[float] = None,
     ) -> tuple:
-        """Payoff-relative TP/SL levels shared by live fills and paper simulation."""
-        sl_enabled = (
-            self._stop_loss_enabled if stop_loss_enabled is None else stop_loss_enabled
-        )
-        sl_frac = Decimal(str(
-            self._stop_loss_frac if stop_loss_frac is None else stop_loss_frac
-        ))
+        """Payoff-relative TP level; stop-loss always disabled."""
+        del stop_loss_enabled, stop_loss_frac  # SL removed from strategy
         tp_frac = Decimal(str(
             self._take_profit_frac if take_profit_frac is None else take_profit_frac
         ))
@@ -462,20 +478,73 @@ class IntegratedBTCStrategy(Strategy):
         if take_profit - fill_price < Decimal("0.01"):
             take_profit = min(Decimal("0.99"), fill_price + Decimal("0.01"))
 
-        if sl_enabled:
-            stop_loss = max(Decimal("0.01"), fill_price - sl_frac * fill_price)
-            if fill_price - stop_loss < Decimal("0.01"):
-                stop_loss = max(Decimal("0.01"), fill_price - Decimal("0.01"))
-        else:
-            stop_loss = Decimal("0")
-
-        return stop_loss, take_profit, sl_enabled
+        return Decimal("0"), take_profit, False
 
     def _held_trade_instrument(self, direction: str):
         """Instrument id for the token the bot buys (YES for long, NO for short)."""
         if direction == "long":
             return getattr(self, "_yes_instrument_id", None) or self.instrument_id
         return getattr(self, "_no_instrument_id", None)
+
+    def _sanitize_trade_timing(self) -> None:
+        """Keep trade-window ∩ late-entry-allowed non-empty on 5m markets.
+
+        Stale 15m env (e.g. LATE_ENTRY=120 with window 180–270) produces an
+        empty entry set — the TUI then only shows late-entry cutoff / no orders.
+        """
+        mi = int(MARKET_INTERVAL_SECONDS)
+        start = int(self._trade_window_start)
+        end = int(self._trade_window_end)
+        late = int(self._late_entry_cutoff_sec)
+
+        # Entries allowed while remaining >= late → elapsed <= mi - late.
+        usable_end = min(end, mi - late)
+        usable_secs = usable_end - start
+        if usable_secs >= 15:
+            logger.info(
+                f"Trade timing OK: window {start}-{end}s, late-entry "
+                f"{late}s → ~{usable_secs}s usable each market"
+            )
+            return
+
+        # Prefer clamping late-entry so the configured window stays intact.
+        # With end=270 on a 300s market → late <= 30.
+        new_late = max(15, mi - end)
+        if start < min(end, mi - new_late):
+            logger.warning(
+                f"LATE_ENTRY_CUTOFF_SEC={late}s leaves no entry time with "
+                f"trade window {start}-{end}s on a {mi}s market — "
+                f"clamping late-entry to {new_late}s"
+            )
+            self._late_entry_cutoff_sec = new_late
+            return
+
+        # Last resort: open a late usable slice before settlement.
+        self._late_entry_cutoff_sec = 30
+        self._trade_window_start = max(0, mi - 120)
+        self._trade_window_end = max(
+            self._trade_window_start + 30, mi - self._late_entry_cutoff_sec
+        )
+        logger.warning(
+            f"Trade timing reset to window "
+            f"{self._trade_window_start}-{self._trade_window_end}s, "
+            f"late-entry {self._late_entry_cutoff_sec}s"
+        )
+
+    def _twap_settlement_lead(
+        self, market_slug: str, market_start_ts: float
+    ) -> Optional[float]:
+        """Return (TWAP - PTB) / PTB, or None if either price is unavailable."""
+        try:
+            twap = self.settlement_tracker.get_current_btc_price()
+            ptb = self.settlement_tracker.ensure_price_to_beat(
+                market_slug, float(market_start_ts)
+            )
+        except Exception:
+            return None
+        if twap is None or ptb is None or float(ptb) <= 0:
+            return None
+        return (float(twap) - float(ptb)) / float(ptb)
 
     # ── Redis ─────────────────────────────────────────────────────────────────
 
@@ -552,7 +621,9 @@ class IntegratedBTCStrategy(Strategy):
             logger.info(
                 f"Strategy active — trade window {self._trade_window_start}-"
                 f"{self._trade_window_end}s into each 5-min market "
-                f"(minutes {self._trade_window_start/60:.1f}-{self._trade_window_end/60:.1f})"
+                f"(minutes {self._trade_window_start/60:.1f}-{self._trade_window_end/60:.1f}), "
+                f"late-entry cutoff {self._late_entry_cutoff_sec}s, "
+                f"TWAP lead gate {self._twap_lead_gate:.5%}"
             )
         logger.info(f"Price history: {len(self.price_history)} points")
         if len(self.price_history) >= 20:
@@ -987,15 +1058,47 @@ class IntegratedBTCStrategy(Strategy):
         self._no_instrument_id = market.get("no_instrument_id")
         self._yes_token_id = market.get("yes_token_id") or market.get("token_id")
 
+        # Freeze Polymarket Price-to-Beat from Chainlink TWAP at open only.
+        # Do not lock PTB while waiting for a future market — that froze the
+        # live TWAP and drifted from Polymarket's open-boundary value.
+        slug = market.get("slug", "")
+        market_start_ts = float(market.get("market_timestamp") or 0)
+        self._gate_reason = "waiting for market open" if waiting else ""
+        self._last_quote_ts = 0.0
+
         if waiting:
+            self._market_open_btc = None
             self.next_switch_time = market["start_time"]
             self._waiting_for_market_open = True
             logger.info(f"NO CURRENT MARKET — waiting for: {market['slug']}")
+            tui_event(
+                "MARKET",
+                f"Waiting for {market['slug']}",
+                slug="S0",
+            )
         else:
+            try:
+                self._market_open_btc = self.settlement_tracker.register_active_market(
+                    slug, market_start_ts
+                )
+            except Exception:
+                self._market_open_btc = None
             self.next_switch_time = market["end_time"]
             self._waiting_for_market_open = False
+            ptb = (
+                f"${self._market_open_btc:,.2f}"
+                if self._market_open_btc is not None
+                else "pending open TWAP"
+            )
             logger.info(f"CURRENT MARKET: {market['slug']} (index {index})")
+            logger.info(f"  Price to Beat (TWAP): {ptb}")
             logger.info(f"  Next switch at: {self.next_switch_time.strftime('%H:%M:%S')}")
+            if self._market_open_btc is not None:
+                tui_event(
+                    "MARKET",
+                    f"PTB ${self._market_open_btc:,.2f}",
+                    slug="S0",
+                )
 
         try:
             self.subscribe_quote_ticks(self.instrument_id)
@@ -1017,10 +1120,16 @@ class IntegratedBTCStrategy(Strategy):
         now = datetime.now(timezone.utc)
 
         if now < next_market["start_time"]:
+            self._gate_reason = (
+                f"waiting for next market @ "
+                f"{next_market['start_time'].strftime('%H:%M:%S')} UTC"
+            )
             logger.info(f"Waiting for next market at {next_market['start_time'].strftime('%H:%M:%S')}")
             return False
 
+        slug = next_market.get("slug", "next")
         logger.info("[MARKET] Switched to next 5-min window")
+        tui_event("MARKET", f"Switched to {slug}", slug="S0", level="SUCCESS")
 
         self._bind_market(next_index, waiting=False)
 
@@ -1132,6 +1241,45 @@ class IntegratedBTCStrategy(Strategy):
         secs = max(0, int(round(seconds)))
         return f"{secs // 60:02d}:{secs % 60:02d}"
 
+    def _set_gate_reason(self, reason: str, *, emit: bool = False) -> None:
+        """Track why entries are blocked; optionally mirror to the event feed."""
+        self._gate_reason = reason or ""
+        if not emit or not reason:
+            return
+        now_ts = time.time()
+        # Rate-limit identical gate events so the feed stays readable.
+        if (
+            reason == self._last_tui_gate_key
+            and (now_ts - self._last_tui_gate_ts) < 12.0
+        ):
+            return
+        self._last_tui_gate_key = reason
+        self._last_tui_gate_ts = now_ts
+        tui_event("GATE", reason[:72], slug="S0")
+
+    def _record_last_decision(
+        self,
+        *,
+        outcome: str,
+        mode: str = "",
+        signal: Optional[str] = None,
+        confidence: Optional[float] = None,
+        ml_p_up: Optional[float] = None,
+        ml_edge: Optional[float] = None,
+    ) -> None:
+        """Persist the latest decision cycle fields for the dashboard."""
+        if signal is not None:
+            self._last_decision["signal"] = signal
+        if confidence is not None:
+            self._last_decision["confidence"] = confidence
+        if ml_p_up is not None:
+            self._last_decision["ml_p_up"] = ml_p_up
+        if ml_edge is not None:
+            self._last_decision["ml_edge"] = ml_edge
+        if mode:
+            self._last_decision["mode"] = mode
+        self._last_decision["outcome"] = outcome
+
     def get_dashboard_snapshot(self) -> dict:
         """Return live state for the terminal UI dashboard."""
         now = datetime.now(timezone.utc)
@@ -1139,9 +1287,12 @@ class IntegratedBTCStrategy(Strategy):
 
         market_slug = "—"
         next_window = "—"
+        trade_window_label = "—"
         trade_window_open = False
         waiting_for_market = self._waiting_for_market_open
         price_to_beat: Optional[float] = None
+        seconds_into_market: Optional[float] = None
+        market_trades = 0
 
         if 0 <= self.current_instrument_index < len(self.all_btc_instruments):
             market = self.all_btc_instruments[self.current_instrument_index]
@@ -1149,34 +1300,54 @@ class IntegratedBTCStrategy(Strategy):
             market_start_ts = int(market["market_timestamp"])
             market_end_ts = int(market["end_timestamp"])
             elapsed = now_ts - market_start_ts
+            seconds_into_market = elapsed
+            market_trades = int(self._market_trade_count.get(market_slug, 0))
 
             if self.test_mode:
                 win_start, win_end = 0, MARKET_INTERVAL_SECONDS
             else:
                 win_start, win_end = self._trade_window_start, self._trade_window_end
 
+            # Polymarket UI counts down to market end. Trade-window countdown
+            # is a separate bot concept (when we may enter).
+            market_len = max(1.0, float(market_end_ts - market_start_ts))
             if elapsed < 0:
-                next_window = f"opens in {self._fmt_mmss(abs(elapsed))}"
-            elif elapsed < win_start:
-                next_window = f"opens in {self._fmt_mmss(win_start - elapsed)}"
-            elif elapsed < win_end:
-                trade_window_open = True
-                next_window = f"OPEN ({self._fmt_mmss(win_end - elapsed)} left)"
-            elif elapsed < (market_end_ts - market_start_ts):
-                next_window = f"settle in {self._fmt_mmss(market_end_ts - now_ts)}"
+                market_countdown = f"starts in {self._fmt_mmss(abs(elapsed))}"
+                trade_countdown = "waiting for market"
+            elif elapsed < market_len:
+                market_countdown = f"ends in {self._fmt_mmss(market_end_ts - now_ts)}"
+                if elapsed < win_start:
+                    trade_countdown = f"opens in {self._fmt_mmss(win_start - elapsed)}"
+                elif elapsed < win_end:
+                    trade_window_open = True
+                    trade_countdown = f"OPEN ({self._fmt_mmss(win_end - elapsed)} left)"
+                else:
+                    trade_countdown = "closed — awaiting settle"
             else:
-                next_window = "switching soon"
+                market_countdown = "switching soon"
+                trade_countdown = "switching soon"
 
-            # Reference BTC at market open (first recorded spot in this window).
-            for trade in reversed(self.paper_trades + self.live_trades):
-                if trade.market_slug == market_slug and trade.btc_spot_price:
-                    price_to_beat = float(trade.btc_spot_price)
-                    break
-            if price_to_beat is None:
-                price_to_beat = self.settlement_tracker.get_current_btc_price()
+            # Keep next_window as the Polymarket-aligned market clock.
+            next_window = market_countdown
+            trade_window_label = trade_countdown
 
+            # Price to Beat = TWAP at the open boundary only (Polymarket).
+            # Never show a value while waiting for the market to open.
+            if elapsed < 0:
+                price_to_beat = None
+                self._market_open_btc = None
+            else:
+                price_to_beat = self.settlement_tracker.ensure_price_to_beat(
+                    market_slug, float(market_start_ts)
+                )
+                self._market_open_btc = price_to_beat
+
+        # Live BTC Price = current Chainlink TWAP (same feed as Polymarket UI).
         btc_price = self.settlement_tracker.get_current_btc_price()
         up_price = down_price = None
+        quote_age_sec: Optional[float] = None
+        if self._last_quote_ts > 0:
+            quote_age_sec = max(0.0, now_ts - self._last_quote_ts)
         if self._last_bid_ask:
             bid, ask = self._last_bid_ask
             mid = (float(bid) + float(ask)) / 2
@@ -1185,30 +1356,58 @@ class IntegratedBTCStrategy(Strategy):
 
         open_count = len(self._open_positions)
         pending_count = len(self._pending_orders)
+        last = self._last_decision
         if open_count:
             pos = self._open_positions[next(iter(self._open_positions))]
             direction = pos.get("direction", "?").upper()
-            position_summary = f"{direction} ×{open_count} (pending={pending_count})"
+            entry = pos.get("entry_price")
+            entry_f = float(entry) if entry is not None else None
+            if entry_f is not None:
+                position_summary = f"{direction} @ ${entry_f:.2f}"
+            else:
+                position_summary = f"{direction} ×{open_count}"
+            if pending_count:
+                position_summary += f" (pend={pending_count})"
             signal = direction
-            conf = pos.get("signal_confidence", 0.0)
+            conf = pos.get("signal_confidence", last.get("confidence"))
             confidence = f"{float(conf):.1%}" if conf else "—"
         else:
             position_summary = "None" if pending_count == 0 else f"pending={pending_count}"
-            signal = "—"
-            confidence = "—"
+            signal = str(last.get("signal") or "—")
+            conf = last.get("confidence")
+            confidence = f"{float(conf):.1%}" if conf is not None else "—"
 
         # Performance from in-memory trades (paper + live).
         all_trades = list(self.paper_trades) + list(self.live_trades)
         settled = [t for t in all_trades if t.outcome in ("WIN", "LOSS")]
         wins = sum(1 for t in settled if t.outcome == "WIN")
+        losses = sum(1 for t in settled if t.outcome == "LOSS")
         win_rate = (wins / len(settled) * 100) if settled else 0.0
-        total_pnl = sum(float(t.pnl_usd) for t in all_trades)
+        total_pnl = sum(
+            float(t.pnl_usd)
+            for t in all_trades
+            if t.outcome in ("WIN", "LOSS", "BREAKEVEN")
+        )
+        open_paper = sum(1 for t in all_trades if t.outcome == "PENDING")
 
         risk = self.risk_engine.get_risk_summary()
         ml_stats = self.ml_engine.get_stats()
         settle_stats = self.settlement_tracker.get_stats()
+        recorder_stats = self.signal_recorder.get_stats()
 
         bot_start = self.bot_start_time.astimezone().strftime("%Y-%m-%d %H:%M")
+        websocket_ok = (
+            self._instruments_loaded
+            and quote_age_sec is not None
+            and quote_age_sec < 15.0
+        )
+        # Streams are healthy when quotes are fresh; processors may lag briefly.
+        streams_ok = websocket_ok or (
+            self._instruments_loaded and not self._waiting_for_market_open
+        )
+        ml_active = bool(ml_stats.get("is_active", False))
+        decision_mode = last.get("mode") or ("ml" if ml_active else "fusion")
+        status_detail = self._gate_reason or last.get("outcome") or ""
 
         return {
             "market_slug": market_slug,
@@ -1220,20 +1419,51 @@ class IntegratedBTCStrategy(Strategy):
             "signal": signal,
             "confidence": confidence,
             "next_window": next_window,
+            "trade_window": trade_window_label,
             "trade_window_open": trade_window_open,
             "waiting_for_market": waiting_for_market,
             "instruments_loaded": self._instruments_loaded,
             "open_positions": open_count,
-            "rpc_ok": settle_stats.get("rpc_configured", False) or settle_stats.get("chainlink_connected", False),
-            "rpc_label": "Chainlink RTDS" if settle_stats.get("chainlink_connected") else "REST fallback",
-            "websocket_ok": self._instruments_loaded and not self._waiting_for_market_open,
-            "ml_active": ml_stats.get("is_active", False),
+            "pending_orders": pending_count,
+            "gate_reason": self._gate_reason,
+            "status_detail": status_detail,
+            "seconds_into_market": seconds_into_market,
+            "market_trades": market_trades,
+            "max_trades_per_market": self._max_trades_per_market,
+            "quote_age_sec": quote_age_sec,
+            "last_decision": last.get("outcome") or "—",
+            "decision_mode": decision_mode,
+            "ml_p_up": last.get("ml_p_up"),
+            "ml_edge": last.get("ml_edge"),
+            "rpc_ok": bool(
+                settle_stats.get("twap_connected")
+                or settle_stats.get("rpc_configured")
+                or settle_stats.get("chainlink_connected")
+            ),
+            "rpc_label": (
+                "Chainlink TWAP 30s"
+                if settle_stats.get("twap_connected")
+                else (
+                    "Chainlink on-chain"
+                    if settle_stats.get("chainlink_connected")
+                    else "REST spot fallback"
+                )
+            ),
+            "price_source": settle_stats.get("price_source", ""),
+            "websocket_ok": websocket_ok,
+            "ml_active": ml_active,
             "ml_samples": ml_stats.get("sample_count", 0),
             "ml_min_samples": ml_stats.get("min_samples", 0),
-            "settlement_running": self.signal_recorder.get_stats().get("running", False),
-            "streams_ok": True,
+            "settlement_running": bool(
+                settle_stats.get("running")
+                or recorder_stats.get("running", False)
+            ),
+            "pending_settlements": settle_stats.get("pending_settlements", 0),
+            "streams_ok": streams_ok,
             "completed_trades": len(settled),
             "wins": wins,
+            "losses": losses,
+            "open_trades": open_count + open_paper,
             "win_rate": win_rate,
             "total_pnl": total_pnl,
             "drawdown_pct": risk.get("balance", {}).get("drawdown_pct", 0.0),
@@ -1335,6 +1565,15 @@ class IntegratedBTCStrategy(Strategy):
     def _finish_decision_cycle(self, is_simulation: bool, outcome: str) -> None:
         """Record outcome and close the grouped decision-cycle log block."""
         self._set_cycle_outcome(outcome)
+        self._record_last_decision(outcome=outcome)
+        # Mirror skips / blocks into the TUI feed (orders emit their own events).
+        upper = outcome.upper()
+        if upper.startswith("SKIP") or upper.startswith("BLOCKED"):
+            self._gate_reason = outcome
+            tui_event("SKIP", outcome[:72], slug="S4")
+        elif "TRADE OPENED" in upper or "ORDER SUBMITTED" in upper:
+            self._gate_reason = ""
+            self._last_tui_gate_key = ""
         self._end_decision_cycle(is_simulation)
 
     def _publish_order_metrics(
@@ -1638,6 +1877,7 @@ class IntegratedBTCStrategy(Strategy):
                 self.price_history.pop(0)
 
             self._last_bid_ask = (bid_decimal, ask_decimal)
+            self._last_quote_ts = now.timestamp()
             self._tick_buffer.append({"ts": now, "price": mid_price})
             self._tick_count_since_last_heartbeat += 1
 
@@ -1648,13 +1888,20 @@ class IntegratedBTCStrategy(Strategy):
                     logger.info(
                         f"Market STABLE after {self._stable_tick_count} tick(s)"
                     )
+                    tui_event("MARKET", "Quotes stable — ready", slug="S0")
                 else:
+                    self._set_gate_reason(
+                        f"stabilizing quotes "
+                        f"({self._stable_tick_count}/{QUOTE_STABILITY_REQUIRED})"
+                    )
                     return
 
             if self._waiting_for_market_open:
+                self._set_gate_reason("waiting for market open")
                 return
 
             if not (0 <= self.current_instrument_index < len(self.all_btc_instruments)):
+                self._set_gate_reason("no active market bound")
                 return
 
             current_market = self.all_btc_instruments[self.current_instrument_index]
@@ -1662,6 +1909,9 @@ class IntegratedBTCStrategy(Strategy):
 
             elapsed_secs = now.timestamp() - market_start_ts
             if elapsed_secs < 0:
+                self._set_gate_reason(
+                    f"market opens in {self._fmt_mmss(abs(elapsed_secs))}"
+                )
                 return
 
             sub_interval = int(elapsed_secs // MARKET_INTERVAL_SECONDS)
@@ -1678,6 +1928,13 @@ class IntegratedBTCStrategy(Strategy):
                 window_end = self._trade_window_end
 
             if not (window_start <= seconds_into_sub < window_end):
+                if seconds_into_sub < window_start:
+                    self._set_gate_reason(
+                        f"pre-window — opens in "
+                        f"{self._fmt_mmss(window_start - seconds_into_sub)}"
+                    )
+                else:
+                    self._set_gate_reason("post-window — waiting for settlement")
                 return
 
             # Late-entry cutoff — don't open new positions in the last
@@ -1687,6 +1944,11 @@ class IntegratedBTCStrategy(Strategy):
             now_ts = now.timestamp()
             market_end_ts = int(current_market.get("end_timestamp", 0) or 0)
             if market_end_ts and (market_end_ts - now_ts) < self._late_entry_cutoff_sec:
+                self._set_gate_reason(
+                    f"late-entry cutoff "
+                    f"({self._late_entry_cutoff_sec}s before settle)",
+                    emit=True,
+                )
                 return
 
             # MAX_TRADES_PER_MARKET — hard cap (safety net on top of
@@ -1695,6 +1957,11 @@ class IntegratedBTCStrategy(Strategy):
                 self._market_trade_count.get(current_slug, 0)
                 >= self._max_trades_per_market
             ):
+                self._set_gate_reason(
+                    f"max trades/market reached "
+                    f"({self._max_trades_per_market})",
+                    emit=True,
+                )
                 return
 
             # Re-entry gating: instead of "one trade per market", allow
@@ -1712,11 +1979,20 @@ class IntegratedBTCStrategy(Strategy):
             )
 
             if not cooldown_ok or has_open_on_market or has_pending_on_market:
+                if has_open_on_market:
+                    self._set_gate_reason("open position on this market")
+                elif has_pending_on_market:
+                    self._set_gate_reason("pending order on this market")
+                else:
+                    left = max(0.0, self._entry_cooldown_sec - (now_ts - self._last_entry_ts))
+                    self._set_gate_reason(f"entry cooldown ({left:.0f}s left)")
                 return
 
             # Reserve the cooldown slot *now* so concurrent ticks during
             # the async decision call don't double-fire.
             self._last_entry_ts = now_ts
+            self._gate_reason = "decision cycle running"
+            self._last_tui_gate_key = ""
 
             logger.info("=" * 80)
             logger.info(f"TRADE WINDOW: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
@@ -1734,6 +2010,11 @@ class IntegratedBTCStrategy(Strategy):
                 f"  Trend: {'STRONG' if float(mid_price) > 0.60 or float(mid_price) < 0.40 else 'WEAK'}"
             )
             logger.info("=" * 80)
+            tui_event(
+                "WINDOW",
+                f"Trade window — deciding @ {float(mid_price):.3f}",
+                slug="S0",
+            )
 
             self.run_in_executor(lambda: self._make_trading_decision_sync(float(mid_price)))
 
@@ -1794,7 +2075,16 @@ class IntegratedBTCStrategy(Strategy):
         except Exception as e:
             logger.debug(f"Could not fetch Fear & Greed: {e}")
 
-        # Coinbase spot price
+        # Settlement oracle first: Chainlink TWAP 30s (same feed Polymarket
+        # uses for 5m UP/DOWN). Divergence / ML features must track this,
+        # not a mismatched Coinbase print, or fusion fights settlement.
+        twap_px = self.settlement_tracker.get_current_btc_price()
+        if twap_px is not None:
+            metadata["spot_price"] = float(twap_px)
+            metadata["btc_twap"] = float(twap_px)
+            metadata["spot_source"] = "chainlink_twap_30s"
+
+        # Coinbase as secondary reference only.
         try:
             from data_sources.coinbase import CoinbaseDataSource
             coinbase = CoinbaseDataSource()
@@ -1802,18 +2092,39 @@ class IntegratedBTCStrategy(Strategy):
             spot = await coinbase.get_current_price()
             await coinbase.disconnect()
             if spot:
-                metadata["spot_price"] = float(spot)
+                metadata["coinbase_spot"] = float(spot)
+                if "spot_price" not in metadata:
+                    metadata["spot_price"] = float(spot)
+                    metadata["spot_source"] = "coinbase"
                 logger.debug(f"Coinbase spot: ${float(spot):,.2f}")
             else:
                 logger.debug("Coinbase price fetch returned None")
         except Exception as e:
             logger.debug(f"Could not fetch Coinbase spot price: {e}")
 
+        # TWAP vs Price-to-Beat lead (settlement direction hint).
+        if (
+            0 <= self.current_instrument_index < len(self.all_btc_instruments)
+            and metadata.get("btc_twap") is not None
+        ):
+            mkt = self.all_btc_instruments[self.current_instrument_index]
+            slug = mkt.get("slug", "")
+            start_ts = mkt.get("market_timestamp")
+            if slug and start_ts:
+                lead = self._twap_settlement_lead(slug, float(start_ts))
+                if lead is not None:
+                    metadata["twap_ptb_lead"] = lead
+                    ptb = self.settlement_tracker.get_price_to_beat(slug)
+                    if ptb is not None:
+                        metadata["price_to_beat"] = float(ptb)
+
         logger.debug(
             f"Market context — deviation={deviation:.2%}, "
             f"momentum={momentum:.2%}, volatility={volatility:.4f}, "
             f"sentiment={'%.0f' % metadata['sentiment_score'] if 'sentiment_score' in metadata else 'N/A'}, "
-            f"spot=${'%.2f' % metadata['spot_price'] if 'spot_price' in metadata else 'N/A'}"
+            f"spot=${'%.2f' % metadata['spot_price'] if 'spot_price' in metadata else 'N/A'} "
+            f"({metadata.get('spot_source', '?')}), "
+            f"twap_lead={metadata.get('twap_ptb_lead')}"
         )
 
         # Liquidation snapshot
@@ -1887,6 +2198,10 @@ class IntegratedBTCStrategy(Strategy):
 
         if len(self.price_history) < 20:
             logger.warning(f"Not enough price history ({len(self.price_history)}/20)")
+            self._set_gate_reason(
+                f"warming price history ({len(self.price_history)}/20)",
+                emit=True,
+            )
             return
 
         poly_price = float(current_price)
@@ -1931,6 +2246,11 @@ class IntegratedBTCStrategy(Strategy):
                 is_simulation=is_simulation,
             )
             _backoff_after_filter_reject()
+            self._record_last_decision(
+                outcome="SKIP — price outside bet band",
+                mode="filter",
+                signal="—",
+            )
             self._finish_decision_cycle(is_simulation, "SKIP — price outside bet band")
             return
 
@@ -1954,6 +2274,11 @@ class IntegratedBTCStrategy(Strategy):
                         is_simulation=is_simulation,
                     )
                     _backoff_after_filter_reject()
+                    self._record_last_decision(
+                        outcome="SKIP — spread too wide",
+                        mode="filter",
+                        signal="—",
+                    )
                     self._finish_decision_cycle(is_simulation, "SKIP — spread too wide")
                     return
 
@@ -2181,6 +2506,13 @@ class IntegratedBTCStrategy(Strategy):
                     ],
                     is_simulation=is_simulation,
                 )
+                self._record_last_decision(
+                    outcome="SKIP — insufficient ML edge",
+                    mode="ml",
+                    ml_p_up=ml_p_up,
+                    ml_edge=abs(ml_p_up - poly_price),
+                    signal="—",
+                )
                 if feature_vector is not None:
                     slug = (
                         self.all_btc_instruments[self.current_instrument_index]["slug"]
@@ -2196,6 +2528,13 @@ class IntegratedBTCStrategy(Strategy):
                 return
             direction = ml_direction
             bet_edge = _edge
+            self._record_last_decision(
+                outcome="EDGE BET",
+                mode="ml",
+                signal="LONG" if direction == "long" else "SHORT",
+                ml_p_up=ml_p_up,
+                ml_edge=bet_edge,
+            )
             self._log_step(
                 "STEP 4", "EDGE CHECK — BET",
                 [
@@ -2222,10 +2561,10 @@ class IntegratedBTCStrategy(Strategy):
             # the market and against a bullish consensus near the bottom —
             # i.e. it was systematically buying tops and selling bottoms.
             #
-            # Require ≥2 signals agreeing (min_signals=2) with consensus
-            # score ≥55 to filter out weak/noisy fallback trades.
+            # Active processors: OrderBook + Spike only. One strong voter is
+            # enough; when both fire, score reflects agreement.
             fallback_fused = self.fusion_engine.fuse_signals(
-                signals, min_signals=2, min_score=55.0
+                signals, min_signals=1, min_score=55.0
             ) if signals else None
 
             if fallback_fused is None:
@@ -2237,6 +2576,11 @@ class IntegratedBTCStrategy(Strategy):
                         ("Decision","SKIP"),
                     ],
                     is_simulation=is_simulation,
+                )
+                self._record_last_decision(
+                    outcome="SKIP — no fusion consensus",
+                    mode="fusion",
+                    signal="—",
                 )
                 if feature_vector is not None:
                     slug = (
@@ -2255,6 +2599,12 @@ class IntegratedBTCStrategy(Strategy):
             fused_dir = str(fallback_fused.direction).upper()
             if "BULLISH" in fused_dir:
                 direction = "long"
+                self._record_last_decision(
+                    outcome="FUSION BET",
+                    mode="fusion",
+                    signal="LONG",
+                    confidence=float(fallback_fused.confidence),
+                )
                 self._log_step(
                     "STEP 4", "FALLBACK — FUSION BET",
                     [
@@ -2272,6 +2622,12 @@ class IntegratedBTCStrategy(Strategy):
                 )
             elif "BEARISH" in fused_dir:
                 direction = "short"
+                self._record_last_decision(
+                    outcome="FUSION BET",
+                    mode="fusion",
+                    signal="SHORT",
+                    confidence=float(fallback_fused.confidence),
+                )
                 self._log_step(
                     "STEP 4", "FALLBACK — FUSION BET",
                     [
@@ -2295,6 +2651,11 @@ class IntegratedBTCStrategy(Strategy):
                         ("Decision",  "SKIP — neutral/unknown direction"),
                     ],
                     is_simulation=is_simulation,
+                )
+                self._record_last_decision(
+                    outcome="SKIP — neutral fusion direction",
+                    mode="fusion",
+                    signal="—",
                 )
                 if feature_vector is not None:
                     slug = (
@@ -2375,6 +2736,51 @@ class IntegratedBTCStrategy(Strategy):
                             feature_vector=feature_vector,
                         )
                     self._finish_decision_cycle(is_simulation, "SKIP — anti-chase")
+                    return
+
+        # TWAP settlement gate — don't bet against a clear Chainlink lead.
+        # UP wins iff end TWAP > open PTB; fighting that late is usually -EV.
+        if (
+            active_slug
+            and self._twap_lead_gate > 0
+            and 0 <= self.current_instrument_index < len(self.all_btc_instruments)
+        ):
+            mkt_info = self.all_btc_instruments[self.current_instrument_index]
+            lead = self._twap_settlement_lead(
+                active_slug, float(mkt_info.get("market_timestamp") or 0)
+            )
+            if lead is not None:
+                fights_up = direction == "short" and lead >= self._twap_lead_gate
+                fights_down = direction == "long" and lead <= -self._twap_lead_gate
+                if fights_up or fights_down:
+                    self._log_step(
+                        "STEP 5", "EXECUTION GATE — TWAP LEAD",
+                        [
+                            ("Direction", direction.upper()),
+                            ("TWAP−PTB", f"{lead:+.5%}"),
+                            ("Gate", f"±{self._twap_lead_gate:.5%}"),
+                            ("Decision", "SKIP — fighting settlement oracle"),
+                        ],
+                        is_simulation=is_simulation,
+                    )
+                    self._record_last_decision(
+                        outcome="SKIP — fighting TWAP vs PTB",
+                        mode="filter",
+                        signal=direction.upper(),
+                    )
+                    self._set_gate_reason(
+                        f"TWAP lead {lead:+.3%} fights {direction.upper()}",
+                        emit=True,
+                    )
+                    if feature_vector is not None:
+                        self.ml_engine.record_trade(
+                            market_slug=active_slug,
+                            poly_price=poly_price,
+                            feature_vector=feature_vector,
+                        )
+                    self._finish_decision_cycle(
+                        is_simulation, "SKIP — fighting TWAP vs PTB"
+                    )
                     return
 
         # Risk engine
@@ -2539,7 +2945,7 @@ class IntegratedBTCStrategy(Strategy):
         """Open a simulated position using the same economics as live trading.
 
         Entry fills at the ask (LONG → YES ask, SHORT → NO ask ≈ 1 − YES bid).
-        Exits are managed by ``_check_position_exits`` (TP / SL / TIME-EXIT)
+        Exits are managed by ``_check_position_exits`` (TP / TIME-EXIT)
         with simulated market sells at the bid. Positions still open at market
         end settle through ``_settle_open_positions`` — same path as live.
         """
@@ -2833,6 +3239,15 @@ class IntegratedBTCStrategy(Strategy):
             is_simulation=True,
             level=outcome_level,
         )
+        tag = "EXIT" if close_reason in ("EXIT_TP", "EXIT_STOP", "TIME-EXIT") else "SETTLE"
+        tui_event(
+            tag,
+            f"{outcome} {reason_label} ${realized:+.3f}",
+            slug="S6",
+            level="SUCCESS" if outcome == "WIN" else ("ERROR" if outcome == "LOSS" else "INFO"),
+            activity=True,
+        )
+        self._record_last_decision(outcome=f"{outcome} via {reason_label}")
 
         self._save_paper_trades()
 
@@ -3080,6 +3495,7 @@ class IntegratedBTCStrategy(Strategy):
     # ── Signal processing ─────────────────────────────────────────────────────
 
     def _process_signals(self, current_price: Decimal, metadata: dict = None) -> list:
+        """Run only OrderBookImbalance + SpikeDetection for fusion/trading."""
         signals = []
         if metadata is None:
             metadata = {}
@@ -3089,49 +3505,18 @@ class IntegratedBTCStrategy(Strategy):
             for k, v in metadata.items()
         }
 
-        spike_signal = self.spike_detector.process(current_price, self.price_history, proc_meta)
+        spike_signal = self.spike_detector.process(
+            current_price, self.price_history, proc_meta
+        )
         if spike_signal:
             signals.append(spike_signal)
 
-        if "sentiment_score" in proc_meta:
-            s = self.sentiment_processor.process(current_price, self.price_history, proc_meta)
-            if s:
-                signals.append(s)
-
-        if "spot_price" in proc_meta:
-            s = self.divergence_processor.process(current_price, self.price_history, proc_meta)
-            if s:
-                signals.append(s)
-
         if proc_meta.get("yes_token_id"):
-            s = self.orderbook_processor.process(current_price, self.price_history, proc_meta)
+            s = self.orderbook_processor.process(
+                current_price, self.price_history, proc_meta
+            )
             if s:
                 signals.append(s)
-
-        if proc_meta.get("tick_buffer"):
-            s = self.tick_velocity_processor.process(current_price, self.price_history, proc_meta)
-            if s:
-                signals.append(s)
-
-        pcr_signal = self.deribit_pcr_processor.process(current_price, self.price_history, proc_meta)
-        if pcr_signal:
-            signals.append(pcr_signal)
-
-        liq_signal = self.liquidation_processor.process(current_price, self.price_history, proc_meta)
-        if liq_signal:
-            signals.append(liq_signal)
-
-        fi_signal = self.funding_oi_processor.process(current_price, self.price_history, proc_meta)
-        if fi_signal:
-            signals.append(fi_signal)
-
-        cvd_signal = self.cvd_ob_processor.process(current_price, self.price_history, proc_meta)
-        if cvd_signal:
-            signals.append(cvd_signal)
-
-        ohlcv_signal = self.ohlcv_momentum_processor.process(current_price, self.price_history, proc_meta)
-        if ohlcv_signal:
-            signals.append(ohlcv_signal)
 
         return signals
 
@@ -3337,16 +3722,11 @@ class IntegratedBTCStrategy(Strategy):
             logger.warning(f"Exit fill {exit_id} had no matching open position {entry_id}")
             return
 
-        # Decide whether this exit was driven by stop-loss, take-profit, or a
-        # generic mid-market sell. ``fill_price`` may differ slightly from the
-        # trigger threshold (slippage), so use small tolerances.
+        # Classify exit: take-profit vs other (stop-loss removed).
         try:
-            sl = position["stop_loss"]
             tp = position["take_profit"]
             if fill_price >= tp:
                 close_reason = "EXIT_TP"
-            elif fill_price <= sl:
-                close_reason = "EXIT_STOP"
             else:
                 close_reason = "EXIT_MANUAL"
         except Exception:
@@ -3523,6 +3903,15 @@ class IntegratedBTCStrategy(Strategy):
                 ),
             ],
         )
+        tag = "EXIT" if close_reason in ("EXIT_TP", "EXIT_STOP", "TIME-EXIT", "EXIT_MANUAL") else "SETTLE"
+        tui_event(
+            tag,
+            f"{outcome} {marker} ${realized:+.3f}",
+            slug="S6",
+            level="SUCCESS" if outcome == "WIN" else ("ERROR" if outcome == "LOSS" else "INFO"),
+            activity=True,
+        )
+        self._record_last_decision(outcome=f"{outcome} via {marker}")
 
         self._save_live_trades()
 
@@ -3749,17 +4138,10 @@ class IntegratedBTCStrategy(Strategy):
                         self._submit_exit_order(entry_id, position, "TIME-EXIT")
                 continue
 
-            stop_loss = position["stop_loss"]
             take_profit = position["take_profit"]
-            sl_enabled = bool(position.get("stop_loss_enabled", True))
 
             trigger: Optional[str] = None
-            # Only consider stop-loss when it's enabled AND the SL price is
-            # strictly positive (disabled positions store stop_loss=0 which
-            # would otherwise match any bid <= 0 case).
-            if sl_enabled and stop_loss > 0 and bid <= stop_loss:
-                trigger = "STOP-LOSS"
-            elif bid >= take_profit:
+            if bid >= take_profit:
                 trigger = "TAKE-PROFIT"
 
             if trigger is None:
@@ -3768,8 +4150,7 @@ class IntegratedBTCStrategy(Strategy):
             logger.warning(
                 f"{trigger} TRIGGERED for {position.get('label', '')} "
                 f"(entry=${float(position['entry_price']):.4f} "
-                f"bid=${float(bid):.4f} stop=${float(stop_loss):.4f} "
-                f"tp=${float(take_profit):.4f})"
+                f"bid=${float(bid):.4f} tp=${float(take_profit):.4f})"
             )
 
             self._simulate_paper_exit(entry_id, position, bid, trigger) \

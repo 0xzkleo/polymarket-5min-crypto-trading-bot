@@ -142,8 +142,13 @@ class RiskEngine:
     def _build_limits_from_env(balance: Decimal) -> RiskLimits:
         """Build risk limits from env, scaling money limits to the balance."""
         # Per-trade cap defaults to the configured market order size.
+        # MAX_POSITION_SIZE is accepted as an alias (used in some .env files).
         max_position = _env_decimal(
-            "MAX_POSITION_USD", _env_decimal("MARKET_BUY_USD", Decimal("1.0"))
+            "MAX_POSITION_USD",
+            _env_decimal(
+                "MAX_POSITION_SIZE",
+                _env_decimal("MARKET_BUY_USD", Decimal("1.0")),
+            ),
         )
         max_exposure = _env_decimal("MAX_TOTAL_EXPOSURE_USD", max_position * Decimal("10"))
         # Daily loss defaults to 25% of capital (configurable) so it scales

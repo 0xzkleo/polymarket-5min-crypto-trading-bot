@@ -62,15 +62,24 @@ _NOISE_RE = re.compile(
 
 _TAG_STYLE: Dict[str, Tuple[str, str]] = {
     "MARKET": ("✓", "cyan"),
+    "WINDOW": ("⏱", "cyan"),
+    "GATE": ("·", "yellow"),
     "FUSION": ("·", "white"),
     "ML": ("·", "magenta"),
     "DECISION": ("✓", "green"),
+    "SKIP": ("·", "yellow"),
     "ORDER": ("✓", "cyan"),
+    "EXIT": ("↓", "magenta"),
+    "SETTLE": ("◆", "green"),
     "REJECT": ("⚠", "yellow"),
     "WARN": ("⚠", "yellow"),
     "ERROR": ("⚠", "red"),
     "SYSTEM": ("✓", "green"),
 }
+
+_ACTIVITY_TAGS = frozenset({
+    "ORDER", "EXIT", "SETTLE", "REJECT", "ERROR", "DECISION",
+})
 
 _STEP_SLUG = {
     1: "S1",
@@ -78,7 +87,7 @@ _STEP_SLUG = {
     3: "S2",
     4: "S4",
     5: "S5",
-    6: "S5",
+    6: "S6",
 }
 
 
@@ -132,7 +141,7 @@ class TerminalUIHub:
 
         with self._lock:
             self.events.append(parsed)
-            if parsed.tag in ("REJECT", "ORDER") or parsed.level in ("ERROR",):
+            if parsed.tag in _ACTIVITY_TAGS or parsed.level in ("ERROR",):
                 self._add_activity(parsed)
 
     def add_tui_event(
@@ -147,15 +156,23 @@ class TerminalUIHub:
         ev = _make_event(tag, body, slug=slug, level=level)
         with self._lock:
             self.events.append(ev)
-            if activity or tag in ("REJECT", "ORDER"):
+            if activity or tag.upper() in _ACTIVITY_TAGS:
                 self._add_activity(ev)
 
     def _add_activity(self, ev: FeedEvent) -> None:
         icon = "✗" if ev.tag == "REJECT" or ev.level == "ERROR" else "✓"
         style = "red" if ev.tag == "REJECT" or ev.level == "ERROR" else "green"
         if ev.tag == "ORDER":
-            icon = "▲"
-            style = "cyan"
+            icon, style = "▲", "cyan"
+        elif ev.tag == "EXIT":
+            icon, style = "↓", "magenta"
+        elif ev.tag == "SETTLE":
+            icon = "◆"
+            style = "green" if ev.level == "SUCCESS" else "yellow"
+        elif ev.tag == "DECISION":
+            icon, style = "→", "green"
+        elif ev.tag == "SKIP":
+            icon, style = "·", "yellow"
         self.activities.append(ActivityEvent(ev.time, icon, ev.body, style))
 
     def set_status(self, text: str) -> None:
@@ -237,12 +254,14 @@ def _parse_log_event(level: str, message: str, current_step: int) -> Optional[Fe
         tag = tag_raw.strip().upper()
         if "REJECT" in tag or "DENIED" in tag:
             return _make_event("REJECT", title.strip()[:80], slug="S5", level="ERROR")
+        if "CLOSED" in tag or "TRADE CLOSED" in tag:
+            return _make_event("SETTLE", title.strip()[:80], slug="S6", level=level)
         if "ORDER" in tag:
             return _make_event("ORDER", title.strip()[:80], slug="S5", level=level)
 
-    box = _BOX_LINE_RE.match(msg)
-    if box:
-        inner = box.group(1).strip()
+    box_m = _BOX_LINE_RE.match(msg)
+    if box_m:
+        inner = box_m.group(1).strip()
         fused = _FUSED_LINE_RE.search(inner)
         if fused:
             _arrow, direction, score, conf = fused.groups()
@@ -387,7 +406,20 @@ def _bot_status_panel(snapshot: Dict[str, Any], status_line: str) -> Panel:
         ("Status", Text(status_line, style="bold cyan")),
         ("Market ID", snapshot.get("market_slug", "—")),
         ("BTC Price", Text(_fmt_money(snapshot.get("btc_price")), style="bold yellow")),
-        ("Price To Beat", _fmt_money(snapshot.get("price_to_beat"))),
+        (
+            "Price To Beat",
+            Text(
+                _fmt_money(snapshot.get("price_to_beat"))
+                if snapshot.get("price_to_beat") is not None
+                else (
+                    "pending…"
+                    if snapshot.get("instruments_loaded")
+                    and not snapshot.get("waiting_for_market")
+                    else "—"
+                ),
+                style="cyan" if snapshot.get("price_to_beat") is not None else "yellow",
+            ),
+        ),
     ]
 
     up = snapshot.get("up_price")
@@ -399,12 +431,34 @@ def _bot_status_panel(snapshot: Dict[str, Any], status_line: str) -> Panel:
     rows.append(("Position", pos))
     rows.append(("Signal", snapshot.get("signal", "—")))
     rows.append(("Confidence", snapshot.get("confidence", "—")))
+
+    mode = str(snapshot.get("decision_mode") or "").lower()
+    ml_p = snapshot.get("ml_p_up")
+    if mode == "ml" and ml_p is not None:
+        edge = snapshot.get("ml_edge")
+        edge_s = f" edge={float(edge):.2f}" if edge is not None else ""
+        rows.append(("Decision", Text(f"ML p(UP)={float(ml_p):.2f}{edge_s}", style="magenta")))
+    elif mode == "fusion":
+        rows.append(("Decision", Text("Fusion fallback (ML warming)", style="yellow")))
+    else:
+        last = snapshot.get("last_decision") or "—"
+        rows.append(("Decision", Text(str(last)[:42], style="dim")))
+
     rows.append(
         (
-            "Next Window",
+            "Market Ends",
             Text(snapshot.get("next_window", "—"), style="green"),
         )
     )
+    rows.append(
+        (
+            "Trade Window",
+            Text(snapshot.get("trade_window", "—"), style="cyan"),
+        )
+    )
+    gate = snapshot.get("gate_reason") or ""
+    if gate and not snapshot.get("open_positions"):
+        rows.append(("Blocked by", Text(str(gate)[:42], style="yellow")))
 
     return Panel(
         _kv_table(rows),
@@ -421,20 +475,28 @@ def _system_health_panel(snapshot: Dict[str, Any]) -> Panel:
             return Text(f"● {ok_text}", style="green")
         return Text(f"● {fail_text}", style="red")
 
-    rpc_label = snapshot.get("rpc_label", "Chainlink RTDS")
+    rpc_label = snapshot.get("rpc_label", "Chainlink TWAP 30s")
     rpc = status_line(snapshot.get("rpc_ok", False), "Connected")
     rpc.append(f"  {rpc_label}", style="dim")
 
+    quote_age = snapshot.get("quote_age_sec")
+    ws = status_line(snapshot.get("websocket_ok", False), "Connected")
+    if quote_age is not None:
+        ws.append(f"  {quote_age:.0f}s ago", style="dim")
+
+    ml_active = bool(snapshot.get("ml_active"))
+    ml_samples = snapshot.get("ml_samples", 0)
+    ml_min = snapshot.get("ml_min_samples", 0)
     rows = [
         ("RPC", rpc),
-        ("WebSocket", status_line(snapshot.get("websocket_ok", False), "Connected")),
+        ("WebSocket", ws),
         (
             "ML Engine",
             Text(
-                f"● Active ({snapshot.get('ml_samples', 0)} samples)"
-                if snapshot.get("ml_active")
-                else f"● Warming ({snapshot.get('ml_samples', 0)}/{snapshot.get('ml_min_samples', 0)})",
-                style="green" if snapshot.get("ml_active") else "yellow",
+                f"● Active ({ml_samples} samples)"
+                if ml_active
+                else f"● Warming ({ml_samples}/{ml_min})",
+                style="green" if ml_active else "yellow",
             ),
         ),
         (
@@ -442,6 +504,11 @@ def _system_health_panel(snapshot: Dict[str, Any]) -> Panel:
             status_line(snapshot.get("settlement_running", False), "Running", "Stopped"),
         ),
     ]
+    pending_settle = snapshot.get("pending_settlements", 0)
+    if pending_settle:
+        rows.append(
+            ("ML labels", Text(f"{pending_settle} awaiting settle", style="dim"))
+        )
     if _hub.redis_ok:
         rows.append(("Redis", Text("● Connected", style="green")))
 
@@ -455,17 +522,27 @@ def _system_health_panel(snapshot: Dict[str, Any]) -> Panel:
 
 
 def _performance_panel(snapshot: Dict[str, Any]) -> Panel:
-    pnl = snapshot.get("total_pnl", 0.0)
+    pnl = float(snapshot.get("total_pnl", 0.0) or 0.0)
     pnl_style = "bold green" if pnl >= 0 else "bold red"
-    wr = snapshot.get("win_rate", 0.0)
+    wr = float(snapshot.get("win_rate", 0.0) or 0.0)
     wr_style = "green" if wr >= 55 else ("yellow" if wr >= 45 else "red")
+    # Risk engine reports drawdown_pct already scaled to 0–100.
+    dd = float(snapshot.get("drawdown_pct", 0) or 0)
+    dd_style = "green" if dd < 5 else ("yellow" if dd < 15 else "red")
 
     rows = [
         ("Completed", str(snapshot.get("completed_trades", 0))),
-        ("Wins", Text(str(snapshot.get("wins", 0)), style="green")),
+        (
+            "W / L",
+            Text(
+                f"{snapshot.get('wins', 0)} / {snapshot.get('losses', 0)}",
+                style="white",
+            ),
+        ),
         ("Win Rate", Text(f"{wr:.1f}%", style=wr_style)),
         ("PnL", Text(f"${pnl:+.4f}", style=pnl_style)),
-        ("Drawdown", Text(f"{snapshot.get('drawdown_pct', 0):.2f}%", style="green")),
+        ("Open", str(snapshot.get("open_trades", snapshot.get("open_positions", 0)))),
+        ("Drawdown", Text(f"{dd:.2f}%", style=dd_style)),
         ("Wallet", _fmt_money(snapshot.get("wallet_balance"))),
         ("Bot Start", snapshot.get("bot_start", "—")),
     ]
@@ -480,23 +557,41 @@ def _performance_panel(snapshot: Dict[str, Any]) -> Panel:
 
 
 def _active_tasks_panel(snapshot: Dict[str, Any]) -> Panel:
+    ml_active = bool(snapshot.get("ml_active"))
     ml = snapshot.get("ml_samples", 0)
+    ml_min = snapshot.get("ml_min_samples", 0)
+    settle_n = snapshot.get("pending_settlements", 0)
+    market_ends = snapshot.get("next_window", "—")
+    trade_window = snapshot.get("trade_window", "—")
+    streams = "active" if snapshot.get("streams_ok") else "stale / starting…"
+    mode = str(snapshot.get("decision_mode") or ("ml" if ml_active else "fusion"))
+
+    if ml_active:
+        ml_line = f"   Active — {ml} labeled samples"
+        ml_style = "dim"
+    else:
+        ml_line = f"   Warming — {ml}/{ml_min} (using {mode})"
+        ml_style = "yellow"
+
+    settle_detail = (
+        f"   {settle_n} trade(s) awaiting labels"
+        if settle_n
+        else "   Monitoring open trades"
+    )
+
     lines = Group(
         Text("⏳ Settlement Tracker", style="cyan"),
-        Text("   Monitoring open trades", style="dim"),
+        Text(settle_detail, style="dim"),
         Text(""),
         Text("⏱  Market Timer", style="cyan"),
-        Text("   Watching 5-min boundaries", style="dim"),
+        Text(f"   Market: {market_ends}", style="dim"),
+        Text(f"   Trade:  {trade_window}", style="dim"),
         Text(""),
         Text("🧠 ML Engine", style="cyan"),
-        Text(f"   Model active — {ml} samples", style="dim"),
+        Text(ml_line, style=ml_style),
         Text(""),
         Text("📡 Data Streams", style="cyan"),
-        Text(
-            "   CVD + Liquidation feeds "
-            + ("active" if snapshot.get("streams_ok") else "starting…"),
-            style="dim",
-        ),
+        Text(f"   CVD + Liquidation feeds {streams}", style="dim"),
     )
     return Panel(
         lines,
@@ -532,10 +627,15 @@ def _activities_panel(activities: List[ActivityEvent]) -> Panel:
 def _tag_style(tag: str) -> str:
     return {
         "MARKET": "cyan",
+        "WINDOW": "cyan",
+        "GATE": "yellow",
         "FUSION": "orange1",
         "ML": "magenta",
         "DECISION": "green",
+        "SKIP": "yellow",
         "ORDER": "cyan",
+        "EXIT": "magenta",
+        "SETTLE": "green",
         "REJECT": "yellow",
         "WARN": "yellow",
         "ERROR": "red",
@@ -573,7 +673,10 @@ def _build_snapshot(strategy: Any) -> Dict[str, Any]:
     if strategy is None:
         return {}
     if hasattr(strategy, "get_dashboard_snapshot"):
-        return strategy.get_dashboard_snapshot()
+        try:
+            return strategy.get_dashboard_snapshot() or {}
+        except Exception:
+            return {}
     return {}
 
 
@@ -588,7 +691,7 @@ def build_layout(hub: TerminalUIHub) -> Layout:
     layout = Layout(name="root")
     layout.split_column(
         Layout(name="header", size=3),
-        Layout(name="top", size=12),
+        Layout(name="top", size=14),
         Layout(name="bottom"),
     )
     layout["top"].split_row(
@@ -615,18 +718,27 @@ def build_layout(hub: TerminalUIHub) -> Layout:
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 
+def _status_from_snapshot(snapshot: Dict[str, Any]) -> str:
+    """Build a concise status line from live strategy telemetry."""
+    if snapshot.get("open_positions"):
+        return "Monitoring positions"
+    detail = (snapshot.get("status_detail") or snapshot.get("gate_reason") or "").strip()
+    if snapshot.get("trade_window_open"):
+        if detail and not detail.lower().startswith("decision cycle"):
+            return f"Window open — {detail[:40]}"
+        return "Trade window open"
+    if snapshot.get("waiting_for_market"):
+        return "Waiting for market open"
+    if detail.startswith("pre-window") or "opens in" in detail:
+        return "Watching market"
+    if snapshot.get("instruments_loaded"):
+        return "Watching market"
+    return "Loading instruments…"
+
+
 def _refresh_status(hub: TerminalUIHub, strategy: Any) -> None:
     snapshot = _build_snapshot(strategy)
-    if snapshot.get("open_positions"):
-        hub.set_status("Monitoring positions")
-    elif snapshot.get("trade_window_open"):
-        hub.set_status("Trade window open")
-    elif snapshot.get("waiting_for_market"):
-        hub.set_status("Waiting for market open")
-    elif snapshot.get("instruments_loaded"):
-        hub.set_status("Watching market")
-    else:
-        hub.set_status("Loading instruments…")
+    hub.set_status(_status_from_snapshot(snapshot))
 
 
 def run_bot_session(
@@ -762,18 +874,7 @@ def run_node_with_dashboard(
             transient=False,
         ) as live:
             while thread.is_alive():
-                snapshot = _build_snapshot(strategy)
-                if snapshot.get("open_positions"):
-                    hub.set_status("Monitoring positions")
-                elif snapshot.get("trade_window_open"):
-                    hub.set_status("Trade window open")
-                elif snapshot.get("waiting_for_market"):
-                    hub.set_status("Waiting for market open")
-                elif snapshot.get("instruments_loaded"):
-                    hub.set_status("Watching market")
-                else:
-                    hub.set_status("Loading instruments…")
-
+                _refresh_status(hub, strategy)
                 live.update(build_layout(hub))
                 time.sleep(interval)
 
