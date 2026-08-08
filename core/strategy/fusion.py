@@ -37,14 +37,14 @@ class SignalFusionEngine:
     """Weighted voting across multiple signal processors."""
 
     def __init__(self):
+        # Active set: OrderBookImbalance + SpikeDetection only.
         self.weights: Dict[str, float] = {
-            "OrderBookImbalance": 0.30,
-            "TickVelocity":       0.25,
-            "PriceDivergence":    0.18,
-            "SpikeDetection":     0.12,
-            "DeribitPCR":         0.10,
-            "SentimentAnalysis":  0.05,
-            # Not in active fusion set — zero unless re-weighted
+            "OrderBookImbalance": 0.60,
+            "SpikeDetection":     0.40,
+            "TickVelocity":       0.0,
+            "PriceDivergence":    0.0,
+            "DeribitPCR":         0.0,
+            "SentimentAnalysis":  0.0,
             "OHLCVMomentum":      0.0,
             "CVDOrderBook":       0.0,
             "Liquidations":       0.0,
