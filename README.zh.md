@@ -1,10 +1,14 @@
-# Polymarket BTC 5 分钟交易机器人
+# Polymarket 5 分钟交易机器人
 
 [🇬🇧 English](README.md) · [🇷🇺 Русский](README.ru.md)
 
+## 概述
+
+这是一个针对 Polymarket Bitcoin Up or Down 5 分钟市场的自动交易机器人。基于 NautilusTrader 运行，融合多种市场微观结构信号，并通过 XGBoost 优势模型相对 Polymarket 价格进行入场过滤。
+
 ---
 
-<img width="1994" height="789" alt="cover" src="https://github.com/user-attachments/assets/561369a4-96b2-4e83-9685-fee84f2aff00" />
+https://github.com/user-attachments/assets/a7935c65-a3f0-485a-bce9-89180d6724f6
 
 <p align="center">
   由 <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a> 打造<br><br>
@@ -12,12 +16,6 @@
   <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
   <a href="https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154"><img alt="Medium" src="https://img.shields.io/badge/Medium-Guide-000000?logo=medium&logoColor=white"></a>
 </p>
-
----
-
-## 演示
-
-https://github.com/user-attachments/assets/0025e75b-3a94-487f-88c6-0774f4df568a
 
 ---
 
