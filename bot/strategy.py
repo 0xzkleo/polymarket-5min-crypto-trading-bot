@@ -1467,7 +1467,15 @@ class IntegratedBTCStrategy(Strategy):
             "win_rate": win_rate,
             "total_pnl": total_pnl,
             "drawdown_pct": risk.get("balance", {}).get("drawdown_pct", 0.0),
-            "wallet_balance": risk.get("balance", {}).get("current"),
+            # Prefer starting + settled trade PnL so SHORT losses cannot invert
+            # the displayed wallet (risk engine previously used futures-style
+            # short math on Polymarket NO tokens).
+            "wallet_balance": float(
+                risk.get("balance", {}).get("starting")
+                or risk.get("balance", {}).get("current")
+                or 100.0
+            )
+            + float(total_pnl),
             "bot_start": bot_start,
         }
 
@@ -2561,10 +2569,10 @@ class IntegratedBTCStrategy(Strategy):
             # the market and against a bullish consensus near the bottom —
             # i.e. it was systematically buying tops and selling bottoms.
             #
-            # Active processors: OrderBook + Spike only. One strong voter is
-            # enough; when both fire, score reflects agreement.
+            # Active processors: OrderBook + Spike only. Require BOTH to fire
+            # so a lone Spike mean-reversion fade cannot score 100 and bet.
             fallback_fused = self.fusion_engine.fuse_signals(
-                signals, min_signals=1, min_score=55.0
+                signals, min_signals=2, min_score=55.0
             ) if signals else None
 
             if fallback_fused is None:
@@ -2617,7 +2625,8 @@ class IntegratedBTCStrategy(Strategy):
                 )
                 tui_event(
                     "DECISION",
-                    f"Trend UP {poly_price * 100:.2f}% → LONG",
+                    f"BULLISH→LONG YES@{poly_price:.2f} "
+                    f"score={fallback_fused.score:.0f} conf={fallback_fused.confidence:.0%}",
                     slug="S4",
                 )
             elif "BEARISH" in fused_dir:
@@ -2640,7 +2649,9 @@ class IntegratedBTCStrategy(Strategy):
                 )
                 tui_event(
                     "DECISION",
-                    f"Trend DOWN {(1 - poly_price) * 100:.2f}% → SHORT",
+                    f"BEARISH→SHORT YES@{poly_price:.2f} "
+                    f"NO~{1.0 - poly_price:.2f} "
+                    f"score={fallback_fused.score:.0f} conf={fallback_fused.confidence:.0%}",
                     slug="S4",
                 )
             else:
@@ -3161,6 +3172,20 @@ class IntegratedBTCStrategy(Strategy):
         pt.pnl_pct = pnl_pct
         pt.outcome = outcome
         pt.close_reason = close_reason
+
+        # Keep risk-engine wallet aligned with paper trade PnL (held-token math).
+        try:
+            settled_pnl = sum(
+                float(t.pnl_usd)
+                for t in self.paper_trades
+                if t.outcome in ("WIN", "LOSS", "BREAKEVEN")
+            )
+            start = Decimal(str(self.risk_engine._starting_balance))
+            self.risk_engine.set_account_balance(
+                start + Decimal(str(settled_pnl)), reset_peak=False
+            )
+        except Exception as e:
+            logger.debug(f"Paper wallet sync skipped: {e}")
 
         try:
             self.performance_tracker.record_trade(
