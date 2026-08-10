@@ -8,7 +8,7 @@
 
 ---
 
-https://github.com/user-attachments/assets/a7935c65-a3f0-485a-bce9-89180d6724f6
+https://github.com/user-attachments/assets/77ec887f-8643-4b4d-b762-c2cb6013b96f
 
 <p align="center">
   由 <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a> 打造<br><br>
