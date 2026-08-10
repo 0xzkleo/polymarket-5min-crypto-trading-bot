@@ -8,7 +8,7 @@
 
 ---
 
-https://github.com/user-attachments/assets/e62be6ce-68c9-41b4-a35e-0500d590508b
+https://github.com/user-attachments/assets/2f93ba48-ceb7-418d-aee7-8ad3fa730c62
 
 <p align="center">
   Создан <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
