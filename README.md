@@ -2,6 +2,10 @@
 
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
+## Overview
+
+This is an automated trading bot for Polymarket Bitcoin Up or Down 5-minute markets. It runs on NautilusTrader, fuses multiple market microstructure signals, and gates entries with an XGBoost edge model vs Polymarket price.
+
 ---
 
 https://github.com/user-attachments/assets/061fd43b-39d4-4644-bf88-aab704a79522
