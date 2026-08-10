@@ -1,10 +1,10 @@
-# Polymarket BTC 5-Min Trading Bot
+# Polymarket 5-Min Trading Bot
 
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
 ---
 
-<img width="1994" height="789" alt="cover" src="https://github.com/user-attachments/assets/f5430eca-88b7-4037-a548-fcc70171159d" />
+https://github.com/user-attachments/assets/061fd43b-39d4-4644-bf88-aab704a79522
 
 <p align="center">
   Built by <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
@@ -12,12 +12,6 @@
   <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
   <a href="https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154"><img alt="Medium" src="https://img.shields.io/badge/Medium-Guide-000000?logo=medium&logoColor=white"></a>
 </p>
-
----
-
-## Demo
-
-https://github.com/user-attachments/assets/980526a1-68f6-4223-a2b3-bdec365d97bb
 
 ---
 
@@ -40,15 +34,6 @@ Premium is for traders who want production performance after validating the publ
 Polymarket account proof is shared only on a call — not posted publicly.
 
 → **Collaboration / proof:** [Telegram @RetroValix](https://t.me/RetroValix)
-
-> ### ⚠️ What I offer
->
-> **I don't sell a premium version.** I only offer collaboration model to run the bot together.
->
-> - Profits are paid passively based on the invested capital (15% of investment/week).
-> - Committed capital may be **withdrawn upon request** once you decide to exit the arrangement
->
-> → Reach out on [Telegram @RetroValix](https://t.me/RetroValix) to discuss.
 
 ---
 
