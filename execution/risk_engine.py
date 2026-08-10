@@ -333,15 +333,14 @@ class RiskEngine:
         
         position = self._positions[position_id]
         position.current_price = current_price
-        
-        # Calculate P&L
-        direction = position.metadata.get("direction", "long")
-        
-        if direction == "long":
+
+        # LONG = buy YES, SHORT = buy NO. Both are long the held token, so
+        # P&L rises when the held token price rises (not futures-style short).
+        if position.entry_price > 0:
             pnl_pct = (current_price - position.entry_price) / position.entry_price
-        else:  # short
-            pnl_pct = (position.entry_price - current_price) / position.entry_price
-        
+        else:
+            pnl_pct = Decimal("0")
+
         position.unrealized_pnl = position.current_size * pnl_pct
         
         # Update time held
@@ -387,33 +386,33 @@ class RiskEngine:
             return None
         
         position = self._positions[position_id]
-        
-        # Calculate final P&L
-        direction = position.metadata.get("direction", "long")
-        
-        if direction == "long":
+
+        # Same as update_position: SHORT is long NO, not inverted futures PnL.
+        if position.entry_price > 0:
             pnl_pct = (exit_price - position.entry_price) / position.entry_price
         else:
-            pnl_pct = (position.entry_price - exit_price) / position.entry_price
-        
+            pnl_pct = Decimal("0")
+
         realized_pnl = position.current_size * pnl_pct
-        
+
         # Update balance and daily P&L
         self._current_balance += realized_pnl
         self._daily_pnl += realized_pnl
-        
+
         # Update peak balance
         if self._current_balance > self._peak_balance:
             self._peak_balance = self._current_balance
-        
+
         # Remove position
         del self._positions[position_id]
-        
+
         logger.info(
             f"Closed position: {position_id} "
-            f"P&L: ${realized_pnl:+.2f} ({pnl_pct:+.2%})"
+            f"P&L: ${realized_pnl:+.2f} ({pnl_pct:+.2%}) "
+            f"dir={position.metadata.get('direction', '?')} "
+            f"balance=${self._current_balance:.2f}"
         )
-        
+
         return realized_pnl
     
     def _assess_risk_level(self, position: PositionRisk) -> RiskLevel:
@@ -430,28 +429,17 @@ class RiskEngine:
             return RiskLevel.LOW
     
     def _check_stop_loss(self, position: PositionRisk, current_price: Decimal) -> bool:
-        """Check if stop loss is hit."""
+        """Check if stop loss is hit on the held token price."""
         if not position.stop_loss:
             return False
-        
-        direction = position.metadata.get("direction", "long")
-        
-        if direction == "long":
-            return current_price <= position.stop_loss
-        else:  # short
-            return current_price >= position.stop_loss
-    
+        # Levels are always in held-token space (YES or NO).
+        return current_price <= position.stop_loss
+
     def _check_take_profit(self, position: PositionRisk, current_price: Decimal) -> bool:
-        """Check if take profit is hit."""
+        """Check if take profit is hit on the held token price."""
         if not position.take_profit:
             return False
-        
-        direction = position.metadata.get("direction", "long")
-        
-        if direction == "long":
-            return current_price >= position.take_profit
-        else:  # short
-            return current_price <= position.take_profit
+        return current_price >= position.take_profit
     
     def _create_alert(self, alert_type: str, message: str, risk_level: RiskLevel) -> None:
         """Create a risk alert."""
@@ -501,6 +489,7 @@ class RiskEngine:
                 "daily_limit": float(self.limits.max_loss_per_day),
             },
             "balance": {
+                "starting": float(self._starting_balance),
                 "current": float(self._current_balance),
                 "peak": float(self._peak_balance),
                 "drawdown_pct": self.get_current_drawdown() * 100,
