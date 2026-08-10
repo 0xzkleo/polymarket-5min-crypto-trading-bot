@@ -75,8 +75,8 @@ Polymarket **Bitcoin Up or Down** 5-minute markets:
 **Requires:** Python 3.14+ · Redis · Polymarket API keys (for live)
 
 ```bash
-git clone https://github.com/retrovaliks/polymarket-btc-5min-trading-bot.git
-cd polymarket-btc-5min-trading-bot
+git clone https://github.com/0xRetroVaIix/polymarket-5min-crypto-trading-bot.git
+cd polymarket-5min-crypto-trading-bot
 
 python -m venv venv
 # Windows: venv\Scripts\activate

@@ -84,8 +84,8 @@ Premium — для трейдеров, которым нужна production-пр
 **Требуется:** Python 3.14+ · Redis · API-ключи Polymarket (для live)
 
 ```bash
-git clone https://github.com/retrovaliks/polymarket-btc-5min-trading-bot.git
-cd polymarket-btc-5min-trading-bot
+git clone https://github.com/0xRetroVaIix/polymarket-5min-crypto-trading-bot.git
+cd polymarket-5min-crypto-trading-bot
 
 python -m venv venv
 # Windows: venv\Scripts\activate
