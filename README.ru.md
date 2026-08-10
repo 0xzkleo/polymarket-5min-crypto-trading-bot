@@ -1,10 +1,14 @@
-# Polymarket BTC 5-мин Торговый Бот
+# Polymarket 5-мин Торговый Бот
 
 [🇬🇧 English](README.md) · [🇨🇳 中文](README.zh.md)
 
+## Обзор
+
+Это автоматический торговый бот для 5-минутных рынков Polymarket Bitcoin Up or Down. Он работает на NautilusTrader, объединяет несколько сигналов рыночной микроструктуры и фильтрует входы с помощью XGBoost-модели edge относительно цены Polymarket.
+
 ---
 
-<img width="1994" height="789" alt="cover" src="https://github.com/user-attachments/assets/80635c7a-4d23-4660-b2b2-f4620b8fa82e" />
+https://github.com/user-attachments/assets/e62be6ce-68c9-41b4-a35e-0500d590508b
 
 <p align="center">
   Создан <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
@@ -12,12 +16,6 @@
   <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
   <a href="https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154"><img alt="Medium" src="https://img.shields.io/badge/Medium-Guide-000000?logo=medium&logoColor=white"></a>
 </p>
-
----
-
-## Демо
-
-https://github.com/user-attachments/assets/b69bc928-7153-470b-8afe-01c35c8a4be4
 
 ---
 
