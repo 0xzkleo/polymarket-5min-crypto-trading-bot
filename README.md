@@ -8,7 +8,7 @@ This is an automated trading bot for Polymarket Bitcoin Up or Down 5-minute mark
 
 ---
 
-https://github.com/user-attachments/assets/061fd43b-39d4-4644-bf88-aab704a79522
+https://github.com/user-attachments/assets/797ddc35-c440-440b-ae63-4362b0e6c428
 
 <p align="center">
   Built by <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
