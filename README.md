@@ -1,4 +1,4 @@
-<img width="680" height="272" alt="HPiqjFvWcAAWuKw" src="https://github.com/user-attachments/assets/e57bd162-3280-46e2-8b2c-f032c5c8fd11" /># Polymarket 5-Min Trading Bot
+# Polymarket 5-Min Trading Bot
 
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
@@ -11,9 +11,9 @@ This is an automated trading bot for Polymarket Bitcoin Up or Down 5-minute mark
 <img width="1774" height="710" alt="HPiqjFvWcAAWuKw" src="https://github.com/user-attachments/assets/24b14299-f7fc-466b-b03a-5f6a1383e2cc" />
 
 <p align="center">
-  Built by <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
-  <a href="https://t.me/iamjustleo"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
-  <a href="https://x.com/0xzkleo"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
+  Built by <a href="https://x.com/RetroValix"><strong>Leo</strong></a><br><br>
+  <a href="https://t.me/iamjustleo"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@iamjustleo-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
+  <a href="https://x.com/0xzkleo"><img alt="X" src="https://img.shields.io/badge/X-@0xzkleo-000000?logo=x&logoColor=white"></a>&nbsp;
 </p>
 
 ---
