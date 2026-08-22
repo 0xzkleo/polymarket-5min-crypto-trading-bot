@@ -1,4 +1,4 @@
-# Polymarket 5-Min Trading Bot
+<img width="680" height="272" alt="HPiqjFvWcAAWuKw" src="https://github.com/user-attachments/assets/e57bd162-3280-46e2-8b2c-f032c5c8fd11" /># Polymarket 5-Min Trading Bot
 
 [🇨🇳 中文](README.zh.md) · [🇷🇺 Русский](README.ru.md)
 
@@ -8,13 +8,12 @@ This is an automated trading bot for Polymarket Bitcoin Up or Down 5-minute mark
 
 ---
 
-https://github.com/user-attachments/assets/797ddc35-c440-440b-ae63-4362b0e6c428
+<img width="1774" height="710" alt="HPiqjFvWcAAWuKw" src="https://github.com/user-attachments/assets/24b14299-f7fc-466b-b03a-5f6a1383e2cc" />
 
 <p align="center">
   Built by <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a><br><br>
-  <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
-  <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
-  <a href="https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154"><img alt="Medium" src="https://img.shields.io/badge/Medium-Guide-000000?logo=medium&logoColor=white"></a>
+  <a href="https://t.me/iamjustleo"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
+  <a href="https://x.com/0xzkleo"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
 </p>
 
 ---
@@ -33,11 +32,11 @@ Premium is for traders who want production performance after validating the publ
 | Proof | You run sim / live yourself | Shared in private meeting |
 | Access | Only BTC | BTC, ETH, SOL, DOGE, XRP, BNB |
 
-**Flow:** run public → validate results → [talk collaboration](https://t.me/RetroValix)
+**Flow:** run public → validate results → [talk collaboration](https://t.me/iamjustleo)
 
 Polymarket account proof is shared only on a call — not posted publicly.
 
-→ **Collaboration / proof:** [Telegram @RetroValix](https://t.me/RetroValix)
+→ **Collaboration / proof:** [Telegram @iamjustleo](https://t.me/iamjustleo)
 
 ---
 
@@ -48,16 +47,6 @@ Polymarket **Bitcoin Up or Down** 5-minute markets:
 - Slug pattern: `btc-updown-5m-{unix_start}`
 - Window length: **300 seconds** (UTC floor: `(ts // 300) * 300`)
 - Default entry window: seconds **180–270** of each market (late-window style)
-
----
-
-## References
-
-| Source | Link |
-|--------|------|
-| Medium — build guide | [Polymarket BTC AI Trading Bot with NautilusTrader](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
-| X (Twitter) | [@RetroValix](https://x.com/RetroValix) |
-| Telegram | [@RetroValix](https://t.me/RetroValix) |
 
 ---
 
@@ -75,7 +64,7 @@ Polymarket **Bitcoin Up or Down** 5-minute markets:
 **Requires:** Python 3.14+ · Redis · Polymarket API keys (for live)
 
 ```bash
-git clone https://github.com/0xRetroVaIix/polymarket-5min-crypto-trading-bot.git
+git clone https://github.com/0xzkleo/polymarket-5min-crypto-trading-bot.git
 cd polymarket-5min-crypto-trading-bot
 
 python -m venv venv
@@ -123,8 +112,8 @@ Full list: [`.env.example`](.env.example)
 |---|---|
 | Start here | [Quick Start](#quick-start) |
 | Public vs Premium | [Table](#public-vs-premium) |
-| Medium guide | [Article](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
-| Contact | [Telegram](https://t.me/RetroValix) · [X](https://x.com/RetroValix) |
+| Twitter | [Article](https://x.com/0xzkleo/status/2031880258425627103) |
+| Contact | [Telegram](https://t.me/iamjustleo) · [X](https://x.com/0xzkleo) |
 | Phase tests | `python scripts/test_data_sources.py test` → … → `test_execution.py` |
 
 ---
@@ -139,11 +128,3 @@ Trading involves **substantial risk of loss**. This software is for **education 
 
 MIT — see [`LICENSE`](LICENSE)
 
----
-
-<div align="center">
-  <a href="https://t.me/RetroValix">
-    <img width="85" height="85" alt="Retro Valix" src="https://github.com/user-attachments/assets/66c994bf-c618-40e7-a0f4-d295e09d1e91" /><br>
-    <span>Retro Valix</span>
-  </a>
-</div>
