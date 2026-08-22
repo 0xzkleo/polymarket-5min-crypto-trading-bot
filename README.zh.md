@@ -8,13 +8,12 @@
 
 ---
 
-https://github.com/user-attachments/assets/77ec887f-8643-4b4d-b762-c2cb6013b96f
+<img width="1774" height="710" alt="HPiqjFvWcAAWuKw" src="https://github.com/user-attachments/assets/b93e45dd-111f-496c-bbac-055dc4274fa8" />
 
 <p align="center">
-  由 <a href="https://x.com/RetroValix"><strong>Retro Valix</strong></a> 打造<br><br>
-  <a href="https://t.me/RetroValix"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@RetroValix-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
-  <a href="https://x.com/RetroValix"><img alt="X" src="https://img.shields.io/badge/X-@RetroValix-000000?logo=x&logoColor=white"></a>&nbsp;
-  <a href="https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154"><img alt="Medium" src="https://img.shields.io/badge/Medium-Guide-000000?logo=medium&logoColor=white"></a>
+  由 <a href="https://x.com/0xzkleo"><strong>Leo</strong></a> 打造<br><br>
+  <a href="https://t.me/iamjustleo"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@iamjustleo-26A5E4?logo=telegram&logoColor=white"></a>&nbsp;
+  <a href="https://x.com/0xzkleo"><img alt="X" src="https://img.shields.io/badge/X-@0xzkleo-000000?logo=x&logoColor=white"></a>&nbsp;
 </p>
 
 ---
@@ -33,11 +32,11 @@ https://github.com/user-attachments/assets/77ec887f-8643-4b4d-b762-c2cb6013b96f
 | 证明 | 自行运行模拟 / 实盘 | 私下会议分享 |
 | 标的范围 | 仅 BTC | BTC、ETH、SOL、DOGE、XRP、BNB |
 
-**流程：** 运行公开版 → 验证结果 → [洽谈协作](https://t.me/RetroValix)
+**流程：** 运行公开版 → 验证结果 → [洽谈协作](https://t.me/iamjustleo)
 
 Polymarket 账户证明仅在通话中分享 — 不公开张贴。
 
-→ **协作 / 证明：** [Telegram @RetroValix](https://t.me/RetroValix)
+→ **协作 / 证明：** [Telegram @RetroValix](https://t.me/iamjustleo)
 
 ---
 
@@ -56,8 +55,8 @@ Polymarket **Bitcoin Up or Down** 5 分钟市场：
 | 来源 | 链接 |
 |--------|------|
 | Medium — 构建指南 | [Polymarket BTC AI Trading Bot with NautilusTrader](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
-| X (Twitter) | [@RetroValix](https://x.com/RetroValix) |
-| Telegram | [@RetroValix](https://t.me/RetroValix) |
+| X (Twitter) | [@RetroValix](https://x.com/0xzkleo) |
+| Telegram | [@RetroValix](https://t.me/iamjustleo) |
 
 ---
 
@@ -75,7 +74,7 @@ Polymarket **Bitcoin Up or Down** 5 分钟市场：
 **要求：** Python 3.14+ · Redis · Polymarket API 密钥（实盘）
 
 ```bash
-git clone https://github.com/0xRetroVaIix/polymarket-5min-crypto-trading-bot.git
+git clone https://github.com/0xzkleo/polymarket-5min-crypto-trading-bot.git
 cd polymarket-5min-crypto-trading-bot
 
 python -m venv venv
@@ -123,8 +122,8 @@ python scripts/view_trades.py
 |---|---|
 | 从这里开始 | [快速开始](#快速开始) |
 | 公开版 vs 高级版 | [对照表](#公开版-vs-高级版) |
-| Medium 指南 | [文章](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
-| 联系 | [Telegram](https://t.me/RetroValix) · [X](https://x.com/RetroValix) |
+| Twitter 指南 | (https://x.com/0xzkleo/status/2031880258425627103) |
+| 联系 | [Telegram](https://t.me/iamjustleo) · [X](https://x.com/0xzkleo) |
 | 分阶段测试 | `python scripts/test_data_sources.py test` → … → `test_execution.py` |
 
 ---
@@ -138,12 +137,3 @@ python scripts/view_trades.py
 ## 许可证
 
 MIT — 见 [`LICENSE`](LICENSE)
-
----
-
-<div align="center">
-  <a href="https://t.me/RetroValix">
-    <img width="85" height="85" alt="Retro Valix" src="https://github.com/user-attachments/assets/66c994bf-c618-40e7-a0f4-d295e09d1e91" /><br>
-    <span>Retro Valix</span>
-  </a>
-</div>
