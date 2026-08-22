@@ -36,7 +36,7 @@
 
 Polymarket 账户证明仅在通话中分享 — 不公开张贴。
 
-→ **协作 / 证明：** [Telegram @RetroValix](https://t.me/iamjustleo)
+→ **协作 / 证明：** [Telegram @iamjustleo](https://t.me/iamjustleo)
 
 ---
 
@@ -47,16 +47,6 @@ Polymarket **Bitcoin Up or Down** 5 分钟市场：
 - Slug 格式：`btc-updown-5m-{unix_start}`
 - 窗口时长：**300 秒**（UTC 向下取整：`(ts // 300) * 300`）
 - 默认入场窗口：每个市场第 **180–270** 秒（偏后期入场）
-
----
-
-## 参考链接
-
-| 来源 | 链接 |
-|--------|------|
-| Medium — 构建指南 | [Polymarket BTC AI Trading Bot with NautilusTrader](https://medium.com/@RetroValix/polymarket-btc-15-minute-ai-trading-bot-with-nautilustrader-c897bf225154) |
-| X (Twitter) | [@RetroValix](https://x.com/0xzkleo) |
-| Telegram | [@RetroValix](https://t.me/iamjustleo) |
 
 ---
 
