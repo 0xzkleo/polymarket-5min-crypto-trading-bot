@@ -8,7 +8,7 @@ This is an automated trading bot for Polymarket Bitcoin Up or Down 5-minute mark
 
 ---
 
-<img width="1774" height="710" alt="HPiqjFvWcAAWuKw" src="https://github.com/user-attachments/assets/24b14299-f7fc-466b-b03a-5f6a1383e2cc" />
+https://github.com/user-attachments/assets/68592970-5c11-4ce1-bac9-9daa4543ba1f
 
 <p align="center">
   Built by <a href="https://x.com/0xzkleo"><strong>Leo</strong></a><br><br>
